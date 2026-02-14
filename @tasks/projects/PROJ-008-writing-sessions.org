@@ -51,7 +51,7 @@ Register all commands in the Tauri plugin/command handler.
 - [ ] =get_session_stats= handles empty sessions list without panic
 - [ ] All commands registered and callable from frontend via =invoke=
 
-*** ITEM Rust tests for session commands
+*** DONE Rust tests for session commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-086
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -205,7 +205,7 @@ Also add a "Start Sprint" button or menu item accessible from the toolbar or sta
 :REVIEW_BY: svelte-developer, testing-engineer
 :END:
 
-*** ITEM Calendar heatmap component
+*** DONE Calendar heatmap component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-090
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
