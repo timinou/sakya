@@ -1,0 +1,43 @@
+#+TITLE: Process Registry
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+Process documents capture cross-cutting methodology — how agents work, not who they are. Agent definitions live in [[file:../agents/index.org][agents/]]; process docs live here.
+
+Consult these before starting work that matches their trigger conditions.
+
+* Process Registry
+:PROPERTIES:
+:CUSTOM_ID: registry
+:END:
+
+| Process | File | Consult When |
+|---------+------+--------------|
+| Multi-File Changes | [[file:multi-file-changes.org][multi-file-changes.org]] | 3+ files, vendored code, cross-crate boundaries |
+
+* Adding New Process Docs
+:PROPERTIES:
+:CUSTOM_ID: adding-docs
+:END:
+
+Add a new process doc when:
+- A failure mode recurs across multiple initiatives
+- A successful approach deserves codification
+- Multiple agents need the same discipline
+
+After creating the file:
+1. Add entry to this index
+2. Link from relevant agent files if appropriate
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:../agents/index.org][Agent Registry]] - Who agents are
+- [[file:../reference.org][Reference Guide]] - Full system documentation

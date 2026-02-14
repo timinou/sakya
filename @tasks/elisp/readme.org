@@ -1,0 +1,775 @@
+#+TITLE: PRD Tasks Elisp Module
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* Crash Course
+:PROPERTIES:
+:CUSTOM_ID: crash-course
+:END:
+
+Get productive in 5 minutes.
+
+** Quick Setup (Doom Emacs)
+
+#+BEGIN_SRC elisp
+;; In config.el
+(load! "~/path/to/sakya/@tasks/elisp/prd-tasks")
+#+END_SRC
+
+** Essential Commands
+
+| What you want | Command | Output |
+|---------------|---------|--------|
+| Check if tasks are valid | =M-x prd-validate-all= | Buffer with errors/warnings |
+| See progress at a glance | =M-x prd-quick-status= | "45 tasks: 12 done, 3 in-progress..." |
+| Full dashboard | =M-x prd-dashboard= | Metrics, agents, blockers, velocity |
+| What's blocked? | =M-x prd-list-blocked= | List of stuck items |
+| Find broken links | =M-x prd-audit-links= | Broken link report |
+| Velocity report | =M-x prd-velocity-report= | Items/day over last 7 days |
+| Burndown report | =M-x prd-burndown= | Remaining effort + projections |
+
+** CLI for Scripts/Hooks
+
+#+BEGIN_SRC bash
+# Validate everything (returns JSON)
+emacsclient -e '(prd-validate-all-cli)'
+
+# Get dashboard metrics
+emacsclient -e '(prd-dashboard-cli)'
+
+# Quick one-liner status
+emacsclient -e '(prd-quick-status)'
+
+# Velocity report
+emacsclient -e '(prd-velocity-report 7)'
+#+END_SRC
+
+** The 3-Minute Workflow
+
+1. *Start work*: Find an ITEM, change status to DOING
+2. *Do the work*: Implement the task
+3. *Mark complete*: Change status to DONE (org adds CLOSED timestamp)
+4. *Check dashboard*: =M-x prd-quick-status= to see progress
+
+** Common Tasks
+
+*** "I need to find what to work on next"
+
+#+BEGIN_SRC elisp
+M-x prd-list-blocked  ; See what's stuck
+M-x prd-dashboard     ; See overall progress
+#+END_SRC
+
+Look for ITEM status tasks with no unmet dependencies.
+
+*** "I want to see how fast we're going"
+
+#+BEGIN_SRC elisp
+M-x prd-velocity-report  ; Items/day over last 7 days
+M-x prd-burndown         ; Remaining effort projection
+#+END_SRC
+
+*** "I finished a task that implements a component"
+
+The task should have =COMPONENT_REF= property. After marking DONE:
+
+#+BEGIN_SRC elisp
+M-x prd-sync-backlinks  ; Adds IMPLEMENTED_BY to the component doc
+#+END_SRC
+
+*** "Something seems wrong with the data"
+
+#+BEGIN_SRC elisp
+M-x prd-reload-all      ; Clear and rebuild all caches
+M-x prd-validate-all    ; Check for validation errors
+M-x prd-audit-links     ; Check for broken links
+#+END_SRC
+
+** Keybinding Cheat Sheet
+
+If you set up the recommended bindings:
+
+| Keys | Action |
+|------|--------|
+| =SPC p v= | Validate current file |
+| =SPC p V= | Validate all files |
+| =SPC p d= | Open dashboard |
+| =SPC p s= | Quick status |
+| =SPC p b= | List blocked tasks |
+| =SPC p l= | Sync backlinks |
+
+* Introduction
+:PROPERTIES:
+:CUSTOM_ID: introduction
+:END:
+
+This module provides validation, automation, and dashboard functionality for the PRD @tasks system. It validates org-mode files containing projects (PROJ-XXX), bugfixes (BUG-XXX), improvements (IMP-XXX), and tasks (ITEM-XXX), ensuring they have required properties, valid agent references, and no circular dependencies.
+
+** Features
+
+- *Validation*: Checks required properties, agent references, effort format, and dependencies
+- *Cycle Detection*: Identifies circular dependencies that would block task execution
+- *Dashboard*: Metrics overview with task counts by status and agent
+- *Link Management*: Bidirectional link synchronization and broken link detection
+- *Claude Code Integration*: JSON output format for hook integration
+
+* Installation
+:PROPERTIES:
+:CUSTOM_ID: installation
+:END:
+
+** Doom Emacs
+
+Add to your =packages.el=:
+
+#+BEGIN_SRC elisp
+;; No external packages needed - uses built-in org-mode
+#+END_SRC
+
+Add to your =config.el=:
+
+#+BEGIN_SRC elisp
+;; Load prd-tasks module
+(load! "path/to/sakya/@tasks/elisp/prd-tasks")
+
+;; Optional: Set up keybindings
+(map! :leader
+      (:prefix ("p" . "PRD")
+       :desc "Validate buffer" "v" #'prd-validate-file
+       :desc "Validate all" "V" #'prd-validate-all
+       :desc "Dashboard" "d" #'prd-dashboard
+       :desc "Quick status" "s" #'prd-quick-status
+       :desc "List blocked" "b" #'prd-list-blocked
+       :desc "Sync backlinks" "l" #'prd-sync-backlinks
+       :desc "Audit links" "a" #'prd-audit-links))
+
+;; Optional: Auto-validate on save
+(add-hook 'org-mode-hook
+          (lambda ()
+            (when (and buffer-file-name
+                       (string-match "@tasks" buffer-file-name))
+              (add-hook 'after-save-hook #'prd--after-save-hook nil t))))
+#+END_SRC
+
+** Vanilla Emacs
+
+Add to your =init.el=:
+
+#+BEGIN_SRC elisp
+(add-to-list 'load-path "path/to/sakya/@tasks/elisp")
+(require 'prd-tasks)
+
+;; Optional: Keybindings
+(global-set-key (kbd "C-c p v") #'prd-validate-file)
+(global-set-key (kbd "C-c p V") #'prd-validate-all)
+(global-set-key (kbd "C-c p d") #'prd-dashboard)
+(global-set-key (kbd "C-c p s") #'prd-quick-status)
+#+END_SRC
+
+** Emacs Server Setup
+
+Ensure the Emacs daemon is running for CLI access:
+
+#+BEGIN_SRC bash
+# Start daemon
+emacs --daemon
+
+# Verify it's running
+emacsclient -e '(emacs-pid)'
+#+END_SRC
+
+* Function Reference
+:PROPERTIES:
+:CUSTOM_ID: function-reference
+:END:
+
+** Validation Functions
+
+*** prd-validate-file
+
+Validate a single @tasks file.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-validate-file
+
+;; Programmatic use
+(prd-validate-file "/path/to/file.org")          ; plain output
+(prd-validate-file "/path/to/file.org" 'json)    ; JSON output
+#+END_SRC
+
+*** prd-validate-all
+
+Validate all @tasks files in the directory tree.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-validate-all
+
+;; Programmatic use
+(prd-validate-all)        ; plain output
+(prd-validate-all 'json)  ; JSON output
+#+END_SRC
+
+*** prd-validate-file-cli
+
+CLI-friendly validation with JSON output by default.
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-validate-file-cli "/path/to/file.org")'
+emacsclient -e '(prd-validate-file-cli "/path/to/file.org" (quote json))'
+#+END_SRC
+
+*** prd-validate-all-cli
+
+CLI-friendly validation of all files.
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-validate-all-cli)'
+emacsclient -e '(prd-validate-all-cli (quote json))'
+#+END_SRC
+
+** Dashboard Functions
+
+*** prd-dashboard
+
+Generate and display the metrics dashboard.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-dashboard
+
+;; Programmatic use
+(prd-dashboard)        ; plain output
+(prd-dashboard 'json)  ; JSON output
+#+END_SRC
+
+*** prd-dashboard-cli
+
+CLI-friendly dashboard with JSON output.
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-dashboard-cli)'
+#+END_SRC
+
+*** prd-quick-status
+
+Display one-line status summary in minibuffer.
+
+#+BEGIN_SRC elisp
+M-x prd-quick-status
+;; Output: "45 tasks: 12 done, 3 in-progress, 2 blocked, 28 pending"
+#+END_SRC
+
+** Link Management Functions
+
+*** prd-sync-backlinks
+
+Synchronize bidirectional links between tasks and documentation.
+
+#+BEGIN_SRC elisp
+M-x prd-sync-backlinks
+#+END_SRC
+
+This scans all items for =COMPONENT_REF= or =DOC_REF= properties and adds =IMPLEMENTED_BY= backlinks to the referenced documentation files.
+
+For example, if an ITEM has:
+#+BEGIN_EXAMPLE
+:COMPONENT_REF: [[file:../../src-tauri/src/app/state.rs][App State Module]]
+#+END_EXAMPLE
+
+After running =prd-sync-backlinks=, the App State Module doc will have:
+#+BEGIN_EXAMPLE
+:IMPLEMENTED_BY: [[file:@tasks/projects/PROJ-001.org::#ITEM-001][ITEM-001]]
+#+END_EXAMPLE
+
+Output: "Synced 5 backlinks (3 already existed or failed)."
+
+*** prd-audit-links
+
+Find broken links in @tasks files.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-audit-links
+
+;; Programmatic use
+(prd-audit-links)        ; plain output
+(prd-audit-links 'json)  ; JSON output
+#+END_SRC
+
+*** prd-repair-links
+
+Interactive repair of broken links. Opens the broken links buffer and provides guidance.
+
+#+BEGIN_SRC elisp
+M-x prd-repair-links
+#+END_SRC
+
+** Utility Functions
+
+*** prd-list-agents
+
+List all available agent definitions.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-list-agents
+;; Output: "Available agents: svelte-developer, rust-architect, ..."
+
+;; Programmatic use
+(prd-list-agents)
+;; Returns: (("svelte-developer" . "/path/to/file.org") ...)
+#+END_SRC
+
+*** prd-list-blocked
+
+List all tasks with BLOCKED status.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-list-blocked
+
+;; Programmatic use (returns list of prd-item structs)
+(prd-list-blocked)
+(prd-list-blocked 'json)  ; JSON output
+#+END_SRC
+
+*** prd-velocity-report
+
+Calculate velocity report for recent days. Shows items completed per day and trend direction.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-velocity-report
+
+;; Programmatic use
+(prd-velocity-report)      ; Last 7 days (default)
+(prd-velocity-report 14)   ; Last 14 days
+#+END_SRC
+
+Output: "Velocity: 2.3 items/day (increasing) - 16 items in 7 days"
+
+Velocity is calculated from items with =CLOSED:= timestamps. The trend compares the first and second half of the period to determine if velocity is increasing, decreasing, or stable.
+
+*** prd-burndown
+
+Display burndown report with remaining effort and completion projection.
+
+#+BEGIN_SRC elisp
+;; Interactive use
+M-x prd-burndown
+
+;; Programmatic use
+(prd-burndown)      ; 7-day lookback for velocity (default)
+(prd-burndown 14)   ; 14-day lookback
+#+END_SRC
+
+The burndown report shows:
+- Total remaining effort (sum of EFFORT for non-DONE items)
+- Effort completed in the lookback period
+- Burn rate (hours/day)
+- Projected completion date (based on current velocity)
+
+*** prd-reload-all
+
+Reload all caches (agents, items).
+
+#+BEGIN_SRC elisp
+M-x prd-reload-all
+#+END_SRC
+
+*** prd-clear-cache
+
+Clear all caches.
+
+#+BEGIN_SRC elisp
+M-x prd-clear-cache
+#+END_SRC
+
+* Validation Rules
+:PROPERTIES:
+:CUSTOM_ID: validation-rules
+:END:
+
+** Required Properties (Error)
+
+Every ITEM must have these properties:
+
+| Property | Description | Example |
+|----------+-------------+---------|
+| =CUSTOM_ID= | Unique identifier | =ITEM-001= |
+| =AGENT= | Agent file:id reference | =[[file:agents/svelte-developer.org::#core][svelte-developer:core]]= |
+| =EFFORT= | Estimated time | =1h=, =30m= |
+| =PRIORITY= | Importance level | =#A=, =#B=, =#C= |
+
+** Valid Agent Reference (Error)
+
+The =AGENT= property must reference an existing agent file and optionally a valid section within it.
+
+Valid formats:
+- =agent-name= - Just the agent file name (without .org)
+- =agent-name:section= - Agent with specific section
+- =[[file:agents/agent.org::#section][agent:section]]= - Full org link
+
+** Valid Dependencies (Error)
+
+=DEPENDS= property must reference existing ITEM IDs.
+
+Valid formats:
+- =ITEM-001= - Same project dependency
+- =PROJ-001:ITEM-005= - Cross-project dependency
+
+** No Circular Dependencies (Error)
+
+Dependencies must not form cycles. For example:
+- ITEM-001 depends on ITEM-002
+- ITEM-002 depends on ITEM-001
+
+This creates a cycle and will be reported as an error.
+
+** Effort Format (Warning)
+
+=EFFORT= should match format =Xh= (hours) or =Xm= (minutes).
+
+Valid: =1h=, =2h=, =30m=, =45m=
+Invalid: =1 hour=, =2hrs=, =thirty=
+
+* Output Formats
+:PROPERTIES:
+:CUSTOM_ID: output-formats
+:END:
+
+** Plain Format
+
+Human-readable text output, displayed in Emacs buffers.
+
+#+BEGIN_EXAMPLE
+=== PRD Validation Results ===
+
+File: PROJ-001.org
+
+Found 2 issue(s):
+
+ERROR in PROJ-001.org:42
+  Missing required property: AGENT
+  Fix: Add :AGENT: property. Available: svelte-developer, rust-architect, ...
+  Context: ITEM Create app layout
+
+WARNING in PROJ-001.org:55
+  Invalid effort format: 2 hours
+  Fix: Use format Xh or Xm (e.g., 1h, 30m)
+  Context: ITEM Add data model
+#+END_EXAMPLE
+
+** JSON Format
+
+Machine-parseable output for Claude Code integration.
+
+*** Validation JSON
+
+#+BEGIN_SRC json
+{
+  "valid": false,
+  "errors": [
+    {
+      "file": "/path/to/PROJ-001.org",
+      "line": 42,
+      "rule": "required-properties",
+      "severity": "error",
+      "message": "Missing required property: AGENT",
+      "hint": "Add :AGENT: property referencing an agent definition",
+      "context": "ITEM Create app layout"
+    }
+  ],
+  "warnings": [
+    {
+      "file": "/path/to/PROJ-001.org",
+      "line": 55,
+      "rule": "effort-format",
+      "severity": "warning",
+      "message": "Invalid effort format: 2 hours",
+      "hint": "Use format Xh or Xm (e.g., 1h, 30m)",
+      "context": "ITEM Add data model"
+    }
+  ],
+  "info": [],
+  "needs_link_sync": false,
+  "metrics": {
+    "total_items": 45,
+    "complete": 12,
+    "in_progress": 3,
+    "blocked": 2,
+    "pending": 28
+  }
+}
+#+END_SRC
+
+*** Dashboard JSON
+
+#+BEGIN_SRC json
+{
+  "timestamp": "2026-02-03T10:30:00Z",
+  "metrics": {
+    "total_items": 45,
+    "complete": 12,
+    "in_progress": 3,
+    "blocked": 2,
+    "pending": 28
+  },
+  "projects": [
+    {
+      "id": "PROJ-001",
+      "title": "Core Feature",
+      "total": 8,
+      "complete": 6,
+      "progress": 0.75
+    },
+    {
+      "id": "PROJ-002",
+      "title": "UI Components",
+      "total": 15,
+      "complete": 4,
+      "progress": 0.27
+    }
+  ],
+  "agents": {
+    "svelte-developer": {"assigned": 12, "complete": 8},
+    "rust-architect": {"assigned": 25, "complete": 10}
+  },
+  "blockers": [
+    {
+      "item_id": "ITEM-015",
+      "blocked_by": ["ITEM-012", "ITEM-014"]
+    }
+  ],
+  "velocity": {
+    "last_7_days": 2.3,
+    "trend": "increasing"
+  }
+}
+#+END_SRC
+
+**** Velocity Fields
+
+- =last_7_days=: Items completed per day over the last 7 days
+- =trend=: One of "increasing", "decreasing", "stable", or "unknown"
+
+**** Project Fields
+
+- =id=: Project identifier (PROJ-XXX)
+- =title=: Project title from org headline
+- =total=: Total items in the project
+- =complete=: Number of DONE items
+- =progress=: Completion ratio (0.0 to 1.0)
+
+* Claude Code Hook Configuration
+:PROPERTIES:
+:CUSTOM_ID: hook-configuration
+:END:
+
+** PostToolUse Hook (Edit/Write)
+
+After editing any file in =@tasks/=, validate the changed file:
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-validate-file-cli "{{file}}")'
+#+END_SRC
+
+Parse the JSON response:
+- If =valid: false=, show errors to user and offer to fix
+- If =warnings= exist, inform user but don't block
+- If =needs_link_sync: true=, run backlink sync
+
+** PreToolUse Hook (Git Commit)
+
+Before committing changes that include @tasks files:
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-validate-all-cli)'
+#+END_SRC
+
+Block commit if =valid: false=.
+
+** Session Start Hook
+
+On session start, optionally show dashboard:
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-dashboard-cli)'
+#+END_SRC
+
+** Example Hook Script
+
+#+BEGIN_SRC bash
+#!/bin/bash
+# prd-validate-hook.sh
+
+FILE="$1"
+RESULT=$(emacsclient -e "(prd-validate-file-cli \"$FILE\")" 2>/dev/null)
+
+# Check if valid
+if echo "$RESULT" | jq -e '.valid == false' > /dev/null 2>&1; then
+    echo "Validation failed:"
+    echo "$RESULT" | jq -r '.errors[] | "  \(.severity): \(.message) (\(.file):\(.line))"'
+    exit 1
+fi
+
+# Check for warnings
+WARNINGS=$(echo "$RESULT" | jq '.warnings | length')
+if [ "$WARNINGS" -gt 0 ]; then
+    echo "Validation passed with warnings:"
+    echo "$RESULT" | jq -r '.warnings[] | "  warning: \(.message)"'
+fi
+
+exit 0
+#+END_SRC
+
+* Testing
+:PROPERTIES:
+:CUSTOM_ID: testing
+:END:
+
+** Running Tests
+
+*** Within Emacs
+
+#+BEGIN_SRC elisp
+;; Load test file
+(load "prd-tasks-test")
+
+;; Run all tests
+M-x ert RET "prd-" RET
+
+;; Run specific test
+M-x ert RET prd-test-parse-depends-multiple RET
+#+END_SRC
+
+*** From Command Line
+
+#+BEGIN_SRC bash
+emacs -batch \
+  -l prd-tasks.el \
+  -l prd-tasks-test.el \
+  -f ert-run-tests-batch-and-exit
+#+END_SRC
+
+** Test Categories
+
+- *Property Extraction*: Tests for parsing org properties
+- *Format Validation*: Tests for EFFORT, ID format validation
+- *Agent Validation*: Tests for agent reference resolution
+- *Cycle Detection*: Tests for circular dependency detection
+- *Metrics*: Tests for status counting
+- *JSON Output*: Tests for valid JSON serialization
+
+* Customization
+:PROPERTIES:
+:CUSTOM_ID: customization
+:END:
+
+** Variables
+
+#+BEGIN_SRC elisp
+;; Set explicit @tasks directory (default: auto-detected)
+(setq prd-tasks-directory "/absolute/path/to/@tasks")
+
+;; Customize required properties
+(setq prd-required-item-properties
+      '("CUSTOM_ID" "AGENT" "EFFORT" "PRIORITY" "TEST_PLAN"))
+
+;; Customize effort format regexp
+(setq prd-effort-regexp "^[0-9]+[hmd]$")  ; Add 'd' for days
+
+;; Customize TODO keywords
+(setq prd-todo-keywords
+      '("ITEM" "DOING" "REVIEW" "DONE" "BLOCKED" "CANCELLED"))
+#+END_SRC
+
+** Extending Validation Rules
+
+To add custom validation rules, advise =prd--validate-item=:
+
+#+BEGIN_SRC elisp
+(defun my-prd-validate-test-plan (item)
+  "Check that TEST_PLAN is specified."
+  (unless (cdr (assoc "TEST_PLAN" (prd-item-properties item)))
+    (list (prd-make-error
+           :file (prd-item-file item)
+           :line (prd-item-line item)
+           :rule "has-test-plan"
+           :severity 'info
+           :message "No TEST_PLAN specified"
+           :hint "Add :TEST_PLAN: property (compile, test, visual)"
+           :context (prd-item-title item)))))
+
+(advice-add 'prd--validate-item :filter-return
+            (lambda (errors)
+              (append errors (my-prd-validate-test-plan item))))
+#+END_SRC
+
+* Troubleshooting
+:PROPERTIES:
+:CUSTOM_ID: troubleshooting
+:END:
+
+** emacsclient not responding
+
+Ensure Emacs server is running:
+
+#+BEGIN_SRC bash
+# Start if not running
+emacs --daemon
+
+# Check status
+emacsclient -e '(emacs-version)'
+#+END_SRC
+
+** Cannot find @tasks directory
+
+The module tries to auto-detect the directory. If it fails:
+
+#+BEGIN_SRC elisp
+;; Set explicitly
+(setq prd-tasks-directory "/absolute/path/to/@tasks")
+#+END_SRC
+
+** JSON parsing errors
+
+Validate JSON output:
+
+#+BEGIN_SRC bash
+emacsclient -e '(prd-validate-all-cli)' | jq .
+#+END_SRC
+
+If =jq= reports an error, check for Emacs messages mixed with output.
+
+** Stale cache
+
+If validation seems incorrect after file changes:
+
+#+BEGIN_SRC elisp
+M-x prd-reload-all
+#+END_SRC
+
+** Missing agent definitions
+
+List available agents to verify they're detected:
+
+#+BEGIN_SRC elisp
+M-x prd-list-agents
+#+END_SRC
+
+If agents are missing, check:
+1. Agent files are in =@tasks/agents/= directory
+2. Agent files have =.org= extension
+3. Agent files have =CUSTOM_ID= properties for sections
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:../reference.org][Reference Guide]] - Full PRD system documentation
+- [[file:../CLAUDE.md][CLAUDE.md]] - Claude Code integration instructions
+- [[file:../agents/index.org][Agent Index]] - Agent definitions

@@ -1,0 +1,218 @@
+#+TITLE: PRD Task Dashboard
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+#+PROPERTY: header-args :results silent
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+This dashboard provides a real-time view of the Sakya project progress.
+
+#+BEGIN_QUOTE
+Last updated: Use =M-x prd-dashboard-refresh= to update metrics
+#+END_QUOTE
+
+* Project Progress
+:PROPERTIES:
+:CUSTOM_ID: projects-progress
+:END:
+
+** Projects
+
+| ID | Description | Progress | Status |
+|----+-------------+----------+--------|
+| (none) | | | |
+
+** Bugfixes
+
+| ID | Description | Progress | Status |
+|----+-------------+----------+--------|
+| (none) | | | |
+
+** Improvements
+
+| ID | Description | Progress | Status |
+|----+-------------+----------+--------|
+| (none) | | | |
+
+* Task Status by Agent
+:PROPERTIES:
+:CUSTOM_ID: agent-status
+:END:
+
+| Agent | Assigned | In Progress | Complete | Blocked |
+|-------+----------+-------------+----------+---------|
+| svelte-developer | 0 | 0 | 0 | 0 |
+| rust-architect | 0 | 0 | 0 | 0 |
+| testing-engineer | 0 | 0 | 0 | 0 |
+
+* Blocked Items
+:PROPERTIES:
+:CUSTOM_ID: blocked
+:END:
+
+** Currently Blocked
+
+| Item ID | Description | Blocked By | Category |
+|---------+-------------+------------+----------|
+| (none) | | | |
+
+#+BEGIN_QUOTE
+Use =M-x prd-list-blocked= to refresh this section
+#+END_QUOTE
+
+* Recent Completions
+:PROPERTIES:
+:CUSTOM_ID: completions
+:END:
+
+** Last 7 Days
+
+| Date | Item ID | Description | Agent |
+|------+---------+-------------+-------|
+| (none) | | | |
+
+#+BEGIN_QUOTE
+Use =M-x prd-recent-completions= to refresh this section
+#+END_QUOTE
+
+* Velocity Metrics
+:PROPERTIES:
+:CUSTOM_ID: velocity
+:END:
+
+** Current Velocity
+
+| Period | Items Completed | Hours Estimated | Actual Hours |
+|--------+-----------------+-----------------+--------------|
+| This Week | 0 | 0h | 0h |
+| Last Week | 0 | 0h | 0h |
+| 2-Week Average | 0 | 0h | 0h |
+
+** Velocity Trend
+
+#+BEGIN_EXAMPLE
+Items/Day
+    |
+  5 |
+    |
+  4 |
+    |
+  3 |
+    |
+  2 |
+    |
+  1 |
+    |
+  0 +---+---+---+---+---+---+---
+      W1  W2  W3  W4  W5  W6  W7
+#+END_EXAMPLE
+
+#+BEGIN_QUOTE
+Use =M-x prd-velocity-chart= to generate updated chart
+#+END_QUOTE
+
+* Burndown
+:PROPERTIES:
+:CUSTOM_ID: burndown
+:END:
+
+** Remaining Effort
+
+| Category | Total | Done | Remaining |
+|----------+-------+------+-----------|
+| Projects | 0h | 0h | 0h |
+| Bugfixes | 0h | 0h | 0h |
+| Improvements | 0h | 0h | 0h |
+| *Total* | *0h* | *0h* | *0h* |
+
+** Burndown Chart
+
+#+BEGIN_EXAMPLE
+Hours
+     |
+ 100 |*
+     | \
+  80 |  \
+     |   *
+  60 |    \
+     |     \
+  40 |      *
+     |       \
+  20 |        *
+     |         \
+   0 +--+--+--+--+--+--+--+--
+     W1 W2 W3 W4 W5 W6 W7 W8
+
+* = Actual Progress
+--- = Ideal Burndown
+#+END_EXAMPLE
+
+#+BEGIN_QUOTE
+Use =M-x prd-burndown-chart= to generate updated chart
+#+END_QUOTE
+
+* Risk Register
+:PROPERTIES:
+:CUSTOM_ID: risks
+:END:
+
+| Risk | Likelihood | Impact | Mitigation | Owner |
+|------+------------+--------+------------+-------|
+| Tauri API changes | Medium | High | Pin versions, monitor releases | rust-architect |
+| Svelte 5 breaking changes | Low | Medium | Pin versions, review changelogs | svelte-developer |
+| SvelteKit compatibility | Low | Medium | Test with latest versions | svelte-developer |
+| Performance regression | Medium | High | Benchmark suite, profiling | testing-engineer |
+| Vite build issues | Low | Medium | Pin versions, test builds | svelte-developer |
+
+* Quick Actions
+:PROPERTIES:
+:CUSTOM_ID: actions
+:END:
+
+** Dashboard Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =prd-dashboard-refresh= | =C-c p r= | Refresh all metrics |
+| =prd-list-blocked= | =C-c p b= | Show blocked items |
+| =prd-next-item= | =C-c p n= | Jump to next available task |
+| =prd-velocity-report= | =C-c p v= | Generate velocity report |
+| =prd-burndown-chart= | =C-c p B= | Generate burndown chart |
+
+** CLI Commands (for Claude Code)
+
+#+BEGIN_SRC bash
+# Get dashboard as JSON
+emacsclient -e '(prd-dashboard-cli :format json)'
+
+# Get blocked items
+emacsclient -e '(prd-list-blocked :format json)'
+
+# Get velocity metrics
+emacsclient -e '(prd-velocity-report :days 14 :format json)'
+#+END_SRC
+
+* Notes
+:PROPERTIES:
+:CUSTOM_ID: notes
+:END:
+
+** Week of [Date]
+
+- [Notes for the week]
+
+** Previous Weeks
+
+*** Week of [Date]
+- [Historical notes]
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:reference.org][Reference Guide]] - System documentation
+- [[file:agents/index.org][Agent Index]] - Agent definitions

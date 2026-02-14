@@ -1,0 +1,176 @@
+#+TITLE: Agent Registry
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+Agents represent specialized expertise profiles for task assignment. Each agent has defined skills, responsibilities, and guidance on when to assign tasks.
+
+** Agent Philosophy
+
+#+BEGIN_QUOTE
+"Apex expertise" means the agent represents the absolute best-in-class capability for their domain. Tasks should be assigned to the agent whose expertise most directly matches the work required.
+#+END_QUOTE
+
+* Agent Registry
+:PROPERTIES:
+:CUSTOM_ID: registry
+:END:
+
+| Agent | File | Primary Domain |
+|-------+------+----------------|
+| Svelte Developer | [[file:svelte-developer.org][svelte-developer.org]] | Svelte 5 UI, runes reactivity, Tauri IPC |
+| Rust Architect | [[file:rust-architect.org][rust-architect.org]] | Tauri commands, module design, async |
+| Testing Engineer | [[file:testing-engineer.org][testing-engineer.org]] | Vitest, Playwright, integration |
+
+* Assignment Matrix
+:PROPERTIES:
+:CUSTOM_ID: matrix
+:END:
+
+** By Task Type
+
+| Task Type | Primary Agent | Secondary |
+|-----------+---------------+-----------|
+| Svelte page/route implementation | svelte-developer | rust-architect |
+| Svelte component creation | svelte-developer | - |
+| Svelte stores and runes state | svelte-developer | rust-architect |
+| Tauri IPC with @tauri-apps/api | svelte-developer | rust-architect |
+| Tauri command design | rust-architect | svelte-developer |
+| Module architecture | rust-architect | - |
+| Trait design | rust-architect | - |
+| Async patterns | rust-architect | - |
+| Vitest unit tests | testing-engineer | svelte-developer |
+| Playwright E2E tests | testing-engineer | svelte-developer |
+| Integration tests | testing-engineer | rust-architect |
+
+** By Component Area
+
+| Area | Primary Agents |
+|------+----------------|
+| src/routes/ | svelte-developer, testing-engineer |
+| src/lib/components/ | svelte-developer |
+| src/lib/stores/ | svelte-developer, rust-architect |
+| src/lib/tauri/ | svelte-developer, rust-architect |
+| src-tauri/src/ | rust-architect |
+| tests/ | testing-engineer, svelte-developer |
+| e2e/ | testing-engineer |
+
+* Agent Interaction Patterns
+:PROPERTIES:
+:CUSTOM_ID: interactions
+:END:
+
+** Handoff Patterns
+
+*** Architecture -> Development -> Testing
+1. rust-architect defines Tauri commands and module structure
+2. svelte-developer implements UI with Svelte 5 runes and Tauri IPC
+3. testing-engineer verifies with tests
+
+*** Feature Flow
+1. rust-architect designs feature architecture
+2. rust-architect creates Tauri command API
+3. svelte-developer creates UI
+4. testing-engineer writes tests
+
+*** Cross-Cutting Concerns
+- testing-engineer reviews all components for testability
+- rust-architect advises on error handling patterns
+
+* Adding New Agents
+:PROPERTIES:
+:CUSTOM_ID: adding-agents
+:END:
+
+** When to Add
+
+Add a new agent when:
+- Existing agents lack required expertise
+- A task type appears frequently with no clear owner
+- Specialization would improve quality
+
+** Agent Definition Template
+
+Create a new file in =agents/= with this structure:
+
+#+BEGIN_SRC org
+,#+TITLE: [Agent Name]
+,#+AUTHOR: Sakya Development Team
+
+,* Identity
+:PROPERTIES:
+:CUSTOM_ID: identity
+:END:
+
+,** Name
+[Full agent name]
+
+,** Apex Expertise
+[What makes this agent world-class in their domain]
+
+,* Core Competencies
+:PROPERTIES:
+:CUSTOM_ID: competencies
+:END:
+
+,** Primary Skills
+- Skill 1
+- Skill 2
+
+,** Tools & Technologies
+- Tool 1
+- Tool 2
+
+,* Responsibilities
+:PROPERTIES:
+:CUSTOM_ID: responsibilities
+:END:
+
+,** Owns
+- Responsibility 1
+- Responsibility 2
+
+,** Supports
+- Supporting role 1
+
+,** Boundaries
+- Does NOT do X
+
+,* Assignment Criteria
+:PROPERTIES:
+:CUSTOM_ID: assignment
+:END:
+
+,** Assign When
+- Criterion 1
+- Criterion 2
+
+,** Do NOT Assign When
+- Anti-pattern 1
+
+,* Quality Standards
+:PROPERTIES:
+:CUSTOM_ID: standards
+:END:
+
+Standards this agent upholds.
+#+END_SRC
+
+** Registration
+
+After creating the agent file:
+1. Add entry to this index
+2. Add to assignment matrix
+3. Run =prd-validate-all= to verify links
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:../reference.org][Reference Guide]] - Full system documentation
+- [[file:../CLAUDE.md][CLAUDE.md]] - Claude Code integration

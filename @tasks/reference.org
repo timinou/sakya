@@ -1,0 +1,675 @@
+#+TITLE: PRD Task Management System Reference
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+#+PROPERTY: header-args:elisp :tangle elisp/prd-tasks.el :results silent
+
+* Introduction
+:PROPERTIES:
+:CUSTOM_ID: intro
+:END:
+
+This document serves as both a *general guide* for PRD-based task management systems and the *concrete implementation* for the Sakya project.
+
+** Purpose
+
+#+BEGIN_QUOTE
+"The specification becomes the source of truth and determines what gets built."
+— GitHub Engineering, September 2025
+#+END_QUOTE
+
+This system provides:
+1. *Structured task decomposition* - Breaking work into atomic, testable units
+2. *Agent-based assignment* - Matching tasks to specialized expertise
+3. *Dependency management* - Ensuring correct execution order
+4. *Full traceability* - Linking tasks to requirements, designs, and verification
+5. *Automated validation* - Catching errors before execution
+
+** Sources and Inspiration
+
+This system draws from:
+- [[https://addyosmani.com/blog/good-spec/][Addy Osmani's "How to Write a Good Spec for AI Agents"]]
+- [[https://karl-voit.at/2020/08/14/project-mgt-draft/][Karl Voit's Org-Mode Project Management with Org-Edna]]
+- [[https://orgmode.org/worg/org-contrib/org-depend.html][org-depend.el for TODO dependencies]]
+- GitHub's Spec Kit framework philosophy
+
+* System Architecture
+:PROPERTIES:
+:CUSTOM_ID: architecture
+:END:
+
+** Directory Structure
+
+#+BEGIN_SRC
+@tasks/
+├── reference.org          # This document
+├── CLAUDE.md              # Claude Code integration instructions
+├── agents/
+│   ├── index.org          # Agent registry and overview
+│   ├── svelte-developer.org
+│   ├── rust-architect.org
+│   └── testing-engineer.org
+├── projects/
+│   └── [PROJ-XXX-name.org]  # User creates as needed
+├── bugfixes/
+│   └── [BUG-XXX-name.org]   # User creates as needed
+├── improvements/
+│   └── [IMP-XXX-name.org]   # User creates as needed
+├── process/
+│   ├── index.org          # Process registry
+│   └── multi-file-changes.org
+├── elisp/
+│   ├── prd-tasks.el       # Main validation and automation
+│   ├── prd-tasks-test.el  # Tests for the elisp modules
+│   └── readme.org         # Elisp documentation
+└── dashboard.org          # Metrics and status overview
+#+END_SRC
+
+** Project Technology Stack
+
+#+BEGIN_SRC
+Backend (Rust):
+  - Tauri 2.x for desktop application framework
+  - tokio for async runtime
+
+Frontend (Svelte/TypeScript):
+  - SvelteKit for application framework
+  - Svelte 5 with runes-based reactivity
+  - TypeScript with strict mode
+  - Vite for development and bundling
+  - @tauri-apps/api for Tauri IPC
+
+Testing:
+  - Vitest for Svelte unit tests
+  - @testing-library/svelte for component tests
+  - Playwright for E2E testing
+  - cargo test for Rust backend
+#+END_SRC
+
+** Core Concepts
+
+*** Task Categories
+Tasks are organized into three categories:
+
+- *Projects* (=PROJ-XXX=): New features and major bodies of work
+- *Bugfixes* (=BUG-XXX=): Bug reports and fixes
+- *Improvements* (=IMP-XXX=): Refactors, optimizations, and enhancements
+
+*** ITEM (Individual Task)
+An ITEM is an atomic unit of work that:
+- Takes 1-2 hours to complete
+- Has self-contained testing/verification
+- Is assigned to exactly one agent type
+- May depend on other ITEMs (within or across categories)
+
+*Note:* =ITEM= is a TODO keyword in org-mode. Tasks are written as:
+#+BEGIN_SRC org
+,* ITEM Short descriptive title
+#+END_SRC
+
+Not as =* TODO ITEM-001 ...=. The ITEM keyword replaces TODO.
+
+*** File Organization
+Multiple task groups can exist in a single file when they are closely related:
+#+BEGIN_SRC org
+,* PROJ-001 Core Infrastructure
+,** ITEM Backend setup
+,** ITEM Frontend scaffolding
+
+,* PROJ-002 Data Layer
+,** ITEM Database schema
+,** ITEM API endpoints
+#+END_SRC
+
+*** Agent
+An agent represents a specialized expertise profile:
+- Defined skills and responsibilities
+- Clear boundaries of competence
+- Guidance on when to assign
+
+* Heuristics for Task Organization
+:PROPERTIES:
+:CUSTOM_ID: init-heuristics
+:END:
+
+** General Guidelines
+
+Choose organization based on project characteristics:
+
+*** Component Tier Approach (Bottom-Up)
+:PROPERTIES:
+:WHEN: Building a design system or component library from scratch
+:END:
+
+#+BEGIN_SRC
+PROJ: Core Infrastructure → PROJ: Frontend Setup → PROJ: Features → PROJ: Integration
+#+END_SRC
+
+*Use when:*
+- Foundation must be solid before building up
+- Components have clear tier dependencies
+- Team is building reusable library
+
+*** Feature Vertical Approach
+:PROPERTIES:
+:WHEN: Adding features to existing system with clear boundaries
+:END:
+
+#+BEGIN_SRC
+PROJ: Feature A → PROJ: Feature B → PROJ: Feature C
+#+END_SRC
+
+*Use when:*
+- Features are relatively independent
+- Different team members own different areas
+- Parallel development is priority
+
+*** Deliverable Phase Approach
+:PROPERTIES:
+:WHEN: Project has distinct phases with stakeholder checkpoints
+:END:
+
+#+BEGIN_SRC
+PROJ: Design → PROJ: Implementation → PROJ: Testing → PROJ: Launch
+#+END_SRC
+
+*Use when:*
+- External dependencies between phases
+- Stakeholder reviews between phases
+- Traditional waterfall constraints
+
+*** Hybrid Approach (Recommended)
+:PROPERTIES:
+:WHEN: Complex projects with both foundation and feature work
+:END:
+
+#+BEGIN_SRC
+Foundation Projects (sequential):
+  PROJ: Core Infrastructure (Rust backend)
+  PROJ: Frontend Setup (SvelteKit + Tauri IPC)
+
+Feature Projects (parallel after foundation):
+  PROJ: Feature A
+  PROJ: Feature B
+  PROJ: Feature C
+
+Polish (after features):
+  IMP: Performance Optimization
+  IMP: Accessibility
+#+END_SRC
+
+** Decision Matrix
+
+| Factor | Component Tier | Feature Vertical | Deliverable Phase |
+|--------+----------------+------------------+-------------------|
+| Reusability priority | ✓✓✓ | ✓ | ✓ |
+| Parallel development | ✓ | ✓✓✓ | ✗ |
+| Stakeholder checkpoints | ✓ | ✓ | ✓✓✓ |
+| Clear boundaries | ✓✓ | ✓✓✓ | ✓✓ |
+| Incremental delivery | ✓ | ✓✓✓ | ✓ |
+
+* Task Properties Specification
+:PROPERTIES:
+:CUSTOM_ID: properties
+:END:
+
+** Required Properties for ITEMs
+
+| Property | Description | Example |
+|----------+-------------+---------|
+| =CUSTOM_ID= | Unique identifier | =ITEM-001-backend-setup= |
+| =AGENT= | Agent file:id reference | =[[file:agents/rust-architect.org::#core][rust-architect:core]]= |
+| =EFFORT= | Estimated time | =1h=, =2h=, =30m= |
+| =PRIORITY= | Importance level | =#A=, =#B=, =#C= |
+
+** Recommended Properties
+
+| Property | Description | Example |
+|----------+-------------+---------|
+| =DEPENDS= | Dependency references | =ITEM-000-config-system= |
+| =BLOCKS= | What this blocks | =ITEM-002-api-layer= |
+| =COMPONENT_REF= | Component/module link | =[[file:../../src-tauri/src/state.rs][State Module]]= |
+| =FILES= | Files to be modified | =src-tauri/src/state.rs= |
+| =TEST_PLAN= | Verification approach | =compile, test-rust, test-svelte, e2e= |
+| =REVIEW= | Review checklist | =code, visual, docs= |
+
+** Category-Level Properties
+
+| Property | Description | Example |
+|----------+-------------+---------|
+| =CUSTOM_ID= | Unique identifier | =PROJ-001= |
+| =GOAL= | Clear outcome statement | =Establish core infrastructure= |
+| =DEPENDS_INIT= | Category dependencies | =PROJ-000= |
+| =COMPLETION= | Done criteria | =All ITEMs complete, integrated= |
+
+* Dependency Management
+:PROPERTIES:
+:CUSTOM_ID: dependencies
+:END:
+
+** Dependency Types
+
+*** Category → Category Dependencies
+
+#+BEGIN_SRC org
+* PROJ-002 Frontend Setup
+:PROPERTIES:
+:DEPENDS_INIT: PROJ-001
+:END:
+#+END_SRC
+
+Meaning: This project cannot start until PROJ-001 is complete.
+
+*** ITEM → ITEM Dependencies (Same Category)
+
+#+BEGIN_SRC org
+** TODO ITEM-002 API layer
+:PROPERTIES:
+:DEPENDS: ITEM-001
+:END:
+#+END_SRC
+
+Meaning: This task depends on ITEM-001 within the same category.
+
+*** ITEM → ITEM Dependencies (Cross-Category)
+
+#+BEGIN_SRC org
+** TODO ITEM-015 Feature UI
+:PROPERTIES:
+:DEPENDS: PROJ-001:ITEM-003
+:END:
+#+END_SRC
+
+Meaning: Depends on ITEM-003 from PROJ-001.
+
+** Dependency Guidelines
+
+1. *Prefer same-category dependencies* when possible for clarity
+2. *Cross-category dependencies* indicate potential reordering need
+3. *Circular dependencies* are validation errors
+4. *Document rationale* for non-obvious dependencies
+
+** Flexibility Clause
+
+While the system recommends structured dependencies, org-mode's flexibility allows deviation when justified. Document any non-standard patterns:
+
+#+BEGIN_SRC org
+** TODO ITEM-020 Special Integration
+:PROPERTIES:
+:DEPENDS: PROJ-002:ITEM-005, IMP-003:ITEM-008
+:DEPENDS_RATIONALE: Requires both backend infrastructure and frontend setup
+:END:
+#+END_SRC
+
+* Task Granularity Guidelines
+:PROPERTIES:
+:CUSTOM_ID: granularity
+:END:
+
+** Target: 1-2 Hour Tasks
+
+*** Signs a Task is Too Large
+- Description uses "and" multiple times
+- Multiple distinct test scenarios
+- Touches more than 3-4 files
+- Multiple agents could contribute
+
+*Split it.*
+
+*** Signs a Task is Too Small
+- Less than 15 minutes of work
+- No meaningful verification
+- Purely mechanical change
+- Always done with another task
+
+*Combine it.*
+
+** Splitting Examples
+
+*** Before (Too Large)
+#+BEGIN_SRC org
+** ITEM Implement full data management with Tauri commands and Svelte UI
+#+END_SRC
+
+*** After (Right-Sized)
+#+BEGIN_SRC org
+** ITEM Define data model and state types (Rust)
+** ITEM Tauri CRUD command API
+** ITEM Svelte store for data management
+** ITEM Data list Svelte component
+** ITEM Data detail Svelte component
+#+END_SRC
+
+* Verification and Testing
+:PROPERTIES:
+:CUSTOM_ID: verification
+:END:
+
+** Multi-Layer Testing Approach
+
+Each ITEM should specify its =TEST_PLAN= from these layers:
+
+| Layer | Tool/Method | What It Verifies |
+|-------+------------+------------------|
+| =compile= | =cargo build=, =svelte-check= | Type safety, no errors |
+| =test-rust= | =cargo test= | Rust backend unit/integration tests |
+| =test-svelte= | =vitest= | Svelte unit tests, component tests |
+| =clippy= | =cargo clippy= | Rust linting, best practices |
+| =e2e= | Playwright | Full app integration tests |
+
+** Test Plan Examples
+
+#+BEGIN_SRC org
+** TODO ITEM-001 Backend state module
+:PROPERTIES:
+:TEST_PLAN: compile, test-rust
+:END:
+
+** TODO ITEM-020 Data list component
+:PROPERTIES:
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+#+END_SRC
+
+** Self-Contained Testing Principle
+
+Each ITEM's tests should be runnable independently:
+- Rust unit tests for backend modules
+- Svelte unit tests for components
+- E2E tests for critical user flows
+- No dependency on unfinished work
+
+* Agent Assignment
+:PROPERTIES:
+:CUSTOM_ID: agent-assignment
+:END:
+
+** Linking to Agents
+
+Use org-mode file:id links to reference agents:
+
+#+BEGIN_SRC org
+:AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+#+END_SRC
+
+** Assignment Guidelines
+
+| Task Type | Primary Agent | Secondary |
+|-----------+---------------+-----------|
+| Svelte pages and components | svelte-developer | rust-architect |
+| Svelte stores and state | svelte-developer | rust-architect |
+| Tauri commands and architecture | rust-architect | svelte-developer |
+| Tests, E2E | testing-engineer | svelte-developer |
+
+** When to Reassign
+
+Consider reassignment when:
+- Task blocked for unclear reasons
+- Expertise mismatch discovered
+- Scope changed significantly
+
+* Bidirectional Linking
+:PROPERTIES:
+:CUSTOM_ID: bidirectional
+:END:
+
+** Forward Links (Task → Documentation)
+
+ITEMs link to their documentation sources:
+
+#+BEGIN_SRC org
+:COMPONENT_REF: [[file:../../src-tauri/src/state.rs][State Module]]
+:DOC_REF: [[file:../../docs/architecture.org][Architecture Design]]
+#+END_SRC
+
+** Backward Links (Documentation → Tasks)
+
+Documentation files should reference implementing tasks.
+The elisp system provides =prd-tasks-add-backlink= to automate this:
+
+#+BEGIN_SRC org
+* State Module
+:PROPERTIES:
+:IMPLEMENTED_BY: [[file:@tasks/projects/PROJ-001.org::#ITEM-001][ITEM-001]]
+:END:
+#+END_SRC
+
+** Automation
+
+The elisp module =prd-tasks-sync-links= maintains bidirectional consistency.
+
+* Metrics and Dashboard
+:PROPERTIES:
+:CUSTOM_ID: metrics
+:END:
+
+** Tracked Metrics
+
+| Metric | Description | Calculation |
+|--------+-------------+-------------|
+| Velocity | ITEMs completed per day | count(DONE) / days |
+| Burndown | Remaining effort | sum(EFFORT where TODO) |
+| Agent Utilization | Work per agent type | count by AGENT |
+| Blockers | Blocked tasks | count where DEPENDS unmet |
+| Progress | Completion percentage | DONE / total per category |
+
+** Dashboard Commands
+
+| Command | Description |
+|---------+-------------|
+| =M-x prd-dashboard= | Open metrics dashboard |
+| =M-x prd-burndown= | Generate burndown chart |
+| =M-x prd-blockers= | List blocked tasks |
+| =M-x prd-velocity= | Show velocity trend |
+
+* Validation System
+:PROPERTIES:
+:CUSTOM_ID: validation
+:END:
+
+** Validation Rules
+
+The elisp validation system checks:
+
+| Rule | Severity | Description |
+|------+----------+-------------|
+| =required-properties= | Error | All required properties present |
+| =valid-agent-ref= | Error | Agent reference resolves |
+| =valid-depends= | Error | Dependencies exist |
+| =no-circular-deps= | Error | No circular dependencies |
+| =effort-format= | Warning | Effort in valid format |
+| =has-test-plan= | Warning | TEST_PLAN specified |
+| =has-component-ref= | Info | Traceability recommended |
+
+** Running Validation
+
+*** On-Demand
+#+BEGIN_SRC
+M-x prd-validate-buffer    ; Validate current file
+M-x prd-validate-all       ; Validate all @tasks files
+#+END_SRC
+
+*** On Save
+Automatic validation runs on save for @tasks org files.
+
+*** Pre-Commit
+Git hook validates before allowing commits.
+
+*** Via emacsclient
+#+BEGIN_SRC bash
+# Plain text output
+emacsclient -e '(prd-validate-all-cli)'
+
+# JSON output for Claude Code
+emacsclient -e '(prd-validate-all-cli :format json)'
+#+END_SRC
+
+** Error Message Format
+
+Errors are designed to be helpful:
+
+#+BEGIN_EXAMPLE
+ERROR in PROJ-001.org:42
+  Missing required property: AGENT
+
+  Every ITEM must have an :AGENT: property linking to an agent definition.
+
+  Fix: Add a property like:
+    :AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+
+  Available agents: svelte-developer, rust-architect, testing-engineer
+#+END_EXAMPLE
+
+* Claude Code Integration
+:PROPERTIES:
+:CUSTOM_ID: claude-integration
+:END:
+
+** Hook Triggers
+
+| Event | Hook Type | Action |
+|-------+-----------+--------|
+| Edit @tasks file | PostToolUse | Validate changed file |
+| Write @tasks file | PostToolUse | Validate + update links |
+| Git commit | PreToolUse | Full validation |
+| Session start | Startup | Validation + dashboard |
+
+** Structured Output
+
+JSON output for Claude processing:
+
+#+BEGIN_SRC json
+{
+  "valid": false,
+  "errors": [
+    {
+      "file": "PROJ-001.org",
+      "line": 42,
+      "rule": "required-properties",
+      "message": "Missing required property: AGENT",
+      "hint": "Add :AGENT: property referencing an agent definition",
+      "severity": "error"
+    }
+  ],
+  "warnings": [],
+  "info": [],
+  "metrics": {
+    "total_items": 45,
+    "complete": 12,
+    "in_progress": 3,
+    "blocked": 2
+  }
+}
+#+END_SRC
+
+* Concrete Application: Sakya
+:PROPERTIES:
+:CUSTOM_ID: concrete
+:END:
+
+** Project Overview
+
+Sakya is a desktop application built with Tauri 2.x + SvelteKit + Svelte 5 + TypeScript.
+
+** Suggested Organization: Hybrid Approach
+
+#+BEGIN_SRC
+Foundation (Sequential):
+  PROJ-001: Core Infrastructure (Tauri backend, state management)
+  PROJ-002: Frontend Setup (SvelteKit, routing, Tauri IPC)
+
+Features (Parallel after PROJ-002):
+  PROJ-010: Feature A
+  PROJ-011: Feature B
+  PROJ-012: Feature C
+
+Polish (After Features):
+  IMP-001: Performance Optimization
+  IMP-002: Accessibility
+  IMP-003: Documentation
+#+END_SRC
+
+** Rationale
+
+1. *Foundation first* - Backend and frontend infrastructure needed for all features
+2. *Features parallel* - Independent feature areas
+3. *Polish last* - Cross-cutting concerns after implementation
+
+** Naming Conventions
+
+| Category | Prefix | Directory | Example File |
+|----------+--------+-----------+--------------|
+| Projects | PROJ-XXX | =@tasks/projects/= | =PROJ-001-infrastructure.org= |
+| Bugfixes | BUG-XXX | =@tasks/bugfixes/= | =BUG-001-fix-routing.org= |
+| Improvements | IMP-XXX | =@tasks/improvements/= | =IMP-001-performance.org= |
+
+* Quick Reference
+:PROPERTIES:
+:CUSTOM_ID: quick-ref
+:END:
+
+** ITEM Template
+
+#+BEGIN_SRC org
+** ITEM Short descriptive title
+:PROPERTIES:
+:CUSTOM_ID: ITEM-XXX
+:AGENT: [[file:agents/AGENT.org::#SECTION][agent:section]]
+:EFFORT: Xh
+:PRIORITY: #A/#B/#C
+:DEPENDS: ITEM-YYY
+:COMPONENT_REF: [[file:../../src-tauri/src/PATH.rs][Module Name]]
+:FILES: src-tauri/src/path/to/file.rs, src/lib/components/Component.svelte
+:TEST_PLAN: compile, test-rust, test-svelte, e2e
+:REVIEW: code, visual, docs
+:END:
+
+*** Description
+What this task accomplishes.
+
+*** Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+*** Notes
+Additional context or considerations.
+#+END_SRC
+
+Note: =ITEM= is the TODO keyword. Status progresses as:
+- =ITEM= (pending)
+- =DOING= (in progress)
+- =REVIEW= (awaiting review)
+- =DONE= (complete)
+- =BLOCKED= (waiting on dependency)
+
+** Validation Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =prd-validate-buffer= | =C-c p v= | Validate current |
+| =prd-validate-all= | =C-c p V= | Validate all |
+| =prd-dashboard= | =C-c p d= | Show dashboard |
+| =prd-next-blocked= | =C-c p n= | Jump to next blocked |
+
+** Status Workflow
+
+#+BEGIN_SRC
+ITEM → DOING → REVIEW → DONE
+         ↓
+      BLOCKED (if dependencies unmet)
+#+END_SRC
+
+Configure in your org file or Doom config:
+#+BEGIN_SRC elisp
+(setq org-todo-keywords
+      '((sequence "ITEM(i)" "DOING(d)" "REVIEW(r)" "|" "DONE(D)" "BLOCKED(b)")))
+#+END_SRC
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:CLAUDE.md][CLAUDE.md]] - Claude Code integration instructions
+- [[file:agents/index.org][Agent Index]] - Agent definitions
+- [[file:elisp/readme.org][Elisp Documentation]] - Automation details
+- [[file:dashboard.org][Dashboard]] - Current project status
