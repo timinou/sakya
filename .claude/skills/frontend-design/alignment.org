@@ -1,0 +1,18 @@
+#+title: Alignment
+
+
+* When to use
+Remember these rules when you align with Elm-UI:
+
+** Patterns
+*** <icon> <text>  ... <badge>
+#+begin_src elm
+
+Ui.row [ Ui.wrap, Ui.width Ui.fill, ... ]
+    [ -- can also work with Ui.el [ Ui.alignLeft ] ...
+      PhosphorIcon.<icon> [ PhosphorIcon.alignLeft ]
+    , Ui.el [ Ui.alignLeft ] <| textEl
+    , -- Works with .row or .column with
+      Ui.el [ Ui.alignRight ] <| badgeEl
+    ]
+#+end_src
