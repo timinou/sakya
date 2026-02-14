@@ -33,6 +33,13 @@ pub fn run() {
             commands::entity::save_entity,
             commands::entity::delete_entity,
             commands::entity::rename_entity,
+            commands::manuscript::get_manuscript_config,
+            commands::manuscript::save_manuscript_config,
+            commands::manuscript::get_chapter,
+            commands::manuscript::save_chapter,
+            commands::manuscript::create_chapter,
+            commands::manuscript::delete_chapter,
+            commands::manuscript::reorder_chapters,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
