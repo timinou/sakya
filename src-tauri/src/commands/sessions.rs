@@ -373,7 +373,7 @@ mod tests {
         // Duration should be very small since we just started
         let duration = session.duration_minutes.unwrap();
         assert!(
-            duration >= 0.0 && duration < 1.0,
+            (0.0..1.0).contains(&duration),
             "Duration should be near zero, got: {}",
             duration
         );
@@ -933,5 +933,298 @@ mod tests {
         let stats = calculate_stats(&sessions);
         assert_eq!(stats.current_streak, 1);
         assert_eq!(stats.longest_streak, 1);
+    }
+
+    // ── get_sessions: empty result from date range filter ─────────
+
+    #[test]
+    fn get_sessions_returns_empty_when_no_sessions_match_date_range() {
+        let (_dir, path) = setup_session_test();
+
+        let sessions = vec![
+            WritingSession {
+                id: "2026-02-10T10:00:00Z".to_string(),
+                start: "2026-02-10T10:00:00Z".to_string(),
+                end: Some("2026-02-10T10:30:00Z".to_string()),
+                duration_minutes: Some(30.0),
+                words_written: 300,
+                chapter_slug: "ch-1".to_string(),
+                sprint_goal: None,
+            },
+            WritingSession {
+                id: "2026-02-14T10:00:00Z".to_string(),
+                start: "2026-02-14T10:00:00Z".to_string(),
+                end: Some("2026-02-14T10:30:00Z".to_string()),
+                duration_minutes: Some(30.0),
+                words_written: 700,
+                chapter_slug: "ch-2".to_string(),
+                sprint_goal: None,
+            },
+        ];
+        write_test_sessions(&path, sessions);
+
+        // Filter to a range with no sessions (Feb 11-13)
+        let filtered = get_sessions(&path, Some("2026-02-11"), Some("2026-02-13")).unwrap();
+        assert!(
+            filtered.is_empty(),
+            "Expected no sessions in Feb 11-13, got {}",
+            filtered.len()
+        );
+    }
+
+    // ── Edge cases: sessions spanning midnight ────────────────────
+
+    #[test]
+    fn session_spanning_midnight_counted_on_start_date() {
+        let (_dir, path) = setup_session_test();
+
+        // Session starts at 11:30 PM on Feb 10, ends at 12:30 AM on Feb 11
+        let sessions = vec![WritingSession {
+            id: "2026-02-10T23:30:00Z".to_string(),
+            start: "2026-02-10T23:30:00Z".to_string(),
+            end: Some("2026-02-11T00:30:00Z".to_string()),
+            duration_minutes: Some(60.0),
+            words_written: 500,
+            chapter_slug: "ch-1".to_string(),
+            sprint_goal: None,
+        }];
+        write_test_sessions(&path, sessions);
+
+        // Should be found when filtering for Feb 10 (the start date)
+        let filtered = get_sessions(&path, Some("2026-02-10"), Some("2026-02-10")).unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].words_written, 500);
+
+        // Should NOT be found when filtering for only Feb 11 (the end date)
+        let filtered = get_sessions(&path, Some("2026-02-11"), Some("2026-02-11")).unwrap();
+        assert!(
+            filtered.is_empty(),
+            "Session should be counted on start date, not end date"
+        );
+    }
+
+    // ── Edge cases: very large word counts ────────────────────────
+
+    #[test]
+    fn stats_handle_very_large_word_counts() {
+        let sessions = vec![
+            WritingSession {
+                id: "2026-02-10T10:00:00Z".to_string(),
+                start: "2026-02-10T10:00:00Z".to_string(),
+                end: Some("2026-02-10T14:00:00Z".to_string()),
+                duration_minutes: Some(240.0),
+                words_written: u32::MAX, // ~4.29 billion
+                chapter_slug: "ch-1".to_string(),
+                sprint_goal: None,
+            },
+            WritingSession {
+                id: "2026-02-11T10:00:00Z".to_string(),
+                start: "2026-02-11T10:00:00Z".to_string(),
+                end: Some("2026-02-11T14:00:00Z".to_string()),
+                duration_minutes: Some(240.0),
+                words_written: 1000,
+                chapter_slug: "ch-2".to_string(),
+                sprint_goal: None,
+            },
+        ];
+
+        let stats = calculate_stats(&sessions);
+
+        // total_words is u64 so it should not overflow
+        assert_eq!(stats.total_words, u32::MAX as u64 + 1000);
+        assert_eq!(stats.total_sessions, 2);
+        assert_eq!(stats.total_minutes, 480.0);
+        assert_eq!(stats.best_day_words, u32::MAX);
+    }
+
+    // ── YAML round-trip: None optional fields ─────────────────────
+
+    #[test]
+    fn yaml_round_trip_preserves_none_fields() {
+        let (_dir, path) = setup_session_test();
+
+        let session = WritingSession {
+            id: "2026-02-14T10:30:00+00:00".to_string(),
+            start: "2026-02-14T10:30:00+00:00".to_string(),
+            end: None,
+            duration_minutes: None,
+            words_written: 0,
+            chapter_slug: "chapter-1".to_string(),
+            sprint_goal: None,
+        };
+
+        write_test_sessions(&path, vec![session.clone()]);
+        let loaded = load_sessions(&path).unwrap();
+
+        assert_eq!(loaded.sessions.len(), 1);
+        let loaded_session = &loaded.sessions[0];
+        assert_eq!(loaded_session.id, session.id);
+        assert!(loaded_session.end.is_none());
+        assert!(loaded_session.duration_minutes.is_none());
+        assert_eq!(loaded_session.words_written, 0);
+        assert!(loaded_session.sprint_goal.is_none());
+    }
+
+    // ── Direct tests of streak helper functions ──────────────────
+
+    #[test]
+    fn calculate_current_streak_empty_dates() {
+        let today = Utc::now().date_naive();
+        assert_eq!(calculate_current_streak(&[], today), 0);
+    }
+
+    #[test]
+    fn calculate_longest_streak_empty_dates() {
+        assert_eq!(calculate_longest_streak(&[]), 0);
+    }
+
+    #[test]
+    fn calculate_longest_streak_single_date() {
+        let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
+        assert_eq!(calculate_longest_streak(&[date]), 1);
+    }
+
+    #[test]
+    fn calculate_longest_streak_with_gap_resets() {
+        let dates = vec![
+            NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 1, 3).unwrap(),
+            // gap
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 1, 11).unwrap(),
+        ];
+        // First run: 3 consecutive, second run: 2 consecutive
+        assert_eq!(calculate_longest_streak(&dates), 3);
+    }
+
+    #[test]
+    fn calculate_longest_streak_across_year_boundary() {
+        let dates = vec![
+            NaiveDate::from_ymd_opt(2025, 12, 30).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+        ];
+        assert_eq!(calculate_longest_streak(&dates), 4);
+    }
+
+    #[test]
+    fn calculate_current_streak_with_session_today() {
+        let today = Utc::now().date_naive();
+        let dates = vec![
+            today - chrono::Duration::days(2),
+            today - chrono::Duration::days(1),
+            today,
+        ];
+        assert_eq!(calculate_current_streak(&dates, today), 3);
+    }
+
+    #[test]
+    fn calculate_current_streak_grace_day_yesterday() {
+        // No session today, but sessions yesterday and the day before
+        let today = Utc::now().date_naive();
+        let dates = vec![
+            today - chrono::Duration::days(2),
+            today - chrono::Duration::days(1),
+        ];
+        // Should count from yesterday backwards (grace period)
+        assert_eq!(calculate_current_streak(&dates, today), 2);
+    }
+
+    #[test]
+    fn calculate_current_streak_no_grace_after_two_days() {
+        // No session today or yesterday -> streak is 0
+        let today = Utc::now().date_naive();
+        let dates = vec![
+            today - chrono::Duration::days(3),
+            today - chrono::Duration::days(2),
+        ];
+        assert_eq!(calculate_current_streak(&dates, today), 0);
+    }
+
+    // ── Duplicate dates in streak ─────────────────────────────────
+
+    #[test]
+    fn calculate_longest_streak_with_duplicate_dates() {
+        // Multiple sessions on the same day shouldn't inflate streak
+        let dates = vec![
+            NaiveDate::from_ymd_opt(2026, 2, 10).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 2, 10).unwrap(), // duplicate
+            NaiveDate::from_ymd_opt(2026, 2, 11).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 2, 11).unwrap(), // duplicate
+        ];
+        assert_eq!(calculate_longest_streak(&dates), 2);
+    }
+
+    // ── get_sessions via command with multiple sessions ──────────
+
+    #[test]
+    fn get_sessions_filters_inclusive_boundaries() {
+        let (_dir, path) = setup_session_test();
+
+        let sessions = vec![
+            WritingSession {
+                id: "2026-02-10T00:00:00Z".to_string(),
+                start: "2026-02-10T00:00:00Z".to_string(),
+                end: None,
+                duration_minutes: None,
+                words_written: 100,
+                chapter_slug: "ch-1".to_string(),
+                sprint_goal: None,
+            },
+            WritingSession {
+                id: "2026-02-12T23:59:59Z".to_string(),
+                start: "2026-02-12T23:59:59Z".to_string(),
+                end: None,
+                duration_minutes: None,
+                words_written: 200,
+                chapter_slug: "ch-2".to_string(),
+                sprint_goal: None,
+            },
+        ];
+        write_test_sessions(&path, sessions);
+
+        // Both boundary dates should be included
+        let filtered = get_sessions(&path, Some("2026-02-10"), Some("2026-02-12")).unwrap();
+        assert_eq!(filtered.len(), 2);
+    }
+
+    // ── YAML round-trip: multiple sessions ────────────────────────
+
+    #[test]
+    fn yaml_round_trip_preserves_multiple_sessions() {
+        let (_dir, path) = setup_session_test();
+
+        let sessions = vec![
+            WritingSession {
+                id: "2026-02-10T10:00:00Z".to_string(),
+                start: "2026-02-10T10:00:00Z".to_string(),
+                end: Some("2026-02-10T10:30:00Z".to_string()),
+                duration_minutes: Some(30.0),
+                words_written: 500,
+                chapter_slug: "chapter-1".to_string(),
+                sprint_goal: Some(600),
+            },
+            WritingSession {
+                id: "2026-02-11T09:00:00Z".to_string(),
+                start: "2026-02-11T09:00:00Z".to_string(),
+                end: None,
+                duration_minutes: None,
+                words_written: 0,
+                chapter_slug: "chapter-2".to_string(),
+                sprint_goal: None,
+            },
+        ];
+
+        write_test_sessions(&path, sessions.clone());
+        let loaded = load_sessions(&path).unwrap();
+
+        assert_eq!(loaded.sessions.len(), 2);
+        assert_eq!(loaded.sessions[0].id, sessions[0].id);
+        assert_eq!(loaded.sessions[0].sprint_goal, Some(600));
+        assert_eq!(loaded.sessions[1].id, sessions[1].id);
+        assert!(loaded.sessions[1].end.is_none());
+        assert!(loaded.sessions[1].sprint_goal.is_none());
     }
 }
