@@ -12,7 +12,7 @@
 
 *IMPORTANT*: [[file:../design/lexical-editor.org]] for design reference
 
-** ITEM Create Lexical theme and base configuration
+** DONE Create Lexical theme and base configuration
 :PROPERTIES:
 :CUSTOM_ID: ITEM-019-editor-theme
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -59,7 +59,7 @@ Create the main editor component wrapping svelte-lexical Composer with all plugi
 - [ ] Registers all custom nodes (WikiLinkNode)
 - [ ] Accepts =content= prop (Markdown string) and =onSave= callback
 
-** ITEM Create Markdown transformers and shortcuts plugin
+** DONE Create Markdown transformers and shortcuts plugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-021-markdown-shortcuts
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -80,7 +80,7 @@ Bundle standard + custom Markdown transformers and create the shortcuts plugin.
 - [ ] Typing =`code`= creates inline code
 - [ ] All standard Markdown shortcuts functional
 
-** ITEM Create WikiLinkNode
+** DONE Create WikiLinkNode
 :PROPERTIES:
 :CUSTOM_ID: ITEM-022-wiki-link-node
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
