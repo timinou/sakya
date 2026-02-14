@@ -314,6 +314,6 @@ test.describe("Notes and Corkboard Workflow", () => {
       get_notes_config: { notes: [] },
     });
 
-    await expect(page.getByText("No notes yet")).toBeVisible();
+    await expect(page.locator(".placeholder-cta").filter({ hasText: /Add first note/i })).toBeVisible();
   });
 });

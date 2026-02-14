@@ -198,8 +198,8 @@ test.describe("Entity Workflow", () => {
       ),
     });
 
-    // Should show a placeholder in the Characters section
-    await expect(page.getByText("No characters yet")).toBeVisible();
+    // Should show an actionable CTA in the Characters section
+    await expect(page.locator(".placeholder-cta").filter({ hasText: /Add first character/i })).toBeVisible();
     // Places should still have items
     await expect(page.getByTitle("Ironhaven")).toBeVisible();
   });

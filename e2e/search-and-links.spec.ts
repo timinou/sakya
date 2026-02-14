@@ -325,7 +325,7 @@ test.describe("Search and Navigation", () => {
       page.getByRole("tab", { name: "The Awakening" }),
     ).not.toBeVisible();
     await expect(
-      page.getByText("Select a chapter to begin writing"),
+      page.locator(".welcome-card"),
     ).toBeVisible();
   });
 

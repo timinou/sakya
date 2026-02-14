@@ -71,7 +71,7 @@ test.describe("Writing Workflow - Manuscript", () => {
   }) => {
     // Initially the editor should show the empty state
     await expect(
-      page.getByText("Select a chapter to begin writing"),
+      page.locator(".welcome-card"),
     ).toBeVisible();
 
     // Click the first chapter
@@ -86,7 +86,7 @@ test.describe("Writing Workflow - Manuscript", () => {
 
     // The empty state message should no longer be visible
     await expect(
-      page.getByText("Select a chapter to begin writing"),
+      page.locator(".welcome-card"),
     ).not.toBeVisible();
   });
 
@@ -193,7 +193,7 @@ test.describe("Writing Workflow - Manuscript", () => {
 
     // Empty state returns
     await expect(
-      page.getByText("Select a chapter to begin writing"),
+      page.locator(".welcome-card"),
     ).toBeVisible();
   });
 
@@ -339,7 +339,7 @@ test.describe("Writing Workflow - Manuscript", () => {
     page,
   }) => {
     await expect(
-      page.getByText("Select a chapter to begin writing"),
+      page.locator(".welcome-card"),
     ).toBeVisible();
   });
 
@@ -395,6 +395,6 @@ test("shows placeholder when manuscript has no chapters", async ({ page }) => {
   });
   await page.waitForTimeout(500);
 
-  // The "No chapters yet" placeholder should appear in the manuscript section
-  await expect(page.getByText("No chapters yet")).toBeVisible();
+  // The "Add first chapter" CTA should appear in the manuscript section
+  await expect(page.locator(".placeholder-cta").filter({ hasText: /Add first chapter/i })).toBeVisible();
 });
