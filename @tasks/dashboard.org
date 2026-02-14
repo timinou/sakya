@@ -11,7 +11,7 @@
 This dashboard provides a real-time view of the Sakya project progress.
 
 #+BEGIN_QUOTE
-Last updated: Use =M-x prd-dashboard-refresh= to update metrics
+Last updated: 2026-02-14 — All projects complete
 #+END_QUOTE
 
 * Project Progress
@@ -21,32 +21,41 @@ Last updated: Use =M-x prd-dashboard-refresh= to update metrics
 
 ** Projects
 
-| ID | Description | Progress | Status |
-|----+-------------+----------+--------|
-| (none) | | | |
+| ID | Description | Items | Progress | Status |
+|----+-------------+-------+----------+--------|
+| PROJ-001 | Foundation & Infrastructure | 10/10 | 100% | DONE |
+| PROJ-002 | Entity System | 8/8 | 100% | DONE |
+| PROJ-003 | Lexical Writing Editor | 10/10 | 100% | DONE |
+| PROJ-004 | Manuscript System | 5/5 | 100% | DONE |
+| PROJ-005 | Notes & Corkboard | 5/5 | 100% | DONE |
+| PROJ-006 | Integration & Polish | 7/7 | 100% | DONE |
+| *Totals* | | *45/45* | *100%* | *DONE* |
 
 ** Bugfixes
 
-| ID | Description | Progress | Status |
-|----+-------------+----------+--------|
-| (none) | | | |
+| ID | Description | Items | Progress | Status |
+|----+-------------+-------+----------+--------|
+| BUG-001 | Fix YAML missing version on project open | 4/4 | 100% | DONE |
 
 ** Improvements
 
-| ID | Description | Progress | Status |
-|----+-------------+----------+--------|
-| (none) | | | |
+| ID | Description | Items | Progress | Status |
+|----+-------------+-------+----------+--------|
+| (none) | | | | |
 
 * Task Status by Agent
 :PROPERTIES:
 :CUSTOM_ID: agent-status
 :END:
 
-| Agent | Assigned | In Progress | Complete | Blocked |
-|-------+----------+-------------+----------+---------|
-| svelte-developer | 0 | 0 | 0 | 0 |
-| rust-architect | 0 | 0 | 0 | 0 |
-| testing-engineer | 0 | 0 | 0 | 0 |
+| Agent | Assigned | Complete | Progress |
+|-------+----------+----------+----------|
+| svelte-developer | 22 | 22 | 100% |
+| rust-architect | 11 | 11 | 100% |
+| lexical-specialist | 10 | 10 | 100% |
+| testing-engineer | 5 | 5 | 100% |
+| writing-app-designer | 1 | 1 | 100% |
+| *Totals* | *49* | *49* | *100%* |
 
 * Blocked Items
 :PROPERTIES:
@@ -57,62 +66,7 @@ Last updated: Use =M-x prd-dashboard-refresh= to update metrics
 
 | Item ID | Description | Blocked By | Category |
 |---------+-------------+------------+----------|
-| (none) | | | |
-
-#+BEGIN_QUOTE
-Use =M-x prd-list-blocked= to refresh this section
-#+END_QUOTE
-
-* Recent Completions
-:PROPERTIES:
-:CUSTOM_ID: completions
-:END:
-
-** Last 7 Days
-
-| Date | Item ID | Description | Agent |
-|------+---------+-------------+-------|
-| (none) | | | |
-
-#+BEGIN_QUOTE
-Use =M-x prd-recent-completions= to refresh this section
-#+END_QUOTE
-
-* Velocity Metrics
-:PROPERTIES:
-:CUSTOM_ID: velocity
-:END:
-
-** Current Velocity
-
-| Period | Items Completed | Hours Estimated | Actual Hours |
-|--------+-----------------+-----------------+--------------|
-| This Week | 0 | 0h | 0h |
-| Last Week | 0 | 0h | 0h |
-| 2-Week Average | 0 | 0h | 0h |
-
-** Velocity Trend
-
-#+BEGIN_EXAMPLE
-Items/Day
-    |
-  5 |
-    |
-  4 |
-    |
-  3 |
-    |
-  2 |
-    |
-  1 |
-    |
-  0 +---+---+---+---+---+---+---
-      W1  W2  W3  W4  W5  W6  W7
-#+END_EXAMPLE
-
-#+BEGIN_QUOTE
-Use =M-x prd-velocity-chart= to generate updated chart
-#+END_QUOTE
+| (none) | All blockers resolved | | |
 
 * Burndown
 :PROPERTIES:
@@ -123,36 +77,33 @@ Use =M-x prd-velocity-chart= to generate updated chart
 
 | Category | Total | Done | Remaining |
 |----------+-------+------+-----------|
-| Projects | 0h | 0h | 0h |
-| Bugfixes | 0h | 0h | 0h |
+| Projects | 74h 30m | 74h 30m | 0h |
+| Bugfixes | 1h | 1h | 0h |
 | Improvements | 0h | 0h | 0h |
-| *Total* | *0h* | *0h* | *0h* |
+| *Total* | *75h 30m* | *75h 30m* | *0h* |
 
-** Burndown Chart
+** Effort by Project
 
-#+BEGIN_EXAMPLE
-Hours
-     |
- 100 |*
-     | \
-  80 |  \
-     |   *
-  60 |    \
-     |     \
-  40 |      *
-     |       \
-  20 |        *
-     |         \
-   0 +--+--+--+--+--+--+--+--
-     W1 W2 W3 W4 W5 W6 W7 W8
+| Project | Effort |
+|---------+--------|
+| PROJ-001 Foundation & Infrastructure | 17h 30m |
+| PROJ-002 Entity System | 14h |
+| PROJ-003 Lexical Writing Editor | 16h |
+| PROJ-004 Manuscript System | 9h |
+| PROJ-005 Notes & Corkboard | 6h |
+| PROJ-006 Integration & Polish | 12h |
 
-* = Actual Progress
---- = Ideal Burndown
-#+END_EXAMPLE
+* Test Coverage
+:PROPERTIES:
+:CUSTOM_ID: tests
+:END:
 
-#+BEGIN_QUOTE
-Use =M-x prd-burndown-chart= to generate updated chart
-#+END_QUOTE
+| Suite | Count | Status |
+|-------+-------+--------|
+| Rust unit tests | 173 | Passing |
+| Vitest unit tests | 9 | Passing |
+| Playwright E2E | 75 | Passing |
+| *Total* | *257* | *All passing* |
 
 * Risk Register
 :PROPERTIES:
@@ -200,14 +151,12 @@ emacsclient -s sakya -e '(prd-velocity-report :days 14 :format json)'
 :CUSTOM_ID: notes
 :END:
 
-** Week of [Date]
+** Week of 2026-02-14
 
-- [Notes for the week]
-
-** Previous Weeks
-
-*** Week of [Date]
-- [Historical notes]
+- All 6 projects complete (45 PROJ items + 4 BUG items = 49 total)
+- Final polish: wired rich default schemas, fixed svelte-check warnings
+- Test suite: 257 tests (173 Rust, 9 Vitest, 75 E2E), all passing
+- Zero clippy warnings, zero svelte-check warnings
 
 * See Also
 :PROPERTIES:
