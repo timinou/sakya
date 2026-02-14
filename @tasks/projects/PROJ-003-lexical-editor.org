@@ -35,7 +35,7 @@ Define the Lexical theme object mapping node types to CSS classes, and create th
 *** Notes
 See [[file:../../docs/prd/lexical-editor.org::#theme][Lexical Editor Design - Theme Class Mapping]] for full specification.
 
-** ITEM Create SakyaEditor component
+** DONE Create SakyaEditor component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-020-sakya-editor
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
