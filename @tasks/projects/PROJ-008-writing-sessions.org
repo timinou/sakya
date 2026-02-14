@@ -18,7 +18,7 @@
 :REVIEW_BY: rust-architect
 :END:
 
-*** ITEM Session data types and Tauri commands
+*** DONE Session data types and Tauri commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-085
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

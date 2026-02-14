@@ -3,3 +3,4 @@ pub mod manuscript;
 pub mod notes;
 pub mod project;
 pub mod search;
+pub mod sessions;
