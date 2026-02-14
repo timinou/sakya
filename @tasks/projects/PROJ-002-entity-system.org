@@ -53,7 +53,7 @@ Design 4 default YAML schemas that are bundled with new projects. Each schema de
 - [ ] Every spider axis has a meaningful description
 - [ ] Schemas are valid YAML parseable by serde_yaml
 
-** ITEM Create Tauri entity instance commands
+** DONE Create Tauri entity instance commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-013-entity-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
