@@ -54,7 +54,7 @@ Add required Rust crate dependencies to =src-tauri/Cargo.toml=.
 - [ ] Add =slug= for title-to-slug conversion
 - [ ] =cargo build= succeeds without errors
 
-** ITEM Create global CSS theme architecture
+** DONE Create global CSS theme architecture
 :PROPERTIES:
 :CUSTOM_ID: ITEM-003-css-theme
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -82,7 +82,7 @@ Create =src/app.css= with a comprehensive CSS custom properties system supportin
 - [ ] Dark theme overrides via =[data-theme="dark"]=
 - [ ] Reset and base styles
 
-** ITEM Create TypeScript type definitions
+** DONE Create TypeScript type definitions
 :PROPERTIES:
 :CUSTOM_ID: ITEM-004-type-definitions
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -105,7 +105,7 @@ Create TypeScript type definitions in =src/lib/types/= covering all data models.
 - [ ] All types exported from =src/lib/types/index.ts=
 - [ ] No TypeScript errors in strict mode
 
-** ITEM Create Rust module structure and error types
+** DONE Create Rust module structure and error types
 :PROPERTIES:
 :CUSTOM_ID: ITEM-005-rust-modules
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -151,7 +151,7 @@ Implement Tauri commands for project lifecycle management.
 - [ ] All commands return serializable Result types
 - [ ] Error cases handled (folder exists, invalid path, corrupt manifest)
 
-** ITEM Create Svelte 5 reactive state stores
+** DONE Create Svelte 5 reactive state stores
 :PROPERTIES:
 :CUSTOM_ID: ITEM-007-state-stores
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -219,7 +219,7 @@ Replace the default SvelteKit page with a project launcher.
 - [ ] Successful create/open navigates to AppShell view
 - [ ] Error states for invalid project paths
 
-** ITEM Create Tauri service utilities
+** DONE Create Tauri service utilities
 :PROPERTIES:
 :CUSTOM_ID: ITEM-010-tauri-services
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
