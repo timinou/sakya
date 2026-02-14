@@ -486,7 +486,7 @@ Write E2E tests for chapter reordering via context menu Move Up/Down.
 :CUSTOM_ID: CHK-007-07
 :END:
 
-*** ITEM Wire SchemaEditor to backend
+*** DONE Wire SchemaEditor to backend
 :PROPERTIES:
 :CUSTOM_ID: ITEM-080
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -500,11 +500,11 @@ Write E2E tests for chapter reordering via context menu Move Up/Down.
 Wire SchemaEditor save/cancel to entityStore.saveSchema. Connect it to tab system.
 
 **** Acceptance Criteria
-- [ ] Save calls entityStore.saveSchema
-- [ ] Cancel closes tab without saving
-- [ ] Schema changes reflect in binder
+- [X] Save calls entityStore.saveSchema
+- [X] Cancel closes tab without saving
+- [X] Schema changes reflect in binder
 
-*** ITEM Open SchemaEditor from context menu
+*** DONE Open SchemaEditor from context menu
 :PROPERTIES:
 :CUSTOM_ID: ITEM-081
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -519,11 +519,11 @@ Wire SchemaEditor save/cancel to entityStore.saveSchema. Connect it to tab syste
 Wire "Edit Type" and "New Entity Type" context menu actions to open SchemaEditor in a tab.
 
 **** Acceptance Criteria
-- [ ] "Edit Type" opens SchemaEditor with existing schema
-- [ ] "New Entity Type" opens SchemaEditor with blank schema
-- [ ] EditorTab.documentType supports 'schema'
+- [X] "Edit Type" opens SchemaEditor with existing schema
+- [X] "New Entity Type" opens SchemaEditor with blank schema
+- [X] EditorTab.documentType supports 'schema'
 
-*** ITEM Dynamic icons/colors from schema
+*** DONE Dynamic icons/colors from schema
 :PROPERTIES:
 :CUSTOM_ID: ITEM-082
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -537,8 +537,8 @@ Wire "Edit Type" and "New Entity Type" context menu actions to open SchemaEditor
 Replace hardcoded icon/color maps with dynamic values from loaded schemas.
 
 **** Acceptance Criteria
-- [ ] Icons read from schema.icon field with fallback to hardcoded map
-- [ ] Colors read from schema.color field with fallback to hardcoded map
+- [X] Icons read from schema.icon field with fallback to hardcoded map
+- [X] Colors read from schema.color field with fallback to hardcoded map
 
 *** DONE Delete entity type with confirmation
 :PROPERTIES:

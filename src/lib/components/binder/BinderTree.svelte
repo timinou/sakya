@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { ComponentType } from 'svelte';
-  import { Users, MapPin, Package, Lightbulb, File, Plus, Pencil, Trash2, Settings } from 'lucide-svelte';
+  import {
+    Users, MapPin, Package, Lightbulb, File, Plus, Pencil, Trash2, Settings,
+    Star, Heart, Sword, Shield, Crown, Flame, Globe, BookOpen, Scroll,
+    Gem, Skull, Wand2, Castle, Compass, Anchor, Feather, Zap, Clock,
+    Eye, Key, Map, Music, Palette, Puzzle, Target, TreePine, Mountain,
+  } from 'lucide-svelte';
   import { entityStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -52,7 +57,7 @@
   let renameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
-  // Icon mapping for known entity types
+  // Icon mapping for known entity types (hardcoded fallbacks)
   const entityIcons: Record<string, IconComponent> = {
     character: Users,
     place: MapPin,
@@ -60,7 +65,7 @@
     idea: Lightbulb,
   };
 
-  // Color mapping for known entity types
+  // Color mapping for known entity types (hardcoded fallbacks)
   const entityColors: Record<string, string> = {
     character: '#7c4dbd',
     place: '#2e8b57',
@@ -68,11 +73,62 @@
     idea: '#3a7bd5',
   };
 
+  // Map schema icon strings to Lucide components
+  const iconStringMap: Record<string, IconComponent> = {
+    users: Users,
+    'map-pin': MapPin,
+    package: Package,
+    lightbulb: Lightbulb,
+    file: File,
+    star: Star,
+    heart: Heart,
+    sword: Sword,
+    shield: Shield,
+    crown: Crown,
+    flame: Flame,
+    globe: Globe,
+    'book-open': BookOpen,
+    scroll: Scroll,
+    gem: Gem,
+    skull: Skull,
+    wand: Wand2,
+    castle: Castle,
+    compass: Compass,
+    anchor: Anchor,
+    feather: Feather,
+    zap: Zap,
+    clock: Clock,
+    eye: Eye,
+    key: Key,
+    map: Map,
+    music: Music,
+    palette: Palette,
+    puzzle: Puzzle,
+    target: Target,
+    'tree-pine': TreePine,
+    mountain: Mountain,
+    settings: Settings,
+    pencil: Pencil,
+    trash: Trash2,
+    plus: Plus,
+  };
+
   function getIconForType(entityType: string): IconComponent {
+    // Check schema cache for dynamic icon
+    const cached = entityStore.schemaCache[entityType];
+    if (cached?.icon) {
+      const mapped = iconStringMap[cached.icon];
+      if (mapped) return mapped;
+    }
+    // Fall back to hardcoded map
     return entityIcons[entityType] ?? File;
   }
 
   function getColorForType(entityType: string): string | undefined {
+    // Check schema cache for dynamic color
+    const cached = entityStore.schemaCache[entityType];
+    if (cached?.color) return cached.color;
+    // Fall back to hardcoded map
     return entityColors[entityType];
   }
 

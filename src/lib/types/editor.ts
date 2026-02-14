@@ -1,7 +1,7 @@
 export interface EditorTab {
   id: string;
   title: string;
-  documentType: 'chapter' | 'entity' | 'note';
+  documentType: 'chapter' | 'entity' | 'note' | 'schema';
   documentSlug: string;
   isDirty: boolean;
 }
