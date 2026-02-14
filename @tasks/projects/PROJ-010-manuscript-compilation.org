@@ -1,0 +1,235 @@
+#+TITLE: PROJ-010 Manuscript Compilation & Export
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-010 Manuscript Compilation & Export
+:PROPERTIES:
+:CUSTOM_ID: PROJ-010
+:GOAL: Implement manuscript compilation that stitches all chapters into a single output file with configurable formatting, supporting Markdown, HTML, and plain text export formats.
+:DEPENDS_INIT: PROJ-001, PROJ-004
+:COMPLETION: All ITEMs complete, manuscripts can be compiled from ordered chapters with title page, chapter headers, separators, and exported to Markdown/HTML/plain text via save dialog.
+:END:
+
+** CHK-010-01 Rust Backend — Compilation Engine
+:PROPERTIES:
+:CUSTOM_ID: CHK-010-01
+:CRITERIA: CompileConfig model defined, compile_manuscript command returns correct Markdown, HTML export works via pulldown-cmark, all Rust tests pass.
+:VERIFY: cargo test -- compile, cargo clippy
+:END:
+
+*** ITEM Compile data model & template types
+:PROPERTIES:
+:CUSTOM_ID: ITEM-099
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/models/compile.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define the core data structures for manuscript compilation. =CompileConfig= captures all user-configurable options (title page, chapter header style, separator style, output format). =CompileOutput= wraps the compiled content with metadata. Provide sensible defaults so the user can compile immediately without configuring anything.
+
+**** Acceptance Criteria
+- [ ] =CompileConfig= struct with fields: title, author, include_title_page, chapter_header_style (enum: Numbered, Titled, NumberedAndTitled, None), chapter_separator (enum: PageBreak, ThreeStars, HorizontalRule, BlankLines), output_format (enum: Markdown, Html, PlainText), include_synopsis, front_matter
+- [ ] =CompileOutput= struct with fields: content (String), format (OutputFormat), chapter_count (usize), word_count (usize)
+- [ ] =Default= impl for =CompileConfig= with sensible defaults (include title page, numbered and titled headers, page break separator, Markdown format)
+- [ ] All structs derive Serialize, Deserialize, Clone
+- [ ] Module registered in =models/mod.rs=
+
+*** ITEM compile_manuscript Tauri command
+:PROPERTIES:
+:CUSTOM_ID: ITEM-100
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-099
+:FILES: src-tauri/src/commands/compile.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Implement the =compile_manuscript= Tauri command. Reads all chapters in order from =ManuscriptConfig=, concatenates them with chapter headers and separators according to =CompileConfig=, applies optional front matter and title page, and returns a =CompileOutput= with the compiled Markdown string and metadata. This is the core compilation pipeline — format-specific rendering (HTML, plain text) happens downstream.
+
+**** Acceptance Criteria
+- [ ] =compile_manuscript(project_path, config)= Tauri command registered in =lib.rs=
+- [ ] Reads =ManuscriptConfig= to get ordered chapter slugs
+- [ ] Loads each chapter via =get_chapter= logic (frontmatter + body)
+- [ ] Generates title page block when =include_title_page= is true (title, author, separator)
+- [ ] Inserts chapter headers according to =chapter_header_style= (e.g., "## Chapter 1: The Beginning")
+- [ ] Inserts separators between chapters according to =chapter_separator= setting
+- [ ] Optionally includes chapter synopsis as italicized text below header when =include_synopsis= is true
+- [ ] Prepends custom =front_matter= text when non-empty
+- [ ] Returns =CompileOutput= with content, format, chapter count, and total word count
+- [ ] Handles empty manuscript gracefully (returns empty content with zero counts)
+- [ ] Handles missing chapter files gracefully (skips with warning or returns error)
+- [ ] Command module registered in =commands/mod.rs=
+
+*** ITEM HTML export format
+:PROPERTIES:
+:CUSTOM_ID: ITEM-101
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-100
+:FILES: src-tauri/src/commands/compile.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Add HTML export to the compilation pipeline. When =output_format= is =Html=, convert the compiled Markdown to styled HTML using =pulldown-cmark=. Embed a CSS stylesheet for print-ready formatting with proper page breaks, chapter headings, and typographic styling.
+
+**** Acceptance Criteria
+- [ ] =pulldown-cmark= added as dependency in =Cargo.toml=
+- [ ] Markdown-to-HTML conversion using =pulldown_cmark::html::push_html=
+- [ ] Embedded CSS stylesheet with print-ready styles (page-break-before for chapters, serif body font, centered title page)
+- [ ] Full HTML document output (DOCTYPE, html, head with style, body)
+- [ ] Chapter separators translated to appropriate HTML (=<hr>=, page break CSS class, etc.)
+- [ ] Title page styled distinctly (centered, larger font)
+- [ ] Output is valid, well-formed HTML
+
+*** ITEM Rust tests for compilation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-102
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-100
+:FILES: src-tauri/src/commands/compile.rs
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Write comprehensive Rust unit and integration tests for the compilation engine. Cover the full matrix of configuration options, edge cases, and error conditions.
+
+**** Acceptance Criteria
+- [ ] Test: compile with default config produces expected Markdown output
+- [ ] Test: chapter ordering matches =ManuscriptConfig= sequence
+- [ ] Test: title page included/excluded based on config
+- [ ] Test: all four chapter header styles produce correct output
+- [ ] Test: all four separator styles produce correct output
+- [ ] Test: synopsis inclusion adds italicized text
+- [ ] Test: custom front matter prepended correctly
+- [ ] Test: empty manuscript (no chapters) returns empty content with zero counts
+- [ ] Test: single chapter compiles without separators
+- [ ] Test: special characters in chapter titles handled correctly (quotes, ampersands, unicode)
+- [ ] Test: word count is accurate across multiple chapters
+- [ ] Test: chapter count matches actual compiled chapters
+- [ ] All tests pass with =cargo test=
+
+** CHK-010-02 Frontend — Compile Dialog
+:PROPERTIES:
+:CUSTOM_ID: CHK-010-02
+:CRITERIA: Compile dialog opens with all configuration options, preview updates reactively, save dialog writes compiled output to user-chosen path.
+:VERIFY: bun run build, bun run test:e2e -- manuscript-compilation
+:END:
+
+*** ITEM Compile dialog UI
+:PROPERTIES:
+:CUSTOM_ID: ITEM-103
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-100
+:FILES: src/lib/components/compile/CompileDialog.svelte, src/lib/components/compile/CompilePreview.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Create a modal compile dialog accessible from the toolbar or Cmd+Shift+E. The dialog presents all compilation options in an organized layout with a live preview pane showing the first page of compiled output. Uses Svelte 5 runes for reactive state.
+
+**** Acceptance Criteria
+- [ ] Modal dialog component with overlay backdrop
+- [ ] Format selector: Markdown, HTML, Plain Text (radio group or segmented control)
+- [ ] Title page toggle (checkbox) with title and author text inputs
+- [ ] Chapter header style selector (dropdown: Numbered, Titled, Both, None)
+- [ ] Separator style selector (dropdown: Page Break, Three Stars, Horizontal Rule, Blank Lines)
+- [ ] Include synopsis toggle (checkbox)
+- [ ] Custom front matter textarea (collapsible section)
+- [ ] Preview pane showing first ~500 chars of compiled output, updating reactively on config changes
+- [ ] "Compile & Save" primary action button
+- [ ] "Cancel" secondary action button
+- [ ] Keyboard shortcut Cmd+Shift+E opens dialog from editor view
+- [ ] Escape closes dialog
+- [ ] Dialog styled consistently with existing Sakya modals (ConfirmDialog pattern)
+
+*** ITEM Download/save compiled output
+:PROPERTIES:
+:CUSTOM_ID: ITEM-104
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-103, ITEM-100
+:FILES: src/lib/components/compile/CompileDialog.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire the "Compile & Save" button to invoke the =compile_manuscript= Tauri command, then use Tauri's save dialog (=@tauri-apps/plugin-dialog=) to let the user choose the output file path. Write the compiled content to the selected path. Show success/error feedback.
+
+**** Acceptance Criteria
+- [ ] "Compile & Save" invokes =compile_manuscript= with current =CompileConfig=
+- [ ] Tauri save dialog opens with appropriate file extension filter (.md, .html, .txt based on format)
+- [ ] Compiled content written to selected path via Tauri FS
+- [ ] Loading state shown during compilation (spinner or disabled button)
+- [ ] Success toast/notification with file path and word count
+- [ ] Error handling for compilation failures (toast with error message)
+- [ ] Dialog closes on successful save
+
+** CHK-010-03 Polish & Testing
+:PROPERTIES:
+:CUSTOM_ID: CHK-010-03
+:CRITERIA: Plain text export produces correctly wrapped and formatted output, all E2E tests pass covering the full compilation workflow.
+:VERIFY: cargo test -- compile, bun run test:e2e -- manuscript-compilation
+:END:
+
+*** ITEM Plain text export format
+:PROPERTIES:
+:CUSTOM_ID: ITEM-105
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-100
+:FILES: src-tauri/src/commands/compile.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Add plain text export to the compilation pipeline. When =output_format= is =PlainText=, strip all Markdown formatting, apply configurable line width wrapping, and render chapter separators as ASCII art.
+
+**** Acceptance Criteria
+- [ ] Markdown formatting stripped (bold, italic, headers converted to plain text equivalents)
+- [ ] Configurable line width wrapping (default 80 characters)
+- [ ] Chapter headers rendered as uppercase text with underline (e.g., =CHAPTER 1: THE BEGINNING= followed by a line of dashes)
+- [ ] Three-star separator rendered as =* * *=
+- [ ] Page break separator rendered as a line of equals signs
+- [ ] Horizontal rule rendered as a line of dashes
+- [ ] Title page rendered as centered uppercase text (padded with spaces)
+- [ ] Unit tests for plain text output
+
+*** ITEM E2E tests for compilation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-106
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-103, ITEM-104
+:FILES: e2e/manuscript-compilation.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write end-to-end Playwright tests covering the full compilation workflow: opening the compile dialog, configuring options, previewing output, triggering compilation, and verifying IPC calls.
+
+**** Acceptance Criteria
+- [ ] Test: compile dialog opens via toolbar button
+- [ ] Test: compile dialog opens via Cmd+Shift+E keyboard shortcut
+- [ ] Test: format selector switches between Markdown, HTML, Plain Text
+- [ ] Test: title page toggle enables/disables title and author inputs
+- [ ] Test: chapter header style selector changes preview output
+- [ ] Test: "Compile & Save" triggers =compile_manuscript= IPC call with correct =CompileConfig=
+- [ ] Test: save dialog invoked with correct file extension filter
+- [ ] Test: cancel button closes dialog without IPC calls
+- [ ] Test: Escape key closes dialog
+- [ ] Test: error state displayed when compilation fails
+- [ ] All tests pass

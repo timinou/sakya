@@ -1,0 +1,364 @@
+* Timeline View Feature Idea
+
+A horizontal, interactive timeline visualization where chapters and scenes become temporal markers along a narrative axis, with dedicated swimlanes for each POV character to help authors manage complex multi-POV narratives and identify pacing problems.
+
+** Vision & Motivation
+
+The Timeline View solves a critical problem in multi-POV novels: /where are we in the story world?/
+
+In traditional prose editing, the chapter list shows reading order (the arrangement the reader encounters), but doesn't reveal the temporal structure of the narrative. An author writing parallel storylines must mentally track:
+
+- Which chapters happen "at the same time" in story-world?
+- Does Character A's arc progress too slowly while Character B's accelerates?
+- Are flashbacks and time jumps clear and intentional, or confusing?
+- What's the actual pacing when you remove the POV artifice and look at story time?
+
+The Timeline View makes /temporal relationships visible/. It transforms narrative structure from a linear list into a spatialized diagram where simultaneity, flashbacks, jumps, and character arcs become geometric facts on screen.
+
+*** Key Insight
+The chapter order (as it appears in the editor) is NOT the same as the timeline order. Chapters can be reordered for pacing/suspense without changing their in-world temporal placement. The Timeline View is the author's X-ray vision into story time.
+
+** Architecture & Layout
+
+*** Core Component Structure
+- *Horizontal Scrollable Canvas*: Infinite-scroll area with temporal axis as X-coordinate
+  - Time increases left-to-right
+  - Labeled with relative (e.g., "Day 1", "Chapter 3 time") or absolute (calendar) markers depending on metadata
+  - Snap-to-grid optional, for both positioning and zooming
+
+- *POV Swimlanes* (Y-axis stacking):
+  - Each POV character gets a horizontal track
+  - Chapter/scene blocks nested within that track
+  - Tracks are draggable to reorder (for grouping related POVs)
+  - Collapsible for focus (hide minor POVs, show only main 3 characters)
+
+- *Subplot Tier* (optional secondary track):
+  - Sub-timeline for world events, flashbacks, or B-plot items
+  - Lighter visual weight, doesn't dominate the interface
+  - Can be toggled on/off
+
+*** Visual Encoding
+- *Chapter Blocks*:
+  - Rectangular markers with chapter title/number
+  - Width = chapter length (optional, if you have word count metadata)
+  - Height proportional to importance or reader perspective (author-configurable)
+  - Rounded corners with subtle drop shadow for depth
+
+- *Status Colors* (matching existing Sakya color scheme):
+  - Draft: muted blue-gray
+  - Revised: amber/gold
+  - Final: deep green
+  - Placeholder/unwritten: light hatch pattern
+
+- *POV Identification*:
+  - Swimlane header shows character name, small avatar/icon
+  - Optional tint to swimlane background (e.g., soft character color) for quick scanning
+  - Legend at top-left corner
+
+- *Temporal Markers*:
+  - Vertical dashed lines every X days/chapters/scenes (configurable)
+  - Subtle text labels ("Day 1", "Week 2", "Year 5 flashback") above timeline
+
+** Temporal Metadata: Placing Chapters on the Timeline
+
+*** The "Timeline Position" Concept
+A new metadata field (one per chapter in ~ManuscriptConfig~) that answers: "When in story-world time does this chapter occur?"
+
+Options for representation:
+1. *Relative Ordering*: Simple integer (1, 2, 3...). Chapters are laid out in this order; no gaps. Simplest to use, but less flexible.
+2. *Absolute Date*: ISO 8601 or narrative calendar (e.g., "Y1D42" = Year 1, Day 42). Allows gaps for unwritten time, multiple events per "day".
+3. *Hybrid*: "Chapter-relative" where you can specify: "This chapter happens 3 days after Chapter 5".
+4. *Fractional/Weighted*: Position = 2.5 (meaning "between Chapter 2 and Chapter 3 in time"). Useful for uncertainty.
+
+*** Recommendation for MVP
+Start with **relative integer ordering** for simplicity. Authors can:
+- Set `timeline_position: 1` for Chapter 1
+- Set `timeline_position: 2` for Chapter 2
+- Both could have `timeline_position: 2` if they're simultaneous (both rendered at X=2 on canvas, different Y lanes)
+
+This maps directly to a numeric sort and scales horizontally without calendar complexity.
+
+*** Interaction Pattern
+UI: In chapter properties (new "Timeline" tab):
+- Slider or numeric input: "Chapter occurs at position X on timeline"
+- Dropdown: "Same time as Chapter [n]" (for simultaneity)
+- Relative offset: "+2 days after Chapter [n]"
+- Quick reorder drag handle in timeline view itself
+
+** Multi-POV & Swimlane Management
+
+*** Swimlane Layout Algorithm
+1. Group chapters by their POV character
+2. Sort each POV's chapters by timeline_position (ascending)
+3. Stack swimlanes vertically (author-configurable order)
+4. Render each chapter as a block in its POV's swimlane, positioned horizontally by timeline_position
+
+*** Pacing Insights
+The visual will immediately reveal:
+- *POV Imbalance*: "Character A has 8 consecutive blocks; Character B has only 1" → potential reader fatigue
+- *Time Gaps*: "No POV covers Days 15-20" → mysterious void or plot hole?
+- *Flashback Clusters*: "3 chapters with timeline_position < 1" → backstory dump warning
+- *Convergence Points*: "All POVs at timeline_position 10" → climax/convergence visible
+
+*** Swimlane Interactions
+- *Reorder*: Drag swimlane header to change vertical stacking
+- *Collapse/Expand*: Hide/show chapters for a POV (e.g., focus on main 3 of 7)
+- *Filter*: Show only chapters with status="Final", or word_count > 5000
+- *Group*: Temporarily bundle related POVs (e.g., "protagonists" vs "antagonists")
+
+** Interactions & Gestures
+
+*** Core Interactions
+- *Horizontal Scroll/Pan*: Swipe or scroll wheel to move along timeline
+- *Zoom In/Out*: Ctrl+Scroll or pinch gesture to change temporal granularity
+  - Zoom levels: "Month view", "Week view", "Day view", "Scene view"
+  - At high zoom, chapter blocks may split into scenes (if scene-level metadata exists)
+  - At low zoom, chapters compress into single pixels (heatmap-like)
+
+- *Click Chapter Block*: Opens chapter in editor (if not already open)
+  - Shift+Click: Open in split view
+  - Right-click: Context menu (edit metadata, duplicate, merge, etc.)
+
+- *Drag Chapter Block*: Reposition on timeline
+  - Snaps to grid (if grid mode enabled) or free-form
+  - Real-time preview of new timeline_position
+  - Drop to confirm or Escape to cancel
+
+- *Drag Between Swimlanes*: Change POV of a chapter (reparent to different character)
+  - Requires confirmation (changes narrative perspective)
+
+- *Hover Chapter Block*: Tooltip showing:
+  - Chapter title, POV character
+  - Word count, status, timeline_position
+  - Last modified date
+
+*** Advanced: Temporal Relationship Tools
+- *Drag to Link*: Draw a connection line between chapters to mark dependency/causality
+- *Ghost Blocks*: Fade out chapters from other POVs to focus on one character's arc
+- *Highlight Overlaps*: Visually emphasize chapters that occur at the same time (useful for cross-checking details)
+
+** Integration & Accessibility
+
+*** View Modes
+The Timeline View is a new editor mode (like Corkboard or Editor already exist):
+- Toolbar toggle: "Timeline", "Editor", "Corkboard" buttons
+- Or: New sidebar icon to open Timeline View in split panel
+- Keyboard shortcut: Ctrl+Shift+T (or configurable)
+
+*** Persistence & Defaults
+- Timeline_position metadata persists in ~ManuscriptConfig~
+- Default view settings (zoom level, swimlane order, filter state) stored in user prefs
+- Current zoom/pan position remembered per manuscript (sessionStorage or local state)
+
+*** Export & Analysis
+- Export timeline as SVG (for publishing in author guides, sharing with beta readers)
+- Statistics panel: "POV Balance Report" showing chapter counts per character, time coverage, etc.
+- CSV export: Chapter metadata with timeline positions for external analysis
+
+** Use Cases & Examples
+
+*** Use Case 1: Multi-POV Crime Novel
+- 5 POV characters (detective, victim's friend, perpetrator, witness, partner)
+- Chapters interleave in read order: Det, Friend, Perpetrator, Friend, Det...
+- Timeline reveals: Days 1-3 are parallel (all POVs covering same 72-hour period), then the perp's chapters jump backward (flashback) to Day -2
+- Author spots: "The friend's POV is missing entirely from the climax day. That's intentional, but I should add one scene to show her reaction."
+
+*** Use Case 2: Flashback-Heavy Literary Fiction
+- Main storyline: Present day, 40 chapters
+- Flashbacks: 15 chapters set 20 years earlier
+- Timeline_position allows author to see that all flashbacks are clustered in the middle (Chapters 15-30 of reading order)
+- Author zooms out, sees the gap: no flashbacks in the climax, which is good. Or realizes they *want* one at the end for emotional payoff.
+
+*** Use Case 3: Simultaneous Scenes
+- Two characters meet the same person on the same day but describe it from their POVs
+- Both chapters get timeline_position = 5.0 (or "5a" and "5b")
+- Timeline shows them horizontally aligned
+- Author verifies consistency: "Did both POVs notice the character's nervous habit? Yes, good."
+
+** Technical Approach
+
+*** Rendering Engine
+Two viable options:
+
+1. *CSS Grid + Absolutely Positioned Blocks*:
+   - Parent container is a CSS Grid with named areas per swimlane
+   - Chapter blocks use `grid-column: <timeline_position>` to self-position
+   - Pros: Native browser, easy styling, responsive
+   - Cons: Fixed column width; may be janky with many chapters
+
+2. *SVG or Canvas*:
+   - Full control over rendering pipeline
+   - Smooth scrolling and zoom via transformation matrices
+   - Pros: Best performance for thousands of chapters, precise positioning
+   - Cons: Manual event handling, accessibility harder
+
+*** Recommendation for MVP
+Start with **CSS Grid + overflow scroll**. If performance bottlenecks emerge (100+ chapters), migrate to SVG with a library like D3.js or EaselJS for layout.
+
+*** Drag-and-Drop Implementation
+- Use native HTML5 Drag and Drop API or a library like dnd-kit (what Sakya may already use)
+- Ghost image shows chapter block with semi-transparency as it's dragged
+- Snap-to-grid enforcement happens in `ondrop` handler
+
+*** Layout & Responsiveness
+- Mobile: Stack swimlanes horizontally (narrow swimlane headers, full chapter width)
+- Tablet: Compact swimlane headers, reasonable chapter width
+- Desktop: Full-featured (wide swimlanes, detailed chapter names, legend)
+
+** Integration with Existing Sakya Architecture
+
+*** ManuscriptConfig Changes
+Add optional fields to each chapter object:
+#+begin_src typescript
+interface ChapterMetadata {
+  // existing fields...
+  title: string;
+  slug: string;
+  wordCount: number;
+  status: "draft" | "revised" | "final";
+  
+  // NEW: Timeline metadata
+  timelinePosition?: number;        // relative position on timeline
+  pov?: string;                      // POV character slug
+  timelineDisplayLabel?: string;     // optional "Day 1", "Flashback: 20 years prior", etc.
+  subplotTrack?: string;             // optional subplot identifier
+}
+#+end_src
+
+*** Store Integration
+- Create a new Svelte store `timelineStore` in `src/lib/stores/`
+- Expose:
+  - ~activeTimelinePosition~: Currently hovered/selected chapter
+  - ~timelineZoomLevel~: Current zoom (Month, Week, Day, Scene)
+  - ~swimlaneOrder~: Array of POV character slugs in display order
+  - ~collapsedSwimlanes~: Set of hidden POVs
+  - ~focusedPOV~: Ghost out all except one POV (if set)
+
+*** Component Structure
+```
+src/lib/components/
+  ├── TimelineView.svelte (main container, orchestrator)
+  ├── TimelineCanvas.svelte (scrollable content area)
+  ├── TimelineSwimlane.svelte (one POV track)
+  ├── TimelineChapterBlock.svelte (single chapter marker)
+  ├── TimelineAxis.svelte (temporal labels & grid)
+  ├── TimelineToolbar.svelte (zoom, filter, view options)
+  └── TimelineMetadataPanel.svelte (edit timeline_position for selected chapter)
+```
+
+*** Route Integration
+- New route: `/@/[slug]/timeline` (following existing pattern)
+- Or: Sidebar toggle that swaps Editor.svelte for TimelineView.svelte
+- Share the same toolbar and top-level layout
+
+** Complexity Estimate
+
+| Layer | Estimate | Notes |
+|-------|----------|-------|
+| **Data Model** | 1-2 days | Add timeline_position field, migrations, validation |
+| **UI Components** | 3-5 days | TimelineCanvas, swimlanes, chapter blocks, interactions |
+| **Interactions** | 2-3 days | Drag-and-drop, zoom, pan, click handlers |
+| **Integration** | 1-2 days | Store plumbing, route setup, toolbar toggle |
+| **Polish & Testing** | 3-4 days | Responsive design, E2E tests, edge cases |
+| **Total MVP** | **10-17 days** | Assuming no major architectural surprises |
+
+*** High Complexity Drivers
+- Drag-and-drop between swimlanes (requires POV reparenting logic)
+- Smooth scroll/zoom performance with 100+ chapters
+- Responsive design (mobile swimlane layout is tricky)
+- Temporal relationship visualization (linking chapters)
+- Accessibility (keyboard navigation, screen reader support for timeline)
+
+*** Risk Mitigations
+- Start with single-POV timeline to validate core interactions
+- Use existing dnd-kit library if available (vs. building custom)
+- Mock temporal metadata in E2E tests before touching ManuscriptConfig schema
+- User testing early (show wireframes to beta readers)
+
+** Success Criteria
+
+A successful Timeline View MVP should:
+1. Display all chapters of a manuscript, grouped by POV, positioned by timeline_position
+2. Allow intuitive reordering of chapters via drag-and-drop
+3. Support zoom levels (month, week, day, scene)
+4. Highlight pacing imbalances and temporal gaps via visual scanning
+5. Integrate seamlessly with the editor (click chapter → open in editor)
+6. Persist timeline_position metadata and view preferences
+7. Render smoothly with 100+ chapters
+8. Be fully responsive (desktop, tablet, mobile)
+9. Pass comprehensive E2E test suite (pacing detection, drag interactions, persistence)
+
+** Future Enhancements (Post-MVP)
+
+- *Calendar Integration*: Import real-world dates, sync with calendar widget
+- *Character Arc Overlay*: Visual representation of character development across timeline
+- *Conflict Timeline*: Show relationship timelines (when do characters meet/separate?)
+- *Branching Timelines*: Support alternate-universe or time-loop narratives (multiple parallel timelines)
+- *AI Suggestions*: "You have 3 consecutive Protagonist A chapters; consider interleaving with POV B"
+- *Collaborative Editing*: See where co-authors are placing chapters in real time
+- *Narrative Graph*: Combine timeline with story dependency graph (Chapters A must precede B)
+
+** Appendix: Temporal Metadata Examples
+
+*** Simple Relative Model
+#+begin_src yaml
+chapters:
+  - id: ch_001
+    title: "The Call"
+    pov: "Detective"
+    timeline_position: 1
+    
+  - id: ch_002
+    title: "What I Saw"
+    pov: "Witness"
+    timeline_position: 1    # simultaneous with ch_001
+    
+  - id: ch_003
+    title: "Ten Years Back"
+    pov: "Protagonist"
+    timeline_position: -5   # flashback
+    
+  - id: ch_004
+    title: "The Revelation"
+    pov: "Detective"
+    timeline_position: 2    # one unit after ch_001 & ch_002
+#+end_src
+
+*** With Labels (Human-Readable)
+#+begin_src yaml
+chapters:
+  - id: ch_001
+    title: "The Call"
+    pov: "Detective"
+    timeline_position: 1
+    timeline_label: "Day 1, Morning"
+    
+  - id: ch_003
+    title: "Ten Years Back"
+    pov: "Protagonist"
+    timeline_position: -50
+    timeline_label: "Flashback: 1995"
+#+end_src
+
+*** Advanced: Day-Based Positioning
+#+begin_src typescript
+// If we want sub-day precision:
+interface AdvancedTimingMetadata {
+  storyDate: "1995-03-15",           // absolute calendar date (if using real-world time)
+  storyDay: 1,                        // relative to story start
+  storyDayFraction: 0.5,              // 0.0-1.0 for ordering within same day
+  estimatedDurationDays: 3,           // chapter spans 3 days (for width calculation)
+}
+#+end_src
+
+This is kept flexible for future expansion without breaking the MVP's simplicity.
+
+** References & Inspiration
+
+- *Aeon Timeline* (commercial writing tool): Horizontal timeline with stacked character tracks
+- *Scapple* (mind-mapping software): Free-form spatial relationship layout
+- *Gantt Charts* (project management): Horizontal bar charts for task scheduling; same visual metaphor applies
+- *Vega-Lite* (visualization grammar): D3-inspired declarative approach to building custom timelines
+- *HTML5 Drag and Drop API*: Native browser support for complex rearrangement UIs
+- *CSS Grid*: Modern layout primitive for positioning blocks in 2D space
+

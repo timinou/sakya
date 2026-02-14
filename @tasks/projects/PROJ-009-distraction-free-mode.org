@@ -1,0 +1,141 @@
+#+TITLE: PROJ-009 Distraction-Free & Typewriter Mode
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-009 Distraction-Free & Typewriter Mode
+:PROPERTIES:
+:CUSTOM_ID: PROJ-009
+:GOAL: Provide a zen writing experience through three composable modes: typewriter scrolling (active line stays vertically centered), focus mode (current paragraph highlighted, surrounding text dimmed), and distraction-free mode (all UI chrome fades away leaving only the editor).
+:DEPENDS_INIT: PROJ-001, PROJ-003
+:COMPLETION: All three modes are independently toggleable via keyboard shortcuts, compose with each other, persist their state across sessions, and have full E2E test coverage.
+:END:
+
+** CHK-009-01 Core Mode Implementation
+:PROPERTIES:
+:CUSTOM_ID: CHK-009-01
+:END:
+
+*** ITEM Typewriter scrolling Lexical plugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-094
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/TypewriterPlugin.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Create a Lexical editor plugin that keeps the active line (caret position) vertically centered in the editor viewport. The plugin registers a command listener on =SELECTION_CHANGE_COMMAND= and =KEY_ENTER_COMMAND= to detect cursor movement, then smoothly scrolls the editor container so the line containing the caret sits at approximately 50% of the viewport height. Uses =requestAnimationFrame= for smooth, non-janky scrolling. The plugin reads a =typewriterMode= boolean from the UI store and activates/deactivates without requiring editor re-initialization. When deactivated mid-session, the editor returns to normal scroll behavior without a jarring jump.
+
+**** Acceptance Criteria
+- [ ] Plugin registers listeners on =SELECTION_CHANGE_COMMAND= and =KEY_ENTER_COMMAND=
+- [ ] Active line scrolls to vertical center of editor viewport when typewriter mode is on
+- [ ] Scrolling is smooth (uses =requestAnimationFrame= or CSS =scroll-behavior: smooth=)
+- [ ] Toggling typewriter mode off returns to normal scroll behavior without visible jump
+- [ ] Plugin reads enabled state from =uiStore.typewriterMode=
+- [ ] No scrolling side effects when the editor is not focused
+- [ ] Works correctly with long documents that exceed viewport height
+- [ ] Cleanup: all listeners deregistered on component destroy
+
+*** ITEM Focus mode (dim non-current paragraph)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-095
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/FocusPlugin.svelte, src/lib/editor/theme.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Create a Lexical editor plugin that highlights the paragraph containing the current selection at full opacity while dimming all other paragraphs to 30% opacity. The plugin listens to =SELECTION_CHANGE_COMMAND=, resolves the nearest block-level ancestor of the current selection via =editor.getElementByKey()=, and toggles a CSS class (=editor-focus-active=) on that DOM element. A CSS rule on the editor root (=.editor-focus-enabled=) sets all direct block children to =opacity: 0.3= with a smooth transition, and the =.editor-focus-active= class overrides to =opacity: 1=. The plugin reads a =focusMode= boolean from the UI store and adds/removes the root class accordingly. When multiple paragraphs are selected, all paragraphs in the selection range are highlighted.
+
+**** Acceptance Criteria
+- [ ] Current paragraph renders at full opacity (1.0)
+- [ ] All other paragraphs render at reduced opacity (0.3)
+- [ ] Opacity transition is smooth (CSS transition, ~150ms)
+- [ ] Plugin adds =editor-focus-enabled= class to editor root when active
+- [ ] Active paragraph gets =editor-focus-active= class
+- [ ] Multi-paragraph selection highlights all selected paragraphs
+- [ ] Works with all block-level nodes (paragraphs, headings, lists, blockquotes)
+- [ ] Toggling focus mode off immediately restores all paragraphs to full opacity
+- [ ] Plugin reads enabled state from =uiStore.focusMode=
+- [ ] Cleanup: classes removed and listeners deregistered on component destroy
+
+*** ITEM Distraction-free chrome fade
+:PROPERTIES:
+:CUSTOM_ID: ITEM-096
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/stores/ui.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add a distraction-free mode to AppShell that hides all UI chrome — binder sidebar, inspector panel, toolbar, and status bar — with a smooth fade-out transition (200ms opacity + transform), leaving only the editor filling the full viewport. The mode is driven by a =distractionFreeMode= boolean in the UI store. When activated, the editor container transitions to =max-width: 100%= and the chrome elements fade to =opacity: 0= then =display: none= (after transition ends) to avoid capturing pointer events. The toolbar should slide up and the status bar should slide down. Mouse movement to screen edges reveals the respective chrome element temporarily (binder on left edge, inspector on right edge). Pressing Escape exits distraction-free mode.
+
+**** Acceptance Criteria
+- [ ] Activating distraction-free mode hides binder, inspector, toolbar, and status bar
+- [ ] Chrome elements fade out with a smooth 200ms transition
+- [ ] Editor fills the full viewport width
+- [ ] Escape key exits distraction-free mode
+- [ ] Mouse hover at left screen edge temporarily reveals binder
+- [ ] Mouse hover at right screen edge temporarily reveals inspector
+- [ ] UI store gains =distractionFreeMode= boolean property
+- [ ] Mode state persists across sessions (saved to UI store preferences)
+- [ ] Transition back to normal mode is smooth (no layout jump)
+
+** CHK-009-02 Integration & Polish
+:PROPERTIES:
+:CUSTOM_ID: CHK-009-02
+:END:
+
+*** ITEM Keyboard shortcuts and toolbar toggle
+:PROPERTIES:
+:CUSTOM_ID: ITEM-097
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-094, ITEM-095, ITEM-096
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/stores/ui.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire up keyboard shortcuts and toolbar controls for all three writing modes. =Cmd+Shift+F= (Mac) / =Ctrl+Shift+F= (Linux/Windows) toggles distraction-free mode. =Cmd+Shift+T= toggles typewriter scrolling. =Cmd+Shift+.= toggles focus mode. All three modes are independently composable — enabling distraction-free does not force-enable typewriter or focus mode, and vice versa. Add a "Focus" dropdown menu to the toolbar (visible in normal mode) with checkable items for each mode. Persist all three mode states in the UI store so they survive app restart. When distraction-free mode is active and toolbar is hidden, keyboard shortcuts remain the only way to toggle the other modes.
+
+**** Acceptance Criteria
+- [ ] =Cmd+Shift+F= / =Ctrl+Shift+F= toggles distraction-free mode
+- [ ] =Cmd+Shift+T= / =Ctrl+Shift+T= toggles typewriter scrolling
+- [ ] =Cmd+Shift+.= / =Ctrl+Shift+.= toggles focus mode
+- [ ] All three modes compose independently (any combination works)
+- [ ] Toolbar gains a "Focus" dropdown with checkable items for each mode
+- [ ] Mode preferences persist across app restarts via UI store
+- [ ] Shortcuts do not conflict with existing keybindings
+- [ ] Shortcuts work regardless of which mode is active
+
+*** ITEM E2E tests for focus modes
+:PROPERTIES:
+:CUSTOM_ID: ITEM-098
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-094, ITEM-095, ITEM-096, ITEM-097
+:FILES: e2e/distraction-free.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write comprehensive E2E tests covering all three composable writing modes: typewriter scrolling, focus mode, and distraction-free mode. Tests should verify each mode independently, in combination, and cover keyboard shortcuts, toolbar toggles, persistence, and edge cases (empty document, single paragraph, very long document). Use Playwright to verify CSS classes, opacity values, scroll positions, and element visibility.
+
+**** Acceptance Criteria
+- [ ] Tests for typewriter scrolling: cursor stays centered after typing, centered after Enter, deactivation returns to normal scroll
+- [ ] Tests for focus mode: current paragraph at full opacity, other paragraphs dimmed, switching paragraphs updates highlighting
+- [ ] Tests for distraction-free mode: chrome elements hidden, editor fills viewport, Escape exits, edge hover reveals chrome
+- [ ] Tests for keyboard shortcuts: all three shortcuts toggle correct modes
+- [ ] Tests for mode composition: enabling two or three modes simultaneously works correctly
+- [ ] Tests for persistence: mode state survives page reload
+- [ ] Tests for edge cases: empty document, single paragraph, mode toggle during selection
+- [ ] All tests pass

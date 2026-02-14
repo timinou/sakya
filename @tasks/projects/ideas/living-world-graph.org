@@ -1,0 +1,280 @@
+#+title: Living World Graph — Interactive Knowledge Canvas
+#+author: Sakya Design System
+#+date: 2026-02-14
+#+filetags: feature-idea worldbuilding visualization
+
+* Vision
+
+The writer sits before a canvas alive with meaning. Nodes represent the entities of their world—characters, places, items, ideas. Edges between them carry the weight of relationships: *allies*, *rivals*, *resides in*, *created by*, *opposes*. Zoom in to read the fine threads of intrigue. Pan out to see the whole structure of their story laid bare.
+
+This is not a static diagram. This is a living system. Move a character's node, and it's still a character. Edit their relationships in the entity form, and the graph updates in real-time. The writer's world becomes navigable, explorable, visible in all its interconnectedness.
+
+#+begin_example
+                    ┌──────────────────────────────────┐
+                    │   LIVING WORLD GRAPH CANVAS      │
+                    │  (Force-directed, zoomable, pan) │
+                    └──────────────────────────────────┘
+                              ▲
+                    ┌─────────┼─────────┐
+                    │         │         │
+             Character    Place    Artifact
+               (red)       (blue)   (gold)
+                    │         │         │
+                    └─────────┼─────────┘
+                              │
+                  [lives in] [rules] [owns]
+                         Relationship Edges
+                              │
+                              ▼
+                    Entity Form (Synced State)
+#+end_example
+
+* Interactions
+
+** Viewing & Navigation
+- **Pan**: Click-and-drag empty canvas to pan
+- **Zoom**: Mouse wheel or pinch-to-zoom to explore detail or overview
+- **Node selection**: Click a node to highlight it and its connected neighbors
+- **Search/filter**: Filter nodes by entity type (show only characters, hide places, etc.), by tag, or by text search in node names
+
+** Node Interaction
+- **Click node**: Opens the entity form in a side panel or modal (non-destructive peek)
+- **Drag node**: Rearrange node position (sticky—position persists across sessions or can be auto-layout via force-directed algorithm)
+- **Hover tooltip**: Shows entity name, type, and a 1-2 line preview of key fields (title, type, status)
+- **Double-click**: Open entity in full editor view in another window/tab
+
+** Edge Interaction
+- **Hover edge**: Highlights the edge and labels it with relationship type (*allies with*, *located in*, *created by*, etc.)
+- **Edge thickness**: Proportional to relationship importance or "strength" (if tracked in entity system)
+- **Click edge**: Opens a relationship detail or the entities at both ends
+
+** Layout & Aesthetics
+- **Node colors**: By entity type (characters→red, places→blue, items→gold, ideas→purple, factions→teal)
+- **Node size**: Proportional to entity "importance" (e.g., number of relationships, custom weight field)
+- **Edge style**: Solid for positive relationships, dashed for antagonistic, dotted for uncertain/theory
+- **Visual reset**: "Re-layout" button to re-run force-directed algorithm from scratch
+
+* Relationships — How They're Derived
+
+The graph is not manually constructed. It's *extracted* from the entity system itself.
+
+** Character Relationships
+- =allies= field → edges to other characters labeled "ally"
+- =rivals= field → dashed edges to other characters labeled "rival"
+- =resides_in= field → edge to place node labeled "lives in"
+- =faction= field → edge to faction node labeled "member of"
+- =created_by= field → edge to character node labeled "created by" (for NPCs created by player character)
+- Custom relationship fields (e.g., =mentor=, =lover=, =enemy=) → edges with custom labels
+
+** Place Relationships
+- =contains= field (other places) → edges labeled "contains"
+- =inhabitants= field → edges to character nodes labeled "inhabited by"
+- =connected_to= field → edges to other places labeled "connected to"
+- =ruled_by= field → edge to character node labeled "ruled by"
+
+** Item Relationships
+- =owner= field → edge to character node labeled "owned by"
+- =location= field → edge to place node labeled "located in"
+- =created_by= field → edge to character node labeled "created by"
+- =used_by= field → edges to character nodes labeled "used by"
+
+** Idea/Note Relationships
+- =related_to= field → edges to other entities labeled "related to"
+- =explores= field → edges to character/place nodes labeled "explores"
+
+** Parsing Logic
+Each entity type declares its relationship fields in its schema. The graph ingests the current entity state, parses these fields, and builds a directed or undirected graph (configurable). Changes to entity data trigger real-time re-renders.
+
+* Technical Approach
+
+** Rendering Engine Options
+1. **SVG + d3-force** (Recommended)
+   - Mature ecosystem
+   - Native DOM elements for nodes → easy click handlers and tooltips
+   - Good performance for 100-500 nodes
+   - Smooth animations and transitions
+   
+2. **HTML5 Canvas + Force-directed algorithm (e.g., Klinck.js)**
+   - More performant at scale (1000+ nodes)
+   - Harder to handle interactivity (need custom hit-detection)
+   - Better for very large world graphs
+   
+3. **WebGL (e.g., Babylon.js, Three.js)**
+   - Extreme performance
+   - Overkill for Sakya's initial scope
+   - Consider later for worlds with 5000+ entities
+
+** Layout Algorithm
+- **Force-directed (d3-force or Cytoscape.js)**
+  - Nodes repel each other, edges act like springs
+  - Naturally spreads nodes, groups related clusters
+  - Simulates physics, feels organic
+  - Tunable: charge strength, link distance, friction
+  
+- **Hierarchical layout** (alternative)
+  - Useful for strict hierarchies (e.g., faction chains of command)
+  - Less "artistic" but more organized
+  
+- **Hybrid**: Let user toggle between force-directed and hierarchical
+
+** Data Structure
+#+begin_src typescript
+interface GraphNode {
+  id: string;              // Entity ID
+  label: string;           // Entity name
+  type: "character" | "place" | "item" | "idea";
+  color: string;           // By type
+  size: number;            // Derived from degree or custom weight
+  x?: number; y?: number;  // Persisted position (optional)
+  metadata: Entity;        // Full entity object for lookups
+}
+
+interface GraphEdge {
+  source: string;          // Entity ID
+  target: string;          // Entity ID
+  label: string;           // Relationship type (e.g., "allied with")
+  style: "solid" | "dashed" | "dotted";
+  weight?: number;         // Optional strength/importance
+}
+
+interface WorldGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  metadata: {
+    centroid: [number, number];
+    bounds: { x1, y1, x2, y2 };
+    nodeCount: number;
+    edgeCount: number;
+  };
+}
+#+end_src
+
+** State Management
+- Store graph in Svelte store (derived from entity data)
+- `$derived` to rebuild graph when entity state changes
+- Canvas pan/zoom state separate (viewport-local)
+- Node positions cached in IndexedDB or localStorage (persists across sessions)
+
+* Integration Points
+
+** Where It Lives
+- **New view mode**: Alongside "Editor", "Corkboard", "Timeline" — add "Graph" tab in manuscript/notes view
+- Or: **Dedicated view** accessed from main navigation or entity context menu ("View in Graph")
+- Or: **Floating panel** alongside the editor (resizable docking UI)
+
+Recommendation: **Graph tab** (1st approach) — consistent with existing tabbed UI.
+
+** Syncing with Entity Changes
+- Use `$effect` to listen to entity store changes
+- Rebuild graph on each batch of changes (debounced, 300ms)
+- Animated transition: old nodes fade out, new nodes fade in, existing nodes smoothly move to new positions
+- Real-time updates feel alive and responsive
+
+** Opening Entities from Graph
+- Click node → opens entity form in **side panel** (non-full-screen for context)
+- Edit fields in the form → changes sync back to entity store
+- Graph automatically re-layouts to reflect new relationships
+- User can keep form open and click other nodes to pivot between entities
+
+** Filters & Search
+- Filter sidebar: checkboxes by entity type, dropdowns for custom filters
+- Search box: find entities by name or tag
+- Graph re-renders showing only matching nodes and their connecting edges
+- Visual breadcrumbing: faded nodes for indirect connections
+
+* Why This Matters — The Differentiator
+
+Worldbuilding is traditionally a **document task**: write a character sheet, write a location description, write a history. It's linear, descriptive.
+
+The graph turns worldbuilding into **spatial exploration**. A writer can:
+- See at a glance which characters are isolated (good for recruitment arcs)
+- Spot clusters of relationships (power bases, factions, dynasties)
+- Identify missing connections (unused NPCs, disconnected subplots)
+- Brainstorm by navigating: "Who does this character know? Who do *they* know?"
+
+Competitors:
+- **Scrivener**: Corkboard shows index cards but *no relationships*
+- **Notion**: Tables and databases, but no visualization
+- **Obsidian**: Graph view for PKM, not worldbuilding; entities aren't structured
+- **World Anvil**: Structured data but no graph visualization
+
+Sakya's graph is unique: **structured entities + visual knowledge graph**. It bridges the gap between database rigor and creative exploration.
+
+* Complexity & Effort
+
+** Complexity Level: HIGH
+- New rendering paradigm (canvas/SVG interaction)
+- Layout algorithm (force-directed requires physics simulation)
+- Real-time sync with entity changes
+- Persistence of node positions
+- Responsive to user gestures (pan, zoom, drag)
+
+** Effort Estimate
+- Core graph engine + d3 integration: **2–3 weeks**
+- Relationship parsing & entity schema integration: **1 week**
+- Interaction handlers (click, drag, hover): **1 week**
+- Styling, theming, visual polish: **1 week**
+- E2E tests & edge cases: **1.5 weeks**
+- **Total: ~6–7 weeks** (if uninterrupted; realistic: 2–3 months part-time)
+
+** Risk Areas
+- Performance with large graphs (1000+ entities) — mitigated by canvas option, pagination, or clustering
+- Persistence of node positions across versions — need migration strategy
+- Managing graph state vs. entity state coherence — requires careful `$derived` usage
+
+* Dependencies
+
+** Must Complete Before This Feature
+1. **Entity system** (PROJ-002) — structured entity types, field definitions, relationships
+2. **Entity CRUD** — full edit/create/delete flows
+3. **Entity store** — centralized reactive state management
+4. **Field types supporting references** — "select an entity" fields so relationships are properly typed
+
+** Can Be Parallel With
+- Other view modes (timeline, corkboard)
+- UI enhancements to entity forms
+
+** Should Be Built On
+- Existing Svelte store patterns (leverage `$derived` and `$effect`)
+- Tauri IPC for any heavy lifting (though likely not needed for <500 entities)
+- Playwright E2E test framework
+
+* Design Inspiration & Aesthetics
+
+Think:
+- **Knowledge graph interfaces**: Wikipedia's concept maps, Roam Research's graph view
+- **Mind map software**: MindMeister, Lucidchart
+- **Social network visualizations**: Twitter follower maps, LinkedIn connections
+- **Game design tools**: Twine's node network (narrative), Unreal's Blueprints (system design)
+
+Colors by entity type (customizable theme):
+- Characters: warm red/orange
+- Places: cool blue
+- Items: gold/amber
+- Factions: teal
+- Ideas: purple
+- Neutral/Tags: gray
+
+Node shapes (optional enhancement):
+- Circle: character
+- Square: place
+- Diamond: item
+- Hexagon: faction
+- Triangle: idea
+
+Glow/highlight on hover. Smooth animations. High contrast. Dark mode friendly.
+
+* Open Questions & Future Extensions
+
+- Should edges have directionality arrows? (e.g., "A created B" is directed)
+- Can users manually add or hide edges? (Override auto-derived relationships)
+- Multi-graph support? (One graph per manuscript, or across all entities in project?)
+- Graph export? (PNG, SVG for sharing worldbuilding progress)
+- Collaborative realtime updates? (If Sakya gets multiplayer features later)
+- AI-powered relationship suggestions? ("These characters might know each other")
+- Clustering by faction/story arc? (Highlight sub-graphs)
+- Time-travel graph? (Show relationship state at different story milestones)
+
+* Summary
+
+The Living World Graph is a **unique, ambitious feature** that elevates Sakya from a writer's toolbox to a **worldbuilding platform**. It transforms how writers think about and explore their worlds, making relationships visible and navigable. Implementation is complex but achievable with modern web tooling. The payoff is profound: writers will feel their worlds come alive.

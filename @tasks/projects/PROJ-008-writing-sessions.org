@@ -1,0 +1,346 @@
+#+TITLE: PROJ-008 Writing Sessions & Sprint Mode
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-008 Writing Sessions & Sprint Mode
+:PROPERTIES:
+:CUSTOM_ID: PROJ-008
+:GOAL: Add timed writing sprints with session tracking, calendar heatmap, and writing statistics to help writers build consistent habits.
+:DEPENDS_INIT: PROJ-001, PROJ-003
+:COMPLETION: Writers can start timed sprints, track sessions, view stats and calendar heatmap.
+:END:
+
+** CHK-008-01 Rust Backend — Sessions & Data Model
+:PROPERTIES:
+:CUSTOM_ID: CHK-008-01
+:CRITERIA: Session data model defined, all CRUD and stats Tauri commands implemented and tested
+:VERIFY: cargo test --lib sessions
+:REVIEW_BY: rust-architect
+:END:
+
+*** ITEM Session data types and Tauri commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-085
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/sessions.rs, src-tauri/src/models/session.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define the =WritingSession= struct and supporting types in =src-tauri/src/models/session.rs=. Each session records an ID (ISO 8601 timestamp), start/end times, duration in minutes, words written, the chapter slug it was associated with, and an optional sprint word goal. Sessions are persisted in =.sakya/sessions.yaml= within the project directory.
+
+Implement the following Tauri commands in =src-tauri/src/commands/sessions.rs=:
+- =start_session(project_path, chapter_slug, sprint_goal?)= — Creates a new session with the current timestamp as ID and start time. Writes it to sessions.yaml immediately (in-progress state with no end time).
+- =end_session(project_path, session_id, words_written)= — Fills in end time, calculates duration, records word count. Updates sessions.yaml.
+- =get_sessions(project_path, from?, to?)= — Returns sessions, optionally filtered by date range.
+- =get_session_stats(project_path)= — Returns aggregated statistics: total sessions, total words, total minutes, current streak (consecutive days with at least one session), longest streak, daily/weekly/monthly averages, best day (highest word count).
+
+Register all commands in the Tauri plugin/command handler.
+
+**** Acceptance Criteria
+- [ ] =WritingSession= struct with fields: id, start, end (Option), duration_minutes (Option), words_written, chapter_slug, sprint_goal (Option)
+- [ ] =SessionStats= struct with fields: total_sessions, total_words, total_minutes, current_streak, longest_streak, daily_average, weekly_average, monthly_average, best_day_words, best_day_date
+- [ ] =sessions.yaml= created on first session start if it does not exist
+- [ ] =start_session= returns the session ID for later reference
+- [ ] =end_session= correctly calculates duration from start/end timestamps
+- [ ] =get_sessions= returns all sessions when no date range specified
+- [ ] =get_sessions= correctly filters by date range when from/to provided
+- [ ] =get_session_stats= correctly calculates streak (consecutive calendar days)
+- [ ] =get_session_stats= handles empty sessions list without panic
+- [ ] All commands registered and callable from frontend via =invoke=
+
+*** ITEM Rust tests for session commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-086
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-085
+:FILES: src-tauri/src/commands/sessions.rs, src-tauri/src/models/session.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Write comprehensive unit tests for the session data model and all Tauri commands. Tests should cover the full CRUD lifecycle, stats aggregation correctness, edge cases around date boundaries, and error handling for invalid inputs.
+
+Test matrix:
+- *CRUD*: start session, end session, retrieve sessions, retrieve with date range filter
+- *Stats*: zero sessions, single session, multiple sessions across multiple days, streak calculation across month/year boundaries, best day with ties
+- *Edge cases*: end session with non-existent ID, start session with missing project path, sessions.yaml missing or corrupted, concurrent session starts, very large word counts, sessions spanning midnight
+- *Serialization*: round-trip YAML serialization/deserialization of WritingSession and sessions list
+
+**** Acceptance Criteria
+- [ ] Tests for start_session: creates session file, returns valid ID, handles first-ever session
+- [ ] Tests for end_session: sets end time, calculates duration, error on unknown ID
+- [ ] Tests for get_sessions: returns all, filters by date range, empty list when no matches
+- [ ] Tests for get_session_stats: zero sessions returns zeroed stats, single session stats correct, multi-day streak calculation correct
+- [ ] Tests for streak edge cases: gap in days breaks streak, sessions on consecutive days maintain streak, streak across month boundary
+- [ ] Tests for YAML round-trip: serialize and deserialize preserves all fields
+- [ ] All tests pass with =cargo test=
+- [ ] No clippy warnings
+
+** CHK-008-02 Sprint Mode UI
+:PROPERTIES:
+:CUSTOM_ID: CHK-008-02
+:CRITERIA: Sprint timer functional with start/pause/stop, overlay hides panels during sprint, sessions wired to backend
+:VERIFY: bun run test:e2e -- writing-sessions
+:REVIEW_BY: svelte-developer
+:END:
+
+*** ITEM Sprint timer component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-087
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-085
+:FILES: src/lib/components/sprint/SprintTimer.svelte, src/lib/stores/sprint.svelte.ts
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+
+**** Description
+Create a =SprintTimer.svelte= component and a =sprint.svelte.ts= Svelte 5 runes store to manage sprint state.
+
+The store should track:
+- =isActive= — whether a sprint is currently running
+- =isPaused= — whether the timer is paused
+- =durationMinutes= — the selected sprint duration
+- =remainingSeconds= — countdown value
+- =sessionId= — the backend session ID (from =start_session=)
+- =startWordCount= — word count at sprint start (for delta calculation)
+
+The timer component displays:
+- Large countdown in MM:SS format
+- Duration selector (preset buttons: 15, 25, 30, 45, 60 minutes) shown before starting
+- Start button (calls =start_session= on backend, begins countdown)
+- Pause/Resume toggle (pauses the countdown timer only, session continues on backend)
+- Stop button (ends sprint early, calls =end_session=)
+- Visual progress ring or bar showing elapsed fraction
+
+The timer uses =setInterval= at 1-second resolution. When countdown reaches zero, it plays a subtle notification sound (or system beep via Tauri), auto-stops, and calls =end_session=.
+
+**** Acceptance Criteria
+- [ ] Duration selector shows preset options (15, 25, 30, 45, 60 min)
+- [ ] Start button disabled when no duration selected
+- [ ] Countdown displays correctly in MM:SS format
+- [ ] Pause freezes countdown, Resume continues from where it left off
+- [ ] Stop ends sprint early, calls =end_session= with word count delta
+- [ ] Timer reaching zero auto-stops and calls =end_session=
+- [ ] Progress indicator reflects elapsed time visually
+- [ ] Sprint store state is reactive and accessible from other components
+- [ ] Component uses Svelte 5 runes ($state, $derived, $effect)
+
+*** ITEM Sprint mode overlay
+:PROPERTIES:
+:CUSTOM_ID: ITEM-088
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-087
+:FILES: src/lib/components/sprint/SprintOverlay.svelte, src/lib/components/layout/AppShell.svelte
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+
+**** Description
+Create a =SprintOverlay.svelte= component that activates when a sprint is running. This overlay transforms the writing environment into a distraction-minimal mode:
+
+- Hides the binder panel (left sidebar)
+- Hides the inspector panel (right sidebar)
+- Collapses the toolbar to minimal controls (only sprint timer + save)
+- Optionally shows a word count goal progress bar below the timer (if =sprint_goal= was set)
+- Keeps the editor area at full width with comfortable reading margins
+- Subtle dark vignette or border to reinforce "focus mode" feel
+
+The overlay is controlled by the sprint store's =isActive= state. When a sprint ends (naturally or via Stop), the overlay fades out and the full UI is restored. The transition should be smooth (CSS transitions, 300ms).
+
+Wire the overlay into =AppShell.svelte= so it conditionally renders based on sprint state.
+
+**** Acceptance Criteria
+- [ ] Binder panel hidden during active sprint
+- [ ] Inspector panel hidden during active sprint
+- [ ] Toolbar reduced to timer + save button only
+- [ ] Editor area expands to full width with appropriate margins
+- [ ] Word count goal progress bar appears when sprint_goal is set
+- [ ] UI fully restores when sprint ends or is stopped
+- [ ] Transition in/out is smooth (CSS transitions)
+- [ ] Keyboard shortcut Escape can stop the sprint (with confirmation)
+- [ ] Component integrates into AppShell without disrupting non-sprint layout
+
+*** ITEM Wire sprint to session backend
+:PROPERTIES:
+:CUSTOM_ID: ITEM-089
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-087, ITEM-085
+:FILES: src/lib/stores/sprint.svelte.ts, src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire the sprint store's lifecycle methods to the Rust backend via Tauri IPC:
+
+- On sprint start: call =start_session= with the current project path, active chapter slug, and optional word count goal. Store the returned =session_id=. Capture the current editor word count as =startWordCount=.
+- On sprint end (timer expiry or manual stop): calculate =words_written= as current word count minus =startWordCount=. Call =end_session= with session_id and words_written. Trigger auto-save of the current chapter.
+- On sprint pause/resume: no backend calls needed (pause is client-side only).
+
+Also add a "Start Sprint" button or menu item accessible from the toolbar or status bar that opens the sprint duration selector.
+
+**** Acceptance Criteria
+- [ ] =start_session= IPC call made on sprint start with correct arguments
+- [ ] =session_id= stored in sprint store for later =end_session= call
+- [ ] Word count delta calculated correctly (end minus start)
+- [ ] =end_session= IPC call made on sprint end with session_id and words_written
+- [ ] Chapter auto-saved on sprint end via =save_chapter= command
+- [ ] Sprint accessible from toolbar or status bar entry point
+- [ ] Error handling for IPC failures (toast notification, sprint still stops gracefully)
+
+** CHK-008-03 Stats & Dashboard
+:PROPERTIES:
+:CUSTOM_ID: CHK-008-03
+:CRITERIA: Calendar heatmap, stats summary, and sprint history render with real session data; E2E tests pass
+:VERIFY: bun run test:e2e -- writing-sessions
+:REVIEW_BY: svelte-developer, testing-engineer
+:END:
+
+*** ITEM Calendar heatmap component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-090
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-085
+:FILES: src/lib/components/stats/CalendarHeatmap.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Create a =CalendarHeatmap.svelte= component that renders a GitHub-style contribution graph showing daily word counts over the past year (52 weeks).
+
+The component accepts a =Map<string, number>= of date strings (YYYY-MM-DD) to word counts. It renders:
+- A grid of 52 columns (weeks) x 7 rows (days, Mon-Sun)
+- Each cell colored by word count intensity (5 levels: 0, 1-249, 250-499, 500-999, 1000+)
+- Color scale uses the app's accent palette (e.g. transparent -> light accent -> full accent)
+- Month labels along the top
+- Day-of-week labels along the left (Mon, Wed, Fri)
+- Tooltip on hover showing date and exact word count
+- Responsive: scrolls horizontally on narrow viewports
+
+The component should be pure/presentational — it receives data as props and does not call the backend directly.
+
+**** Acceptance Criteria
+- [ ] Renders 52x7 grid of day cells
+- [ ] Cells colored by word count with 5 distinct intensity levels
+- [ ] Month labels displayed along the top edge
+- [ ] Day-of-week labels on the left (Mon, Wed, Fri)
+- [ ] Hover tooltip shows "Feb 14, 2026: 847 words"
+- [ ] Empty days (no writing) rendered as lowest intensity
+- [ ] Component accepts data via props, no direct backend calls
+- [ ] Uses CSS custom properties from the app theme
+- [ ] Renders correctly for partial years (new projects with < 1 year of data)
+
+*** ITEM Writing stats view
+:PROPERTIES:
+:CUSTOM_ID: ITEM-091
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-090
+:FILES: src/lib/components/stats/WritingStats.svelte, src/lib/stores/sessions.svelte.ts
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+
+**** Description
+Create a =WritingStats.svelte= view component and a =sessions.svelte.ts= store that fetches session data from the backend.
+
+The sessions store provides:
+- =sessions= — full list of WritingSession objects (fetched via =get_sessions=)
+- =stats= — aggregated SessionStats (fetched via =get_session_stats=)
+- =dailyWordCounts= — derived Map<string, number> for the heatmap
+- =loadSessions(projectPath)= — fetches data from backend
+- =refresh()= — re-fetches after a sprint ends
+
+The WritingStats view composes:
+- The CalendarHeatmap component (fed by =dailyWordCounts=)
+- A stats summary panel showing: current streak (with fire icon), longest streak, total words written, total time spent, number of sessions, daily average, weekly average, best day
+- Each stat displayed as a card with label + large number + unit
+
+The view is accessible from the toolbar (a stats/chart icon button) or from a dedicated route/panel. It opens as a tab in the editor area (tab type: 'stats').
+
+**** Acceptance Criteria
+- [ ] Sessions store fetches sessions and stats from backend
+- [ ] =dailyWordCounts= derived correctly by aggregating sessions per calendar day
+- [ ] CalendarHeatmap rendered with real session data
+- [ ] Stats summary shows: current streak, longest streak, total words, total time, sessions count, daily average, weekly average, best day
+- [ ] Stats formatted with appropriate units (words, minutes/hours, days)
+- [ ] View opens as a tab in the editor area
+- [ ] Toolbar or status bar button opens the stats view
+- [ ] Data refreshes when returning to the stats tab after a sprint
+
+*** ITEM Sprint history list
+:PROPERTIES:
+:CUSTOM_ID: ITEM-092
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-085
+:FILES: src/lib/components/stats/SprintHistory.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Create a =SprintHistory.svelte= component that displays a chronological list of past writing sprints. This component is embedded within the WritingStats view below the heatmap and stats summary.
+
+Each sprint entry shows:
+- Date and time (formatted: "Feb 14, 2026 at 10:30 PM")
+- Duration (e.g. "25 min")
+- Words written (e.g. "847 words")
+- Chapter name (resolved from chapter_slug)
+- Goal indicator: if sprint_goal was set, show whether it was met (green check) or missed (red x) with the target number
+
+The list is sorted newest-first. It shows the 20 most recent sprints by default with a "Show more" button to load older entries. An empty state message is shown when no sprints have been recorded yet.
+
+**** Acceptance Criteria
+- [ ] Each entry displays date/time, duration, words written, chapter name
+- [ ] Goal met/missed indicator shown when sprint_goal was set
+- [ ] List sorted newest-first
+- [ ] Shows 20 most recent by default with "Show more" pagination
+- [ ] Empty state message when no sprints recorded ("No sprints yet. Start your first writing sprint!")
+- [ ] Component receives sessions as props (presentational)
+- [ ] Dates formatted in human-readable locale format
+
+*** ITEM E2E tests for writing sessions
+:PROPERTIES:
+:CUSTOM_ID: ITEM-093
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-087, ITEM-091
+:FILES: e2e/writing-sessions.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write comprehensive Playwright E2E tests covering the full writing sessions feature: sprint timer lifecycle, session persistence, and stats display.
+
+Test matrix:
+- *Sprint timer*: select duration, start sprint, verify countdown ticking, pause/resume, stop early, timer reaching zero
+- *Sprint mode overlay*: binder/inspector hidden during sprint, UI restored after sprint ends, Escape to stop with confirmation
+- *Session backend*: start_session IPC called with correct args, end_session IPC called with word count delta, sessions persisted
+- *Stats view*: open stats tab, verify heatmap renders, verify stats numbers match session data, refresh after new sprint
+- *Sprint history*: list displays past sprints, pagination works, empty state shown when no sprints
+- *Edge cases*: start sprint with no chapter open (should show error or disable), very short sprint (< 1 minute), sprint while switching chapters
+
+Use the existing Tauri IPC mock patterns from the project. Mock =start_session= to return a predictable session ID, mock =get_sessions= and =get_session_stats= with fixture data.
+
+**** Acceptance Criteria
+- [ ] Tests for sprint timer: start, pause, resume, stop, countdown display
+- [ ] Tests for sprint overlay: panels hidden/restored, toolbar minimal, transitions
+- [ ] Tests for IPC integration: start_session and end_session called with correct arguments
+- [ ] Tests for stats view: heatmap renders, stats numbers displayed, tab opens from toolbar
+- [ ] Tests for sprint history: list renders, pagination, empty state
+- [ ] Tests for edge cases: no chapter selected, sprint already active
+- [ ] All tests pass with =bun run test:e2e=
+- [ ] Tests use project's existing IPC mock patterns (addInitScript)

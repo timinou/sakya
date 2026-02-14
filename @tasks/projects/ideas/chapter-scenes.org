@@ -1,0 +1,605 @@
+#+TITLE: Chapter Scenes / Scene Breaks Feature Idea
+#+AUTHOR: Sakya Team
+#+DATE: 2026-02-14
+#+DESCRIPTION: Feature exploration for scene-level granularity within chapters
+
+* Overview
+
+  The Chapter Scenes feature adds a hierarchical level of planning depth to Sakya: scenes as
+  organizational units within chapters. This moves the planning tool from a chapter-centric view
+  to a scene-centric view, enabling writers to organize, track, and visualize their work at a
+  more granular level than chapters alone.
+
+  Many novels and long-form writing naturally contain multiple scenes per chapter, often separated
+  by visual breaks (=***=, =---=, or other ornamental markers). Sakya currently treats chapters
+  as the smallest unit. This feature elevates scenes to first-class citizens in the data model.
+
+** Key Insight
+
+   The chapter-scenes relationship mirrors the book-chapters relationship that already exists in
+   Sakya. Extending the same planning paradigm (POV, status, word targets, synopses) to the scene
+   level creates a powerful recursive structure for hierarchical planning.
+
+* Vision
+
+** Binder Display
+
+   - Chapters are collapsible items in the binder, just as they are now
+   - When expanded, each chapter reveals its constituent scenes as nested items
+   - Scenes inherit visual styling but are visually distinct from chapters
+   - Scene items show status badge, word count, and POV indicator
+   - Drag-and-drop support for both reordering within chapters and moving scenes between chapters
+
+** Corkboard Integration
+
+   - Selecting a chapter filters the corkboard to show only that chapter's scenes
+   - Each scene appears as a card with its own POV color, status indicator, synopsis, and word count
+   - Selecting a scene in the corkboard highlights it in the editor (if supported in future)
+   - Scene cards can be rearranged via drag-and-drop within the corkboard
+
+** Editor Integration
+
+   - Scene breaks are visually marked in the editor (e.g., centered, styled =***= or custom dividers)
+   - Each scene break acts as a navigation anchor; writers can jump between scenes
+   - Word count display can show both scene-level and chapter-level aggregates
+
+** Planning Workflow
+
+   - Writers outline their book at chapter level
+   - Expand chapters to outline scenes within each chapter
+   - Track POV, status, and word targets per scene
+   - Use corkboard to see all scenes in a chapter at once
+   - Monitor word count accumulation from scene → chapter → book
+
+* Scene Metadata
+
+  Each scene should carry the same types of metadata as chapters, creating a unified planning
+  experience:
+
+** Required Metadata
+   - *Title*: Optional scene name (e.g., "Arrival at the Manor", or empty if unnamed)
+   - *POV Character*: Which character's perspective drives this scene (inherits from chapter if not set)
+   - *Status*: Planning, Draft, Revision, Complete (same enumeration as chapters)
+   - *Synopsis*: Brief prose description of the scene's purpose and plot events
+
+** Numeric Metadata
+   - *Target Word Count*: Expected or maximum words for this scene
+   - *Actual Word Count*: Computed from editor content (read-only, computed)
+   - *Position / Index*: Ordinal position within the chapter (1, 2, 3, ...)
+
+** Derived Metadata
+   - *Progress*: Percentage towards target word count (scene level)
+   - *Chapter Word Count Rollup*: Sum of all scenes' actual word counts
+   - *Book Word Count Rollup*: Cascading sum through chapter → book
+
+** Optional Metadata (Future)
+   - *Scene Type*: Action, Dialogue, Introspection, Transition (for advanced categorization)
+   - *Emotional Beats*: Tags tracking narrative tension, pacing notes
+   - *Character Roster*: Set of characters present in this scene
+
+* Scene Breaks in the Editor
+
+** Visual Representation
+
+   Scene breaks are visual separators within the chapter text. They serve as both markers and
+   organizational aids:
+
+   - *Default visual*: Centered, ornamental marker (e.g., =***=, =---=, or a custom divider)
+   - *Styling*: Visually distinct from body text (smaller font, lighter color, centered)
+   - *Non-printable* (future): Can be toggled off for export, appearing only in editor
+
+** Semantics
+
+   A scene break marks the *boundary between two scenes*. In a chapter with three scenes:
+
+   #+BEGIN_EXAMPLE
+   [Scene 1 content]
+   ***
+   [Scene 2 content]
+   ***
+   [Scene 3 content]
+   #+END_EXAMPLE
+
+   Scene breaks can be added/removed via editor UI (toolbar button or shortcut).
+
+** Navigation
+
+   Scene breaks become anchor points:
+   - *Keyboard navigation*: Ctrl+Up/Down to jump between scenes (future)
+   - *Binder selection*: Selecting a scene in the binder scrolls the editor to that scene
+   - *Scene counter*: Editor displays current scene position (e.g., "Scene 2 of 3")
+
+* Data Model Design Space
+
+  Two primary approaches to storing and managing scenes. Each has trade-offs worth exploring.
+
+** Option A: Filesystem-Based (Discrete Scene Files)
+
+   Each scene is a separate file within a chapter directory:
+
+   #+BEGIN_EXAMPLE
+   project/
+   ├── chapters/
+   │   ├── chapter-001/
+   │   │   ├── meta.yaml  (chapter metadata)
+   │   │   ├── scene-001.md
+   │   │   ├── scene-002.md
+   │   │   └── scene-003.md
+   │   └── chapter-002/
+   │       ├── meta.yaml
+   │       └── scene-001.md
+   #+END_EXAMPLE
+
+*** Advantages
+    - Each scene is independently editable and versionable
+    - Clean separation of concerns; no need to parse markers within a file
+    - Easier to add rich metadata (each scene gets its own =meta.yaml=)
+    - Naturally supports drag-and-drop between chapters (move file to different directory)
+    - Word count computation is simple: sum file sizes or word counts
+    - Git diffs are scene-granular, not chapter-granular
+
+*** Disadvantages
+    - More files on disk (scaling issue for epic novels with 100+ scenes)
+    - More complex metadata bookkeeping (one metadata file per chapter + per scene)
+    - Harder to author in plain-text editors if users want to edit raw files
+    - Scene *order* must be encoded in metadata or filenames (e.g., =scene-001=, =scene-002=)
+    - Users cannot easily view "full chapter text" in a single file
+
+** Option B: Inline Markers (Scenes Within Chapter File)
+
+   Scenes are delimited by markers (=---=, =***=, or a custom syntax) within a single chapter file:
+
+   #+BEGIN_EXAMPLE
+   project/
+   ├── chapters/
+   │   ├── chapter-001/
+   │   │   ├── meta.yaml
+   │   │   └── chapter.md  (contains all scenes + markers)
+   │   └── chapter-002/
+   │       ├── meta.yaml
+   │       └── chapter.md
+   #+END_EXAMPLE
+
+   Chapter metadata includes an optional array of scene markers or scene metadata:
+
+   #+BEGIN_EXAMPLE
+   # meta.yaml
+   title: Chapter One
+   scenes:
+     - title: Arrival
+       pov: Alice
+       status: draft
+       target_words: 1500
+     - title: Confrontation
+       pov: Bob
+       status: planning
+       target_words: 2000
+   #+END_EXAMPLE
+
+*** Advantages
+    - Single file per chapter; simple mental model for the user
+    - Users can edit chapter content directly in any text editor
+    - Scene *order* is implicit from file order and metadata array order
+    - Familiar paradigm for many writing tools (Ulysses, iA Writer use inline markers)
+    - Fewer files = simpler project structure
+
+*** Disadvantages
+    - Parser complexity: need to detect and split on scene markers
+    - Metadata and content are decoupled; easy for them to fall out of sync
+    - Harder to move a scene to a different chapter (must parse, extract, rewrite two files)
+    - Drag-and-drop UX complexity: cannot literally move a file, must perform content manipulation
+    - Word count computation requires parsing the chapter file and splitting on markers
+    - Risk of user accidentally editing or deleting scene break markers
+
+** Hybrid Approach
+
+   Combine both: store scenes as individual files, but allow the editor to display them as a
+   continuous flow with visual break markers. This provides the best of both worlds:
+
+   - Filesystem organization and independence of scene files
+   - Editor UX that shows scenes as a seamless, flowing document
+   - Metadata richness (per-scene =meta.yaml= alongside content)
+   - Simple drag-and-drop (moving files)
+
+   The editor's "chapter view" would be a virtual document that concatenates scene files with
+   formatted break markers between them.
+
+* Binder Display Design
+
+** Structure
+
+   #+BEGIN_EXAMPLE
+   📖 Book Title
+   ├─ 📄 Chapter One (3/5 scenes, 4,200 / 5,000 words)
+   │  ├─ 🎬 Arrival (Alice POV, draft, 1,200 / 1,500 words)
+   │  ├─ 🎬 Confrontation (Bob POV, planning, 0 / 2,000 words)
+   │  └─ 🎬 Resolution (Alice POV, draft, 3,000 / 1,500 words)
+   ├─ 📄 Chapter Two (2/2 scenes, 2,100 / 3,000 words)
+   │  ├─ 🎬 Escape (Alice POV, revision, 1,100 / 1,500 words)
+   │  └─ 🎬 Aftermath (Bob POV, draft, 1,000 / 1,500 words)
+   └─ 📄 Chapter Three (0/0 scenes, 0 / 0 words) [not yet outlined]
+   #+END_EXAMPLE
+
+** Visual Indicators
+
+   - *Chapter icons*: Folder/chapter icon; color-coded by dominant status (all draft = blue, mixed = yellow, all complete = green)
+   - *Scene icons*: Smaller icon (e.g., 🎬) to distinguish from chapters
+   - *Word count badge*: Show current / target (e.g., "1,200 / 1,500")
+   - *Status badge*: Small icon or color dot indicating status (planning, draft, revision, complete)
+   - *POV indicator*: Character name or color swatch (if a POV system exists)
+
+** Interactions
+
+   - *Click chapter*: Expand/collapse to reveal scenes
+   - *Click scene*: Select scene, navigate to it in the editor, show metadata sidebar
+   - *Right-click scene*: Context menu (edit, delete, move up/down, move to chapter)
+   - *Drag scene*: Reorder within chapter or move to different chapter
+
+* Corkboard Integration
+
+** Scene Card Layout
+
+   When a chapter is selected, the corkboard displays its scenes as cards:
+
+   #+BEGIN_EXAMPLE
+   ┌─────────────────────────┐  ┌─────────────────────────┐
+   │ Arrival                 │  │ Confrontation           │
+   │ Alice POV               │  │ Bob POV                 │
+   │ Draft                   │  │ Planning                │
+   │ ─────────────────────── │  │ ─────────────────────── │
+   │ She arrived at the manor│  │ Bob confronts Alice     │
+   │ on a grey morning...    │  │ about her deception...  │
+   │ ─────────────────────── │  │ ─────────────────────── │
+   │ 1,200 / 1,500 words     │  │ 0 / 2,000 words         │
+   └─────────────────────────┘  └─────────────────────────┘
+   #+END_EXAMPLE
+
+** Interaction Model
+
+   - *Selecting a scene card*: Highlights it, shows metadata sidebar, can navigate to it in editor
+   - *Editing card*: Click to open scene metadata editor (title, POV, status, synopsis, target words)
+   - *Reordering*: Drag cards within the corkboard to reorder scenes within the chapter
+   - *Drag to different chapter*: (Future) Drag a scene card to the chapter selection to move it
+
+** Corkboard Filtering
+
+   - When no chapter is selected, corkboard shows a chapter overview (same as current)
+   - Selecting a chapter filters to show only its scenes
+   - Selecting a scene shows that individual scene's metadata
+
+* Data Model Specification (Preliminary)
+
+** Scene Entity
+
+   #+BEGIN_SRC typescript
+   interface Scene {
+     id: string;                    // Unique identifier
+     title: string;                 // Optional; can be empty
+     chapterId: string;             // Reference to parent chapter
+     index: number;                 // Ordinal position within chapter
+     pov: string | null;            // Character POV; nullable
+     status: "planning" | "draft" | "revision" | "complete";
+     synopsis: string;              // Prose description
+     targetWords: number;           // Expected word count
+     actualWords: number;           // Computed; read from editor
+     metadata?: Record<string, any>; // Future extensibility
+   }
+   #+END_SRC
+
+** Chapter Modifications
+
+   Chapters now reference a list of scenes:
+
+   #+BEGIN_SRC typescript
+   interface Chapter {
+     id: string;
+     title: string;
+     scenes: Scene[];  // NEW: list of scenes
+     // ... existing fields
+   }
+   #+END_SRC
+
+   OR, if scenes are not embedded:
+
+   #+BEGIN_SRC typescript
+   interface Chapter {
+     id: string;
+     title: string;
+     sceneIds: string[];  // NEW: references to scene IDs
+     // ... existing fields
+   }
+   #+END_SRC
+
+** Storage Strategy
+
+   Depending on Option A (filesystem-based) or Option B (inline markers) or Hybrid:
+
+   - *Filesystem-based*: Scenes stored as files in chapter directory; metadata in chapter-level =meta.yaml=
+   - *Inline*: Scenes encoded in chapter content and metadata
+   - *Hybrid*: Scenes as individual files; metadata in per-scene =meta.yaml=
+
+* Migration & Backward Compatibility
+
+** Existing Projects (Chapter-Only)
+
+   When an existing Sakya project is opened in a version with scene support:
+
+   1. Each chapter is treated as containing exactly one scene
+   2. That scene inherits the chapter's metadata (POV, status, synopsis, word target)
+   3. No scene breaks are initially present
+   4. User can manually add scenes to a chapter via UI (split chapter into multiple scenes)
+
+   This approach ensures zero data loss and provides a clear migration path.
+
+** Migration Workflow
+
+   For a user wanting to granularly scene-ify an existing chapter:
+
+   1. Open the chapter in the editor
+   2. Manually place cursor at desired scene break location
+   3. Click "Insert Scene Break" or press shortcut (e.g., Ctrl+Shift+S)
+   4. Scene break is inserted; editor splits the chapter into two scenes
+   5. New scene gets default metadata (inherits from chapter, with empty title)
+   6. User edits new scene's metadata via sidebar or corkboard
+
+* Complexity Estimate
+
+** Fundamental Data Model Change
+
+   - Chapters must now carry scene lists or scene references
+   - All data-loading, persisting, and querying code must be updated
+   - Significant risk of regressions in existing chapter functionality
+
+** Cascading UI Updates
+
+   - Binder needs new hierarchy and interaction logic
+   - Corkboard needs scene filtering and display logic
+   - Editor needs scene break rendering and navigation
+   - Sidebar metadata forms need scene-level vs chapter-level detection
+   - Word count computations must cascade from scene → chapter → book
+
+** Testing Scope
+
+   - Unit tests for scene data model, CRUD operations, word count rollups
+   - Binder interaction tests (expand/collapse, select, drag-and-drop)
+   - Corkboard tests (filtering, reordering, editing)
+   - Editor tests (scene break rendering, navigation, selection)
+   - Migration tests (converting chapter-only projects to scene-aware)
+   - End-to-end tests covering multi-scene workflows
+
+** Estimated Effort
+
+   - *Data model & persistence*: High
+   - *Binder refactoring*: High
+   - *Corkboard refactoring*: Medium-High
+   - *Editor integration*: Medium
+   - *Testing*: High
+   - *Documentation & migration guide*: Medium
+
+   **Overall: High complexity, 2-4 week effort depending on team size and parallelization.**
+
+* Technical Approach Considerations
+
+** Questions to Answer Before Implementation
+
+   1. *Data storage*: Filesystem-based scene files vs inline markers vs hybrid?
+      - Recommend: Hybrid (scenes as files, with virtual concatenation in editor)
+   
+   2. *Scene detection*: If inline markers, what delimiters? (=---=, =***=, custom regex?)
+      - Recommend: Configurable, default to common conventions
+   
+   3. *Metadata persistence*: Where does scene metadata live?
+      - Recommend: Dedicated =scenes.yaml= or per-scene =meta.yaml= files
+   
+   4. *Word count computation*: Computed on load, cached, or real-time?
+      - Recommend: Real-time in editor with debounced persistence
+   
+   5. *Drag-and-drop mechanics*: How to move scenes between chapters?
+      - Recommend: File-move operations (filesystem-based) or content-copy (inline markers)
+   
+   6. *POV inheritance*: Does scene POV default to chapter POV? Can be overridden?
+      - Recommend: Yes, inheritance with override capability
+   
+   7. *Recursive nesting*: Should scenes have sub-scenes? Or stop at scene level?
+      - Recommend: Stop at scene level for v1; revisit for v2 if needed
+   
+   8. *Scene ordering*: Encoded in filename, metadata array, or filesystem order?
+      - Recommend: Explicit metadata array for robustness
+
+** API / Command Design
+
+   New Tauri commands to support scene operations:
+
+   #+BEGIN_SRC rust
+   // Scene CRUD
+   create_scene(chapter_id: String, title: String, index: Option<usize>) -> Scene
+   read_scene(scene_id: String) -> Scene
+   update_scene(scene_id: String, updates: SceneUpdate) -> Scene
+   delete_scene(scene_id: String) -> bool
+   
+   // Scene navigation & querying
+   list_scenes(chapter_id: String) -> Vec<Scene>
+   get_scene_by_index(chapter_id: String, index: usize) -> Scene
+   move_scene(scene_id: String, target_chapter_id: String, new_index: usize) -> Scene
+   
+   // Word count
+   get_scene_word_count(scene_id: String) -> usize
+   get_chapter_word_count(chapter_id: String) -> usize (includes all scenes)
+   #+END_SRC
+
+* Editor Behavior
+
+** Scene Break Rendering
+
+   Scene breaks should be:
+
+   - *Visually distinct*: Centered, smaller font, lighter color
+   - *Non-selectable*: User cannot accidentally select or edit the break itself
+   - *Deletable*: Right-click to delete, or select + delete key (with confirmation)
+   - *Insertable*: Cursor position, Ctrl+Shift+S to insert break at cursor
+
+** Scene Selection & Navigation
+
+   When a scene is selected in the binder or corkboard:
+
+   1. Editor scrolls to show the start of that scene
+   2. Scene content is highlighted or bordered
+   3. Metadata sidebar updates to show this scene's details
+   4. "Current scene" indicator shown in editor UI (e.g., "Scene 2 of 3")
+
+** Keyboard Shortcuts (Proposed)
+
+   - *Ctrl+Shift+S*: Insert scene break at cursor
+   - *Ctrl+Alt+Up*: Jump to previous scene
+   - *Ctrl+Alt+Down*: Jump to next scene
+   - *Ctrl+Alt+L*: Show scene list / navigator
+
+* UI Mockup Sketch
+
+** Binder + Corkboard + Editor Layout
+
+   #+BEGIN_EXAMPLE
+   ┌──────────────────┬──────────────────┬──────────────────┐
+   │                  │                  │                  │
+   │     BINDER       │    CORKBOARD     │     EDITOR       │
+   │                  │                  │                  │
+   │ 📖 Book          │ Chapter One      │ # Chapter One    │
+   │ ├─ 📄 Ch. 1 (3)  │ (Scene 1 of 3)   │                  │
+   │ │ ├─ 🎬 Arrival  │ ┌────────────┐  │ **Arrival**      │
+   │ │ │ ├─ 🎬 Confr. │ │ Arrival    │  │                  │
+   │ │ │ └─ 🎬 Resol. │ │ Alice POV  │  │ She arrived...   │
+   │ │                 │ │ draft      │  │                  │
+   │ ├─ 📄 Ch. 2 (2)   │ │ 1,200/1500 │  │ ***              │
+   │ │ ├─ 🎬 Escape    │ └────────────┘  │                  │
+   │ │ └─ 🎬 Aftermath │                  │ **Confrontation**│
+   │ │                 │                  │                  │
+   │ └─ 📄 Ch. 3 (0)   │                  │ Bob challenged   │
+   │                   │                  │ her...           │
+   │                   │                  │                  │
+   └──────────────────┴──────────────────┴──────────────────┘
+   #+END_EXAMPLE
+
+* Future Directions
+
+** Version 2.0 Enhancements
+
+   - *Scene types*: Label scenes by type (action, dialogue, introspection, transition)
+   - *Emotional beats*: Track narrative tension and pacing cues within scenes
+   - *Character presence*: Explicit roster of characters in each scene for at-a-glance visibility
+   - *Scene-to-scene dependencies*: Mark scenes that have narrative dependencies
+   - *Recursive nesting*: Sub-scenes within scenes (if demand exists)
+   - *Scene versioning*: Track draft history per scene
+   - *Scene export*: Export individual scenes or scenes within a chapter
+
+** Integration with Corkboard Enhancements
+
+   - *Relationship lines*: Draw connections between scenes that have dependencies
+   - *Character tracking*: Color-code by character, filter corkboard by character
+   - *Timeline view*: Arrange scenes on a timeline (if story has temporal dimension)
+
+** Research & Analysis Tools
+
+   - *Scene statistics*: Average scene length, word count distribution, status summary
+   - *Scene prevalence*: Which POVs dominate; which characters appear most
+   - *Pacing analysis*: Detect slow/fast scenes by word count and status
+
+* References & Inspiration
+
+  - *Ulysses (Mac writing app)*: Uses Markdown headers with leaf separator (=---=) for organizational hierarchy
+  - *iA Writer*: Supports outline view with hierarchical document structure
+  - *Scrivener*: Binder shows nested documents; compile settings for formatting breaks between documents
+  - *Novel outline tools (Atticus, Vellum)*: Scene/chapter organization with metadata and visual corkboard-style views
+
+* Decision Log
+
+** Design Choices Made (So Far)
+
+   1. *Scenes are first-class citizens* in the data model, not just visual markers
+      - Rationale: Enables independent metadata, planning, and word count tracking
+   
+   2. *Scene metadata mirrors chapter metadata* (POV, status, synopsis, target words)
+      - Rationale: Consistent planning paradigm across hierarchy levels
+   
+   3. *Scenes nest within chapters, not beyond*
+      - Rationale: Avoids excessive complexity; addresses most use cases in v1
+   
+   4. *Scene breaks are visual ornaments* (=***=, =---=), not invisible delimiters
+      - Rationale: Aids readability in both editor and export; familiar to writers
+   
+   5. *Migration treats existing chapters as single-scene chapters*
+      - Rationale: Zero data loss; clear upgrade path for existing projects
+
+** Open Questions for Future Refinement
+
+   - Should scenes have unique IDs, or are they referenced by (chapter_id, index) tuple?
+   - Should scene order be mutable or immutable? (Affects undo/redo complexity)
+   - Should scene breaks be user-configurable per project?
+   - Should scenes be individually exportable?
+   - Should the editor show a "scene navigator" sidebar (list of scenes in chapter)?
+
+* Appendix: Example Project Structure (Hybrid Model)
+
+  #+BEGIN_EXAMPLE
+  my-novel/
+  ├── project.yaml
+  ├── chapters/
+  │   ├── chapter-001/
+  │   │   ├── meta.yaml
+  │   │   ├── scenes/
+  │   │   │   ├── scene-001/
+  │   │   │   │   ├── meta.yaml  (title, POV, status, synopsis, target_words)
+  │   │   │   │   └── content.md (scene text)
+  │   │   │   ├── scene-002/
+  │   │   │   │   ├── meta.yaml
+  │   │   │   │   └── content.md
+  │   │   │   └── scene-003/
+  │   │   │       ├── meta.yaml
+  │   │   │       └── content.md
+  │   │   └── _order.yaml  (list of scene IDs in order)
+  │   └── chapter-002/
+  │       ├── meta.yaml
+  │       └── scenes/
+  │           └── scene-001/
+  │               ├── meta.yaml
+  │               └── content.md
+  └── .git/
+  #+END_EXAMPLE
+
+  **Example =chapter-001/_order.yaml=:**
+
+  #+BEGIN_SRC yaml
+  scenes:
+    - scene-001
+    - scene-002
+    - scene-003
+  #+END_SRC
+
+  **Example =chapter-001/scenes/scene-001/meta.yaml=:**
+
+  #+BEGIN_SRC yaml
+  id: scene-001
+  title: Arrival
+  pov: Alice
+  status: draft
+  synopsis: |
+    Alice arrives at the manor on a grey morning, immediately sensing something
+    is amiss. The servant who greets her is nervous and evasive.
+  targetWords: 1500
+  #+END_SRC
+
+* Conclusion
+
+  Chapter Scenes represents a significant enhancement to Sakya's planning capabilities, moving from
+  a chapter-centric to a scene-centric organizational model. The feature deepens the hierarchical
+  structure of the planning system and aligns with how many writers naturally think about their work.
+
+  The design space is rich with trade-offs (filesystem-based vs inline markers), but a hybrid
+  approach (discrete scene files with virtual editor concatenation) offers the best balance of
+  simplicity, metadata richness, and user experience.
+
+  Implementation is high-complexity but decomposable into clear phases: data model, persistence,
+  binder UI, corkboard UI, editor integration, testing, and migration support. Careful attention
+  to backward compatibility ensures existing projects are not disrupted.
+
+  Future iterations can add scene types, character rosters, emotional beats, and more sophisticated
+  analysis tools. The foundational architecture laid here will support those extensions naturally.

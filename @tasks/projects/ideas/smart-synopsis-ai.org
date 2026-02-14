@@ -1,0 +1,316 @@
+#+title: Smart Synopsis Generation (AI-Powered, Opt-In)
+#+author: Sakya Writing Application
+#+date: 2026-02-14
+
+* Overview
+
+An optional AI assistant that helps writers with analytical and administrative tasks — synopsis generation, character tracking, continuity checking — using a local LLM (Ollama) for complete privacy.
+
+The philosophy is foundational: *AI augments writers, not replaces them*. The tedious analytical work (identifying which chapters a character appears in, flagging potential plot holes) should be automated so writers can focus on craft and storytelling.
+
+* Core Philosophy
+
+** Writer-Assistive, Not Writer-Replacing
+
+This feature must operate under strict principles:
+
+- AI never generates *creative* content (prose, dialogue, plot ideas)
+- AI *assists* with administrative and analytical work
+- All suggestions are non-binding; writers always have final authority
+- UX should reinforce this: results are "suggestions," not overwrites
+- Writers can dismiss, edit, or fully ignore any AI output
+
+This distinction is critical to Sakya's identity as a *writer's tool*, not a writing tool.
+
+** Privacy-First Architecture
+
+- All processing happens locally on the writer's machine
+- Zero external API calls; zero cloud connectivity
+- Uses Ollama as the LLM backend (free, open-source, runs locally)
+- Writers opt-in entirely; no default AI features
+- No analytics, telemetry, or tracking of AI usage
+
+Privacy is not a feature—it's a prerequisite for writer trust.
+
+* Feature Modules
+
+** 1. Auto-Synopsis Generation
+
+*Purpose*: Writers manually edit chapter synopses (tedious). AI can suggest a first draft.
+
+*** How It Works
+- Writer opens a chapter and clicks "Suggest Synopsis"
+- AI reads chapter content and generates a 1-3 sentence summary
+- Result appears in a read-only panel with options: Accept, Edit, Regenerate, Dismiss
+- If accepted, synopsis populates the chapter's synopsis field
+- Writer can then refine manually
+
+*** Prompting Strategy
+- System prompt: "You are a book editor. Generate a terse, plot-relevant chapter summary. Avoid flowery language. Focus on what changed or matters for the story."
+- Input: Chapter title + full chapter text
+- Output constraint: Max 150 words, 2-3 sentences
+
+*** UX Integration
+- Inspector panel: "Suggest Synopsis" button (appears only when AI enabled)
+- Result presented in a non-modal panel (bottom right, dismissible)
+- Spinner while generating; graceful fallback if Ollama unavailable
+- Shortcut: Cmd+Shift+S (or configurable)
+
+** 2. Character Tracking & Mentions
+
+*Purpose*: Writers lose track of which characters appear in which chapters. AI can index this.
+
+*** How It Works
+- Writer clicks "Index Characters" from the Inspector panel
+- AI scans entire manuscript, identifies character names, and marks chapters where they appear
+- Results show as a searchable, filterable table: Character → [Chapters where mentioned]
+- Can generate a "Character Arc" view: Character → Chronological chapter list with brief context
+- Writers can manually add/remove character entries (AI is a starting point, not gospel)
+
+*** Implementation Notes
+- Use Ollama with a system prompt trained for NER (named entity recognition)
+- Handle variations: "John," "John Smith," "Mr. Smith," "he" (pronoun resolution is hard—flag uncertain cases)
+- Cache results per manuscript to avoid re-scanning
+- Invalidate cache when chapters are modified (or provide manual "Re-Index" button)
+
+*** UX Integration
+- Inspector panel: "Index Characters" button
+- Results in a collapsible drawer or tab
+- Right-click character → "Jump to mentions" (navigate to chapters)
+- Syncs with the existing entity/character system (future entity system)
+
+** 3. Continuity Checking
+
+*Purpose*: Flag potential plot inconsistencies (especially in long manuscripts).
+
+*** How It Works
+- Writer clicks "Check Continuity" from Inspector
+- AI scans manuscript and identifies potential contradictions:
+  - "Character X is dead in Chapter 5 but appears in Chapter 8"
+  - "The sword was destroyed in Chapter 4 but is wielded again in Chapter 7"
+  - "Character says they've never met Person Y, but Chapter 2 shows them together"
+- Results presented as a list of flagged issues with severity (Warning/Error/Info)
+- Writer reviews, dismisses, or uses as springboard for edits
+
+*** Prompting Strategy
+- System prompt: "You are a book continuity editor. Scan the manuscript for logical inconsistencies, character contradictions, or plot holes. Flag suspicious statements. Be conservative—only flag clear contradictions."
+- Provide chapter summaries and key plot points as context (not the full text—too expensive)
+- Output: List of [Chapter X: Issue description, Severity, Affected elements]
+
+*** Complexity & Caveats
+- This is the *most complex* module due to context window size and reasoning
+- May require a larger/better LLM (not all small models reason well)
+- False positives are likely (AI may not understand intentional mysteries or unreliable narrators)
+- Must be positioned as a *lint tool*, not a truth oracle
+- Writers must evaluate suggestions with domain knowledge
+
+*** UX Integration
+- Inspector panel: "Check Continuity" button
+- Results in a modal/panel with sortable table (Issue, Chapter, Severity, Quick Dismiss)
+- Clicking an issue highlights relevant chapters side-by-side
+- Optional "Explain" button for each issue (AI describes reasoning)
+
+* Technical Architecture
+
+** Backend Integration (Tauri/Rust)
+
+*** Ollama HTTP Client
+- Tauri command: `ai_request_synopsis(chapter_content: String) -> Result<String>`
+- Tauri command: `ai_index_characters(chapters: Vec<ChapterData>) -> Result<CharacterIndex>`
+- Tauri command: `ai_check_continuity(summaries: Vec<ChapterSummary>) -> Result<Vec<Issue>>`
+- HTTP client to Ollama API (default: `http://localhost:11434`)
+- Timeout & error handling: graceful degradation if Ollama unavailable
+- Configurable model selection (default: `mistral` or similar; users can specify other models)
+
+*** Caching Layer
+- Cache synopsis suggestions per chapter (invalidate on edit)
+- Cache character index per manuscript (manual invalidation button)
+- Continuity results are not cached (too dynamic, depends on all chapters)
+- Cache strategy: SQLite or filesystem JSON files
+
+*** Configuration
+- Settings panel: "AI Assistant" toggle (enable/disable entirely)
+- Ollama endpoint (default `localhost:11434`, customizable)
+- Model selection dropdown
+- Privacy checkbox: "I understand all processing is local" (acknowledgement)
+
+** Frontend Integration (SvelteKit)
+
+*** Inspector Panel Modifications
+- New section: "AI Assistant" (only visible if enabled)
+- Three buttons: "Suggest Synopsis," "Index Characters," "Check Continuity"
+- Loading states, error messages, result presentation
+
+*** Result Presentation Components
+- `SynopsisResult.svelte`: Read-only synopsis with Accept/Edit/Regenerate/Dismiss
+- `CharacterIndexPanel.svelte`: Table + searchable list, right-click actions
+- `ContinuityIssuesPanel.svelte`: Sortable table with detail expansion, chapter highlighting
+
+*** Store Changes
+- New store: `aiAssistantState` (enabled, model, results cache, loading state)
+- Events: AI processing begins/completes, user accepts/rejects suggestions
+- Reactive bindings to update manuscript state on acceptance
+
+** Error Handling & Fallback
+
+- Ollama not installed: Graceful message ("AI Assistant requires Ollama. Install from ollama.ai")
+- Network error: "Unable to connect to Ollama. Ensure it's running on {endpoint}"
+- Model not available: "Model {name} not found. Download with: ollama pull {name}"
+- Timeout (>30s): Offer retry or cancel
+- Malformed LLM output: Display raw output with "Report Issue" button (for debugging)
+
+* Privacy & Security Considerations
+
+** Data Handling
+- No data sent to external services (critical for writer trust)
+- No logs of LLM prompts or results (unless writer explicitly enables debug mode)
+- Users can delete AI cache anytime from Settings → Data Management
+- Manuscript content never leaves the device
+
+** Prompt Injection / Security
+- Sanitize user-provided chapter content before sending to Ollama
+- Don't include filename or metadata in prompts if it could leak info
+- Test with adversarial inputs (e.g., chapters with malicious instructions)
+
+** User Expectations
+- Clear UI: "AI results are suggestions. Always review for accuracy."
+- In-app documentation: "How AI Assistant Works" guide
+- Limitations: "AI may miss subtlety, misunderstand unreliable narrators, or suggest changes that conflict with your intent."
+
+* UX/Integration Design
+
+** Inspector Panel Layout
+
+#+begin_src
+┌─────────────────────────────────────┐
+│ Inspector: Chapter Metadata          │
+├─────────────────────────────────────┤
+│ [Existing Inspector Sections]        │
+│                                       │
+│ ─── AI Assistant ────────────────── │
+│ ☑ Enabled (if toggle on)            │
+│                                       │
+│ [Suggest Synopsis]                  │
+│ [Index Characters]                  │
+│ [Check Continuity]                  │
+│                                       │
+│ ⓘ All processing is local & private │
+└─────────────────────────────────────┘
+#+end_src
+
+** Result Panels (Non-Modal, Dismissible)
+
+When user clicks "Suggest Synopsis," result appears as a side panel (or modal depending on preference):
+
+#+begin_src
+┌─ Suggested Synopsis (Ollama) ──────────┐
+│                                         │
+│ Generated synopsis:                     │
+│ "Marcus discovers the hidden library   │
+│  and uncovers his brother's past. An   │
+│  old enemy reveals themselves."         │
+│                                         │
+│ [✓ Accept] [✎ Edit] [↻ Regenerate]    │
+│ [⤫ Dismiss]                             │
+│                                         │
+│ Model: mistral | Generated in 2.3s     │
+└─────────────────────────────────────┘
+#+end_src
+
+** Keyboard Shortcuts (Proposed)
+
+- `Cmd+Shift+S`: Suggest Synopsis (for focused chapter)
+- `Cmd+Shift+C`: Check Continuity (manuscript-level)
+- `Cmd+Shift+A`: Index Characters (manuscript-level)
+- (All customizable in Settings)
+
+* Complexity & Implementation Roadmap
+
+** Phase 1: MVP (Lowest Complexity)
+- Synopsis generation only
+- Single model (Mistral 7B)
+- Local Ollama integration via HTTP
+- Basic caching
+- Inspector panel integration
+- Estimated effort: 2-3 weeks (1 engineer)
+
+** Phase 2: Enhancement
+- Character tracking module
+- Improved caching / performance tuning
+- Model selection UI
+- Better error handling & UX polish
+- Estimated effort: 2 weeks
+
+** Phase 3: Advanced
+- Continuity checking (most complex)
+- Multi-model support (Llama, Qwen, etc.)
+- Advanced prompt engineering (few-shot examples)
+- Performance optimizations for large manuscripts
+- Estimated effort: 3-4 weeks
+
+** Dependencies & Prerequisites
+- Ollama installation (user responsibility)
+- Tauri HTTP client setup (straightforward)
+- SvelteKit component additions
+- Rust command handlers + caching logic
+
+* Risks & Mitigation
+
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| Ollama not installed (UX friction) | Medium | Clear error messages + docs + install guide in Settings |
+| Poor LLM output quality | Medium | Careful prompt engineering; user expectations set correctly |
+| LLM hallucinates character names | Medium | Treat as "suggestions"; position as lint tool, not truth |
+| Continuity checking too slow (large manuscripts) | Medium | Async processing in background; show progress |
+| AI results mislead writer (bad synopsis) | Low | UI emphasizes "suggestions"; easy dismiss/edit |
+| Privacy misunderstanding | High | Clear in-app documentation + acknowledgement checkbox |
+| Performance impact on app responsiveness | Low | Run LLM in separate Tauri worker/thread; non-blocking |
+| User deletes cache and asks for re-indexing repeatedly | Low | Rate-limit or cache invalidation warnings |
+
+* Future Extensions
+
+Once the core AI assistant is solid, consider:
+
+- **Tone & Style Analysis**: "Identify chapters where tone shifts unexpectedly"
+- **Dialogue Audit**: "Flag inconsistent character voice across chapters"
+- **Scene Pacing**: "Identify scenes that feel slow/fast relative to story beats"
+- **Thematic Tracking**: "Which chapters explore theme X? Are they balanced?"
+- **Beta Reader Integration**: "Ollama model fine-tuned on typical reader feedback"
+- **Export Reports**: Generate a full manuscript analysis report (PDF/HTML)
+
+* Success Criteria
+
+A successful AI Assistant feature should:
+
+1. Reduce time writers spend on tedious analytical work by 50%+
+2. Generate accurate synopses 80%+ of the time (user evaluation)
+3. Correctly identify 90%+ of character mentions (precision + recall trade-off)
+4. Flag continuity issues with <20% false positive rate
+5. Never cause data loss or manuscript corruption
+6. Users report increased confidence in manuscript consistency
+7. Zero external data transmission (auditable in code review)
+8. Works offline (Ollama running locally)
+
+* Questions & Open Issues
+
+- Should we ship with a bundled Ollama model, or require user installation?
+  * *Decision*: User installation (keeps app bundle size small, respects user choice)
+- Which LLM should be the default recommendation?
+  * *Candidate*: Mistral 7B (fast, good reasoning, widely used)
+- How do we handle very large manuscripts (1M+ tokens)?
+  * *Strategy*: Chunk processing; summarize chapters first, then analyze summaries
+- Should AI results be stored in the manuscript (.md/.yaml), or ephemeral?
+  * *Decision*: Ephemeral by default; users can manually copy results into manuscript
+- How do we prevent prompt injection / jailbreak attempts?
+  * *Strategy*: Sanitize inputs; test with adversarial examples; document limitations
+
+* References & Inspiration
+
+- **Ollama**: https://ollama.ai (local LLM runtime)
+- **Mistral 7B**: Good balance of speed and reasoning for general use
+- **Writing Tools**: Hemingway Editor, ProWritingAid (offer similar analytical features)
+- **LLM Prompt Engineering**: Few-shot examples, task-specific system prompts
+
+---
+
+*This is a feature idea document, not a formal PRD. It captures the vision, technical approach, and design thinking for future implementation. Feedback welcome.*

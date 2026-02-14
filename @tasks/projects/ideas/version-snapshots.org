@@ -1,0 +1,351 @@
+#+TITLE: Version Snapshots — Writer-Friendly Versioning System
+#+AUTHOR: Sakya Project
+#+DATE: 2026-02-14
+#+DESCRIPTION: Feature idea for named project snapshots without git complexity
+
+* Overview
+
+Sakya Version Snapshots is a writer-centric versioning system that allows authors to create and restore named save points of their entire project state. Unlike git, it is designed for non-technical users who want simple, human-readable checkpoints (e.g., "Before Act 2 rewrite", "After workshop feedback") without learning version control concepts.
+
+** Problem Statement
+
+Writers often need to preserve project states as milestones or safety checkpoints but:
+- Git workflows are not intuitive for non-technical users
+- Branching and merging concepts are foreign to the writing domain
+- Manual file copying is error-prone and tedious
+- There is no built-in way to recover from large edits without undo history
+
+** Solution: Named Snapshots
+
+A simple, one-click snapshot system that captures the entire project state and stores it with metadata, allowing instant restore of any previous version.
+
+* Vision & User Experience
+
+** Core User Journey
+
+1. Writer clicks "Create Snapshot" in toolbar/menu
+2. Simple dialog appears: name (required), description (optional)
+3. System creates snapshot with timestamp and metadata
+4. Snapshot appears in sidebar list with creation date, description, and stats
+5. Writer can click snapshot to restore (with confirmation dialog)
+6. System shows what changed since last snapshot
+
+** Snapshot List View
+
+- Displays all available snapshots in chronological order (newest first)
+- Each snapshot shows:
+  - Custom name (bold, large text)
+  - Timestamp (created date/time)
+  - Optional description (smaller text, gray)
+  - File count and word count at time of snapshot
+  - Quick actions: restore, view details, delete
+- Search/filter by name
+- Drag-to-reorder (optional, for user priority)
+
+** Create Snapshot Dialog
+
+- Text input for snapshot name (required)
+- Text area for optional description
+- Button to proceed
+- Validation: name must be non-empty and unique (or allow overwrite prompt)
+
+** Restore Flow
+
+1. User clicks "Restore" on snapshot
+2. Dialog shows what will be replaced (e.g., "This will restore X chapters from Y files")
+3. System auto-creates a safety snapshot of current state (labeled "Before restore from [snapshot name]")
+4. Confirm button to proceed
+5. Full replace of project directory with snapshot content
+6. UI refreshes and shows restored state
+7. Toast notification: "Restored [snapshot name]. Previous state saved as [auto-snapshot name]"
+
+** Optional: Partial Restore
+
+- "Restore specific content" option in restore dialog
+- Checkbox list of chapters/entities to restore
+- Merge strategy: overwrite selected items, keep others
+
+** Optional: Diff View
+
+- Click "View changes" on snapshot
+- Shows high-level summary: chapters added/removed/modified
+- Chapter-level summaries (not line-level diff)
+- Character/word count changes per chapter
+- Visual timeline of snapshots with indicators of project growth
+
+* Mechanism & Technical Approach
+
+** Storage Structure
+
+#+BEGIN_EXAMPLE
+.sakya/snapshots/
+├── 2026-02-14_142530_before-act2-rewrite/
+│   ├── metadata.yaml
+│   ├── project.zip  (compressed project state)
+│   └── index.json   (quick metadata for list view)
+├── 2026-02-10_093015_after-workshop-feedback/
+│   ├── metadata.yaml
+│   ├── project.zip
+│   └── index.json
+└── ...
+#+END_EXAMPLE
+
+** Metadata Format (metadata.yaml)
+
+#+BEGIN_SRC yaml
+name: "Before Act 2 Rewrite"
+description: "Final draft before major revision of Act 2"
+created_at: 2026-02-14T14:25:30Z
+created_by: "auto"  # "user" or "auto" (safety snapshot)
+file_count: 47
+word_count: 89234
+chapter_count: 12
+file_list:
+  - name: "Chapter 1: Awakening"
+    path: "chapters/ch01.md"
+    word_count: 7823
+  - name: "Chapter 2: The Call"
+    path: "chapters/ch02.md"
+    word_count: 8102
+  # ... truncated
+#+END_SRC
+
+** Index Format (index.json)
+
+Quick metadata for fast snapshot list rendering (no need to parse full metadata).
+
+#+BEGIN_SRC json
+{
+  "name": "Before Act 2 Rewrite",
+  "description": "Final draft before major revision of Act 2",
+  "created_at": "2026-02-14T14:25:30Z",
+  "file_count": 47,
+  "word_count": 89234,
+  "size_mb": 2.3
+}
+#+END_SRC
+
+** File Storage Strategy
+
+1. **Compression**: Store snapshots as `project.zip` to save disk space
+2. **Deduplication**: Consider delta compression for subsequent snapshots (store only changes from previous snapshot)
+   - Simpler approach: full zip per snapshot (easier restore, less complexity)
+   - Advanced approach: store diffs and reconstruct on restore (requires careful testing)
+3. **Max snapshots**: Store up to 10 snapshots per project; auto-delete oldest when limit reached (configurable)
+4. **Storage location**: `.sakya/snapshots/` (hidden directory, persistent across app sessions)
+
+** Restore Implementation
+
+1. Extract snapshot zip to temporary directory
+2. Create auto-snapshot of current state (labeled "Before restore from [snapshot name]")
+3. Remove current project files (except .sakya/ and config)
+4. Copy extracted files to project directory
+5. Reload project in UI
+6. Show success toast with auto-snapshot name
+
+** Word Count Calculation
+
+- Re-use existing word count logic from manuscript store
+- Cache word counts in metadata to avoid recalculation on list view render
+- Refresh count before snapshot creation
+
+* Integration Points
+
+** UI Location
+
+- **Toolbar**: Button labeled "Snapshots" or "Save Point" next to file/edit menu
+- **Modal/Sidebar**: Snapshot manager opens in modal or sidebar panel
+- **Keyboard shortcut**: Optional (e.g., Ctrl+Shift+S to open snapshots)
+
+** Frontend Components
+
+- `SnapshotManager.svelte`: Main modal/sidebar component
+- `SnapshotList.svelte`: List view with items
+- `SnapshotItem.svelte`: Individual snapshot row (name, date, stats, actions)
+- `CreateSnapshotDialog.svelte`: Create/edit dialog
+- `RestoreConfirmDialog.svelte`: Confirm restore with safety info
+
+** Backend Commands (Rust)
+
+- `create_snapshot(name, description)` -> Returns snapshot ID or error
+- `list_snapshots()` -> Returns Vec<SnapshotMetadata> (sorted by date)
+- `restore_snapshot(snapshot_id, partial: Option<Vec<String>>)` -> Returns success/error
+- `delete_snapshot(snapshot_id)` -> Returns success/error
+- `get_snapshot_diff(snapshot_id)` -> Returns ChangeSummary (chapters added/removed/modified)
+
+** State Management (SvelteKit)
+
+- Add `snapshotsStore` to stores/index.ts
+- Track: available snapshots, selected snapshot, loading state
+- Computed: stats for UI (total snapshots, total storage used)
+
+* Safety & Guardrails
+
+** Before Restore
+
+1. Auto-create safety snapshot of current state
+2. Show confirmation dialog with:
+   - Snapshot name being restored
+   - Snapshot creation date
+   - What will be replaced (file count, word count)
+   - "A backup has been created as [auto-snapshot name]"
+3. Require explicit confirmation (checkbox or button press)
+
+** Auto-Snapshots
+
+- Created automatically before restore (labeled with "Before restore from [original snapshot name]")
+- Created automatically before major destructive operations (if added later)
+- Marked in metadata with `created_by: "auto"` to distinguish from user-created snapshots
+- Auto-snapshots never count toward max snapshot limit (or count separately)
+
+** Undo for Snapshots
+
+- Recent auto-snapshots provide safety net
+- User can always restore the "before" snapshot to undo a restore operation
+
+** Data Integrity
+
+- Snapshot creation is atomic (write to temp directory, then rename on success)
+- Corrupt snapshots are skipped in list (with warning)
+- Restore operation validates zip integrity before extraction
+
+* Complexity & Implementation Phases
+
+** Phase 1: MVP (Medium Complexity)
+
+- [x] Design: Snapshot list, create dialog, restore confirmation
+- [ ] Rust backend: create_snapshot, restore_snapshot, list_snapshots, delete_snapshot
+- [ ] Zip compression using `zip` crate
+- [ ] Metadata YAML parsing/generation
+- [ ] Frontend: Snapshot manager modal, basic list view
+- [ ] Integration: Toolbar button, basic UI flow
+- [ ] Testing: Snapshot create/restore/delete unit tests, E2E tests
+- Estimated scope: 2-3 days
+
+** Phase 2: Polish (Low-Medium Complexity)
+
+- [ ] Auto-snapshot before restore
+- [ ] Safety confirmation dialog with detailed info
+- [ ] Snapshot search/filter
+- [ ] Snapshot reordering UI (drag-to-sort)
+- [ ] Better error handling and user feedback
+- [ ] Storage limit and auto-cleanup
+- Estimated scope: 1-2 days
+
+** Phase 3: Advanced (Medium-High Complexity)
+
+- [ ] Partial restore (per-chapter or per-entity selection)
+- [ ] Diff view (chapter-level changes)
+- [ ] Delta compression (store only changes from previous snapshot)
+- [ ] Snapshot timeline visualization
+- [ ] Word count trends over snapshots
+- Estimated scope: 2-4 days (depending on diff implementation)
+
+** Phase 4: Future Enhancements (Low-Medium Complexity)
+
+- [ ] Export snapshot as standalone project
+- [ ] Share snapshots (export/import)
+- [ ] Snapshot comments/annotations
+- [ ] Tag snapshots (e.g., #milestone, #review)
+- [ ] Automatic periodic snapshots
+- Estimated scope: Varies per feature
+
+* Technical Considerations
+
+** Edge Cases
+
+1. **Empty project**: Snapshot of project with no chapters yet
+2. **Large projects**: Storage and performance with large zip files
+3. **Corrupted project state**: Restore with missing or invalid files
+4. **Disk space**: Check available space before creating snapshot
+5. **Concurrent snapshots**: Handle multiple snapshot operations (unlikely but possible)
+6. **File permissions**: Unix permissions should be preserved in zip (or reset on restore)
+
+** Performance
+
+- Snapshot creation: Zip operation may take a few seconds for large projects (show progress indicator)
+- Snapshot restore: Extract operation may take time (show progress bar)
+- List view: Load metadata asynchronously, cache on startup
+- Diff calculation: Done on-demand, not by default
+
+## Dependencies
+
+- Rust: `zip` crate for compression, `serde` for YAML parsing
+- Frontend: No new major dependencies (use SvelteKit modal patterns)
+
+** Testing Strategy
+
+1. **Unit tests (Rust)**:
+   - Snapshot creation with various file structures
+   - Metadata parsing and generation
+   - Restore operations (full project)
+   - Cleanup and max snapshot enforcement
+   - Edge cases (empty projects, large files, special characters in names)
+
+2. **Integration tests (Rust)**:
+   - Full snapshot create→restore cycle
+   - Auto-snapshot before restore
+   - Storage limit enforcement
+   - Concurrent snapshot operations (race conditions)
+
+3. **E2E tests (Playwright)**:
+   - User creates snapshot via UI
+   - Snapshot appears in list with correct metadata
+   - User restores snapshot and verifies content
+   - User deletes snapshot
+   - Modify project, restore, verify old state is recovered
+   - Large project snapshot (performance test)
+
+4. **Manual testing**:
+   - Real project snapshots with various chapter structures
+   - Disk space handling (low disk space scenarios)
+   - Long snapshot names and descriptions
+   - Unicode filenames and content
+
+* Success Metrics
+
+- Snapshots can be created and restored without data loss
+- Snapshot creation is reasonably fast (< 5 seconds for typical project)
+- Restore operation is safe (auto-snapshot, confirmation, undo-able)
+- UI is intuitive for non-technical users
+- Snapshot list is responsive even with 10+ snapshots
+- Zero snapshot corruption in normal usage
+- E2E tests pass for all workflows
+
+* Open Questions
+
+1. Should snapshots be per-project or global to Sakya?
+   - *Answer*: Per-project (stored in .sakya/snapshots/ within project)
+
+2. Should we support exporting snapshots as standalone downloads?
+   - *Answer*: Phase 4 enhancement; MVP does not include this
+
+3. Should we auto-create snapshots at any point (e.g., before saving)?
+   - *Answer*: Only before restore in MVP; periodic snapshots in Phase 4
+
+4. What is the max snapshot count before cleanup?
+   - *Answer*: 10 per project (configurable in future)
+
+5. Should partial restore merge or replace?
+   - *Answer*: Replace selected chapters; merge (overwrite) others
+
+6. How do we handle snapshot names that conflict?
+   - *Answer*: Warn user, allow overwrite or suggest new name
+
+7. Should snapshots be importable from backups/external sources?
+   - *Answer*: Phase 4 (export/import feature)
+
+* Related Features
+
+- **Undo/Redo**: Complements snapshots for fine-grained change tracking
+- **Project backups**: Separate from snapshots; automatic cloud backups
+- **Version history**: Per-chapter edit history (future feature)
+- **Diff view**: Chapter-level comparison between snapshots and current state
+- **Collaborative features**: Snapshot sharing or conflict resolution (future)
+
+* References & Inspiration
+
+- Git workflows (branches as named save points, but simpler for non-technical users)
+- Video game save system (snapshots as save files, restore as load)
+- Google Docs version history (simple timeline, easy restore)
+- Figma design history (named versions, easy comparison)
