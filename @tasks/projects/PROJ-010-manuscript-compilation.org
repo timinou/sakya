@@ -183,7 +183,7 @@ Wire the "Compile & Save" button to invoke the =compile_manuscript= Tauri comman
 :VERIFY: cargo test -- compile, bun run test:e2e -- manuscript-compilation
 :END:
 
-*** ITEM Plain text export format
+*** DONE Plain text export format
 :PROPERTIES:
 :CUSTOM_ID: ITEM-105
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

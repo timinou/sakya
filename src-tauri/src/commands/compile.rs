@@ -1598,10 +1598,7 @@ mod tests {
     fn test_render_plain_text_h2_uppercase_with_dashes() {
         let md = "## Chapter 1: The Beginning";
         let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
-        assert_eq!(
-            result,
-            "CHAPTER 1: THE BEGINNING\n------------------------"
-        );
+        assert_eq!(result, "CHAPTER 1: THE BEGINNING\n------------------------");
     }
 
     #[test]
@@ -1717,7 +1714,13 @@ mod tests {
         let pp = dir.path().to_str().unwrap().to_string();
 
         write_config(&pp, &["ch-1"]);
-        write_chapter(&pp, "ch-1", "The Beginning", None, "It was a dark and stormy night.");
+        write_chapter(
+            &pp,
+            "ch-1",
+            "The Beginning",
+            None,
+            "It was a dark and stormy night.",
+        );
 
         let config = CompileConfig {
             title: "My Novel".to_string(),
@@ -1952,13 +1955,7 @@ mod tests {
         let pp = dir.path().to_str().unwrap().to_string();
 
         write_config(&pp, &["ch-1"]);
-        write_chapter(
-            &pp,
-            "ch-1",
-            "The Title",
-            None,
-            "One two three four five.",
-        );
+        write_chapter(&pp, "ch-1", "The Title", None, "One two three four five.");
 
         // Compare word count between Markdown and PlainText output
         let md_config = CompileConfig {
@@ -2083,8 +2080,8 @@ mod tests {
         assert!(result.content.contains("The world before"));
         assert!(result.content.contains("Our hero departs"));
         assert!(!result.content.contains("*The world before*"));
-        // Bodies
-        assert!(result.content.contains("In the beginning..."));
+        // Bodies (smart punctuation converts ... to ellipsis character)
+        assert!(result.content.contains("In the beginning\u{2026}"));
         assert!(result.content.contains("The hero set out at dawn."));
         assert!(result.content.contains("And so it ended."));
         // Separators (three stars)
