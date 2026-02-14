@@ -25,6 +25,8 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 | Svelte Developer | [[file:svelte-developer.org][svelte-developer.org]] | Svelte 5 UI, runes reactivity, Tauri IPC |
 | Rust Architect | [[file:rust-architect.org][rust-architect.org]] | Tauri commands, module design, async |
 | Testing Engineer | [[file:testing-engineer.org][testing-engineer.org]] | Vitest, Playwright, integration |
+| Lexical Specialist | [[file:lexical-specialist.org][lexical-specialist.org]] | Lexical editor, custom nodes, Markdown transformers |
+| Writing App Designer | [[file:writing-app-designer.org][writing-app-designer.org]] | Feature specs, UX design, entity schemas, file formats |
 
 * Assignment Matrix
 :PROPERTIES:
@@ -46,6 +48,14 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 | Vitest unit tests | testing-engineer | svelte-developer |
 | Playwright E2E tests | testing-engineer | svelte-developer |
 | Integration tests | testing-engineer | rust-architect |
+| Lexical editor plugins | lexical-specialist | svelte-developer |
+| Custom Lexical nodes | lexical-specialist | - |
+| Markdown transformers | lexical-specialist | - |
+| Editor theming and configuration | lexical-specialist | svelte-developer |
+| Feature specifications | writing-app-designer | - |
+| UX flow design | writing-app-designer | svelte-developer |
+| Entity schema design | writing-app-designer | rust-architect |
+| File format design | writing-app-designer | rust-architect |
 
 ** By Component Area
 
@@ -55,9 +65,13 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 | src/lib/components/ | svelte-developer |
 | src/lib/stores/ | svelte-developer, rust-architect |
 | src/lib/tauri/ | svelte-developer, rust-architect |
+| src/lib/editor/ | lexical-specialist, svelte-developer |
 | src-tauri/src/ | rust-architect |
 | tests/ | testing-engineer, svelte-developer |
 | e2e/ | testing-engineer |
+| docs/prd/ | writing-app-designer |
+| @research/ | writing-app-designer |
+| examples/ | writing-app-designer |
 
 * Agent Interaction Patterns
 :PROPERTIES:
@@ -66,20 +80,30 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 
 ** Handoff Patterns
 
+*** Specification -> Architecture -> Development -> Testing
+1. writing-app-designer specifies features, UX flows, and file formats
+2. rust-architect designs Tauri commands and module structure
+3. lexical-specialist creates editor components and plugins (parallel with step 4)
+4. svelte-developer implements UI with Svelte 5 runes and Tauri IPC
+5. testing-engineer verifies with unit and E2E tests
+
 *** Architecture -> Development -> Testing
 1. rust-architect defines Tauri commands and module structure
 2. svelte-developer implements UI with Svelte 5 runes and Tauri IPC
 3. testing-engineer verifies with tests
 
 *** Feature Flow
-1. rust-architect designs feature architecture
-2. rust-architect creates Tauri command API
-3. svelte-developer creates UI
-4. testing-engineer writes tests
+1. writing-app-designer specifies the feature (UX, data model, interactions)
+2. rust-architect designs feature architecture and Tauri command API
+3. lexical-specialist creates editor-related components (if editor feature)
+4. svelte-developer creates non-editor UI components
+5. testing-engineer writes tests
 
 *** Cross-Cutting Concerns
 - testing-engineer reviews all components for testability
 - rust-architect advises on error handling patterns
+- writing-app-designer reviews implemented features against specifications
+- lexical-specialist advises on editor integration patterns
 
 * Adding New Agents
 :PROPERTIES:
