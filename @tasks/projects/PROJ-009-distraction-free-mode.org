@@ -116,7 +116,7 @@ Wire up keyboard shortcuts and toolbar controls for all three writing modes. =Cm
 - [ ] Shortcuts do not conflict with existing keybindings
 - [ ] Shortcuts work regardless of which mode is active
 
-*** ITEM E2E tests for focus modes
+*** DONE E2E tests for focus modes
 :PROPERTIES:
 :CUSTOM_ID: ITEM-098
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
