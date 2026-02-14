@@ -1,10 +1,8 @@
 <script lang="ts">
   import { getEditor } from 'svelte-lexical';
   import { onMount } from 'svelte';
-  import {
-    $convertToMarkdownString as convertToMarkdownString,
-    TRANSFORMERS,
-  } from '@lexical/markdown';
+  import { $convertToMarkdownString as convertToMarkdownString } from '@lexical/markdown';
+  import { SAKYA_TRANSFORMERS } from '../transformers';
 
   interface Props {
     onSave?: (markdown: string) => void;
@@ -25,7 +23,7 @@
         if (timeoutId) clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
           editorState.read(() => {
-            const markdown = convertToMarkdownString(TRANSFORMERS);
+            const markdown = convertToMarkdownString(SAKYA_TRANSFORMERS);
             onSave?.(markdown);
           });
         }, debounceMs);

@@ -1,9 +1,6 @@
-import {
-  $convertFromMarkdownString,
-  $convertToMarkdownString,
-  TRANSFORMERS,
-} from '@lexical/markdown';
+import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
 import type { LexicalEditor } from 'lexical';
+import { SAKYA_TRANSFORMERS } from '../transformers';
 
 /**
  * Loads a Markdown string into the editor, replacing its current content.
@@ -14,7 +11,7 @@ export function markdownToEditorState(
   markdown: string | null | undefined
 ): void {
   editor.update(() => {
-    $convertFromMarkdownString(markdown ?? '', TRANSFORMERS);
+    $convertFromMarkdownString(markdown ?? '', SAKYA_TRANSFORMERS);
   });
 }
 
@@ -25,7 +22,7 @@ export function markdownToEditorState(
 export function editorStateToMarkdown(editor: LexicalEditor): string {
   let markdown = '';
   editor.getEditorState().read(() => {
-    markdown = $convertToMarkdownString(TRANSFORMERS);
+    markdown = $convertToMarkdownString(SAKYA_TRANSFORMERS);
   });
   return markdown;
 }
