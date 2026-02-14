@@ -10,7 +10,7 @@
 :COMPLETION: All ITEMs complete, search works across all content, wiki-links resolve and show backlinks, keyboard shortcuts functional, UI state persists.
 :END:
 
-** ITEM Create Tauri search commands
+** DONE Create Tauri search commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-039-search-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -30,7 +30,7 @@ Implement Tauri commands for full-text search, wiki-link resolution, and backlin
 - [ ] Search results include file type (chapter, entity, note) and path
 - [ ] Performance: search completes in <500ms for typical project size
 
-** ITEM Create SearchPalette component
+** DONE Create SearchPalette component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-040-search-palette
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -52,7 +52,7 @@ Create a Cmd+K triggered search modal for finding content across the project.
 - [ ] Escape closes modal
 - [ ] Debounced search (300ms) as user types
 
-** ITEM Create backlinks inspector section
+** DONE Create backlinks inspector section
 :PROPERTIES:
 :CUSTOM_ID: ITEM-041-backlinks
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -73,7 +73,7 @@ Add a "Referenced By" section to the inspector showing backlinks.
 - [ ] Clickable: navigates to the referencing document
 - [ ] Loads on document selection (with loading spinner)
 
-** ITEM Implement wiki-link autocomplete
+** DONE Implement wiki-link autocomplete
 :PROPERTIES:
 :CUSTOM_ID: ITEM-042-wiki-autocomplete
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -96,7 +96,7 @@ Enhance WikiLinkPlugin with autocomplete dropdown when typing =[[=.
 - [ ] Escape closes dropdown without inserting
 - [ ] Dropdown positioned near cursor
 
-** ITEM Implement keyboard shortcuts
+** DONE Implement keyboard shortcuts
 :PROPERTIES:
 :CUSTOM_ID: ITEM-043-keyboard-shortcuts
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -119,7 +119,7 @@ Implement global keyboard shortcuts for common actions.
 - [ ] Shortcuts don't conflict with editor formatting shortcuts
 - [ ] Shortcuts work on both macOS and Linux (Cmd/Ctrl)
 
-** ITEM Implement UI state persistence
+** DONE Implement UI state persistence
 :PROPERTIES:
 :CUSTOM_ID: ITEM-044-ui-persistence
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -138,7 +138,7 @@ Persist UI state to disk and restore on project open.
 - [ ] Restore on project open
 - [ ] Graceful fallback if file is missing or corrupt (use defaults)
 
-** ITEM Create common UI components
+** DONE Create common UI components
 :PROPERTIES:
 :CUSTOM_ID: ITEM-045-common-ui
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

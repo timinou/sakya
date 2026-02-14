@@ -22,8 +22,8 @@
   let menuEl: HTMLElement | undefined = $state();
 
   // Adjust position to stay within viewport
-  let adjustedX = $state(x);
-  let adjustedY = $state(y);
+  let adjustedX = $state(0);
+  let adjustedY = $state(0);
 
   $effect(() => {
     if (!menuEl) return;
@@ -103,8 +103,9 @@
         onkeydown={(e) => handleItemKeydown(e, item)}
       >
         {#if item.icon}
+          {@const Icon = item.icon}
           <span class="menu-icon">
-            <svelte:component this={item.icon} size={16} />
+            <Icon size={16} />
           </span>
         {/if}
         <span class="menu-label">{item.label}</span>

@@ -72,7 +72,7 @@
     aria-live="polite"
   >
     <span class="toast-icon">
-      <svelte:component this={IconComponent} size={18} />
+      <IconComponent size={18} />
     </span>
     <span class="toast-message">{message}</span>
     <button
