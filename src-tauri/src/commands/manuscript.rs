@@ -166,6 +166,63 @@ pub fn delete_chapter(project_path: String, slug: String) -> Result<(), AppError
     Ok(())
 }
 
+/// Rename a chapter: update its title (and slug/filename if the slug changes).
+#[tauri::command]
+pub fn rename_chapter(
+    project_path: String,
+    slug: String,
+    new_title: String,
+) -> Result<ChapterContent, AppError> {
+    let existing = get_chapter(project_path.clone(), slug.clone())?;
+    let new_slug = slugify(&new_title);
+
+    if new_slug.is_empty() {
+        return Err(AppError::Validation(
+            "Title must produce a non-empty slug".to_string(),
+        ));
+    }
+
+    let mut chapter = existing.frontmatter;
+    chapter.title = new_title;
+    let body = existing.body;
+
+    if new_slug == slug {
+        // Same slug — just update the title in place
+        save_chapter(project_path, slug.clone(), chapter.clone(), body.clone())?;
+        return Ok(ChapterContent {
+            slug,
+            frontmatter: chapter,
+            body,
+        });
+    }
+
+    // Different slug — write new file, delete old, update config
+    chapter.slug = new_slug.clone();
+    save_chapter(
+        project_path.clone(),
+        new_slug.clone(),
+        chapter.clone(),
+        body.clone(),
+    )?;
+
+    // Delete the old file
+    let old_path = chapter_path(&project_path, &slug);
+    std::fs::remove_file(&old_path)?;
+
+    // Update the manuscript config: replace old slug with new slug
+    let mut config = get_manuscript_config(project_path.clone())?;
+    if let Some(entry) = config.chapters.iter_mut().find(|s| **s == slug) {
+        *entry = new_slug.clone();
+    }
+    save_manuscript_config(project_path, config)?;
+
+    Ok(ChapterContent {
+        slug: new_slug,
+        frontmatter: chapter,
+        body,
+    })
+}
+
 /// Reorder chapters: replace the config ordering and update each chapter file's order field.
 #[tauri::command]
 pub fn reorder_chapters(project_path: String, chapter_slugs: Vec<String>) -> Result<(), AppError> {
@@ -887,5 +944,135 @@ mod tests {
 
         let final_ch = get_chapter(pp, "final-chapter".to_string()).unwrap();
         assert_eq!(final_ch.frontmatter.status, ChapterStatus::Final);
+    }
+
+    // ── rename_chapter ─────────────────────────────────────────────
+
+    #[test]
+    fn rename_chapter_with_slug_change_moves_file() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_chapter(pp.clone(), "The Beginning".to_string()).unwrap();
+
+        let renamed = rename_chapter(
+            pp.clone(),
+            "the-beginning".to_string(),
+            "A New Dawn".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.slug, "a-new-dawn");
+        assert_eq!(renamed.frontmatter.title, "A New Dawn");
+        assert_eq!(renamed.frontmatter.slug, "a-new-dawn");
+
+        // Old file should be gone
+        assert!(!dir.path().join("manuscript/the-beginning.md").exists());
+        // New file should exist
+        assert!(dir.path().join("manuscript/a-new-dawn.md").exists());
+
+        // Should be retrievable by new slug
+        let loaded = get_chapter(pp, "a-new-dawn".to_string()).unwrap();
+        assert_eq!(loaded.frontmatter.title, "A New Dawn");
+    }
+
+    #[test]
+    fn rename_chapter_same_slug_updates_title_only() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        // "The Beginning" and "THE BEGINNING" both slugify to "the-beginning"
+        create_chapter(pp.clone(), "The Beginning".to_string()).unwrap();
+
+        let renamed = rename_chapter(
+            pp.clone(),
+            "the-beginning".to_string(),
+            "THE BEGINNING".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.slug, "the-beginning");
+        assert_eq!(renamed.frontmatter.title, "THE BEGINNING");
+
+        // File should still exist at the same path
+        assert!(dir.path().join("manuscript/the-beginning.md").exists());
+
+        let loaded = get_chapter(pp, "the-beginning".to_string()).unwrap();
+        assert_eq!(loaded.frontmatter.title, "THE BEGINNING");
+    }
+
+    #[test]
+    fn rename_chapter_updates_manuscript_config() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_chapter(pp.clone(), "Prologue".to_string()).unwrap();
+        create_chapter(pp.clone(), "Chapter One".to_string()).unwrap();
+        create_chapter(pp.clone(), "Epilogue".to_string()).unwrap();
+
+        // Rename the middle chapter
+        rename_chapter(
+            pp.clone(),
+            "chapter-one".to_string(),
+            "The First Act".to_string(),
+        )
+        .unwrap();
+
+        let config = get_manuscript_config(pp).unwrap();
+        assert_eq!(
+            config.chapters,
+            vec!["prologue", "the-first-act", "epilogue"]
+        );
+    }
+
+    #[test]
+    fn rename_chapter_preserves_body_and_metadata() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_chapter(pp.clone(), "Original Title".to_string()).unwrap();
+
+        // Edit the chapter with body and metadata
+        let chapter = Chapter {
+            slug: "original-title".to_string(),
+            title: "Original Title".to_string(),
+            status: ChapterStatus::Revised,
+            pov: Some("Alice".to_string()),
+            synopsis: Some("A test chapter.".to_string()),
+            target_words: Some(5000),
+            order: 0,
+        };
+        save_chapter(
+            pp.clone(),
+            "original-title".to_string(),
+            chapter,
+            "Once upon a time...\n".to_string(),
+        )
+        .unwrap();
+
+        let renamed = rename_chapter(
+            pp.clone(),
+            "original-title".to_string(),
+            "New Title".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.body, "Once upon a time...\n");
+        assert_eq!(renamed.frontmatter.status, ChapterStatus::Revised);
+        assert_eq!(renamed.frontmatter.pov, Some("Alice".to_string()));
+        assert_eq!(
+            renamed.frontmatter.synopsis,
+            Some("A test chapter.".to_string())
+        );
+        assert_eq!(renamed.frontmatter.target_words, Some(5000));
+    }
+
+    #[test]
+    fn rename_chapter_nonexistent_returns_not_found() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = rename_chapter(pp, "does-not-exist".to_string(), "New Name".to_string());
+        assert!(result.is_err());
     }
 }

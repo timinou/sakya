@@ -195,7 +195,7 @@ Write E2E tests for all delete operations: confirm dialog appearance, confirm/ca
 :CUSTOM_ID: CHK-007-03
 :END:
 
-*** ITEM Rust rename commands for chapters and notes
+*** DOING Rust rename commands for chapters and notes
 :PROPERTIES:
 :CUSTOM_ID: ITEM-066
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

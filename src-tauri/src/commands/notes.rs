@@ -141,6 +141,74 @@ pub fn delete_note(project_path: String, slug: String) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Rename a note: update its title (and slug/filename if the slug changes).
+#[tauri::command]
+pub fn rename_note(
+    project_path: String,
+    slug: String,
+    new_title: String,
+) -> Result<NoteContent, AppError> {
+    let existing = get_note(project_path.clone(), slug.clone())?;
+    let new_slug = slugify(&new_title);
+
+    if new_slug.is_empty() {
+        return Err(AppError::Validation(
+            "Title must produce a non-empty slug".to_string(),
+        ));
+    }
+
+    let body = existing.body;
+
+    if new_slug == slug {
+        // Same slug — just update the title in place
+        save_note(
+            project_path.clone(),
+            slug.clone(),
+            new_title.clone(),
+            body.clone(),
+        )?;
+
+        // Update the notes config title
+        let mut config = get_notes_config(project_path.clone())?;
+        if let Some(entry) = config.notes.iter_mut().find(|n| n.slug == slug) {
+            entry.title = new_title.clone();
+        }
+        save_notes_config(project_path, config)?;
+
+        return Ok(NoteContent {
+            slug,
+            title: new_title,
+            body,
+        });
+    }
+
+    // Different slug — write new file, delete old, update config
+    save_note(
+        project_path.clone(),
+        new_slug.clone(),
+        new_title.clone(),
+        body.clone(),
+    )?;
+
+    // Delete the old file
+    let old_path = note_path(&project_path, &slug);
+    std::fs::remove_file(&old_path)?;
+
+    // Update the notes config: replace old slug/title with new
+    let mut config = get_notes_config(project_path.clone())?;
+    if let Some(entry) = config.notes.iter_mut().find(|n| n.slug == slug) {
+        entry.slug = new_slug.clone();
+        entry.title = new_title.clone();
+    }
+    save_notes_config(project_path, config)?;
+
+    Ok(NoteContent {
+        slug: new_slug,
+        title: new_title,
+        body,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -798,5 +866,177 @@ mod tests {
 
         let loaded = get_note(pp, "unicode".to_string()).unwrap();
         assert_eq!(loaded.body, body);
+    }
+
+    // ── rename_note ────────────────────────────────────────────────
+
+    #[test]
+    fn rename_note_with_slug_change_moves_file() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "Plot Ideas".to_string()).unwrap();
+
+        let renamed = rename_note(
+            pp.clone(),
+            "plot-ideas".to_string(),
+            "Story Arcs".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.slug, "story-arcs");
+        assert_eq!(renamed.title, "Story Arcs");
+
+        // Old file should be gone
+        assert!(!dir.path().join("notes/plot-ideas.md").exists());
+        // New file should exist
+        assert!(dir.path().join("notes/story-arcs.md").exists());
+
+        // Should be retrievable by new slug
+        let loaded = get_note(pp, "story-arcs".to_string()).unwrap();
+        assert_eq!(loaded.title, "Story Arcs");
+    }
+
+    #[test]
+    fn rename_note_same_slug_updates_title_only() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "Plot Ideas".to_string()).unwrap();
+
+        let renamed = rename_note(
+            pp.clone(),
+            "plot-ideas".to_string(),
+            "PLOT IDEAS".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.slug, "plot-ideas");
+        assert_eq!(renamed.title, "PLOT IDEAS");
+
+        // File should still exist at the same path
+        assert!(dir.path().join("notes/plot-ideas.md").exists());
+
+        let loaded = get_note(pp, "plot-ideas".to_string()).unwrap();
+        assert_eq!(loaded.title, "PLOT IDEAS");
+    }
+
+    #[test]
+    fn rename_note_updates_notes_config() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "First Note".to_string()).unwrap();
+        create_note(pp.clone(), "Second Note".to_string()).unwrap();
+        create_note(pp.clone(), "Third Note".to_string()).unwrap();
+
+        // Rename the middle note
+        rename_note(
+            pp.clone(),
+            "second-note".to_string(),
+            "Renamed Note".to_string(),
+        )
+        .unwrap();
+
+        let config = get_notes_config(pp).unwrap();
+        let slugs: Vec<&str> = config.notes.iter().map(|n| n.slug.as_str()).collect();
+        assert_eq!(slugs, vec!["first-note", "renamed-note", "third-note"]);
+
+        // Verify the title was also updated in config
+        let renamed_entry = config
+            .notes
+            .iter()
+            .find(|n| n.slug == "renamed-note")
+            .unwrap();
+        assert_eq!(renamed_entry.title, "Renamed Note");
+    }
+
+    #[test]
+    fn rename_note_same_slug_updates_config_title() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "Plot Ideas".to_string()).unwrap();
+
+        rename_note(
+            pp.clone(),
+            "plot-ideas".to_string(),
+            "PLOT IDEAS".to_string(),
+        )
+        .unwrap();
+
+        let config = get_notes_config(pp).unwrap();
+        let entry = config
+            .notes
+            .iter()
+            .find(|n| n.slug == "plot-ideas")
+            .unwrap();
+        assert_eq!(entry.title, "PLOT IDEAS");
+    }
+
+    #[test]
+    fn rename_note_preserves_body() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "Original Note".to_string()).unwrap();
+        save_note(
+            pp.clone(),
+            "original-note".to_string(),
+            "Original Note".to_string(),
+            "Some important content.\n".to_string(),
+        )
+        .unwrap();
+
+        let renamed = rename_note(
+            pp.clone(),
+            "original-note".to_string(),
+            "New Note Title".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.body, "Some important content.\n");
+    }
+
+    #[test]
+    fn rename_note_nonexistent_returns_not_found() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = rename_note(pp, "does-not-exist".to_string(), "New Name".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rename_note_preserves_config_metadata() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_note(pp.clone(), "My Note".to_string()).unwrap();
+
+        // Manually update config with color/label/position
+        let mut config = get_notes_config(pp.clone()).unwrap();
+        if let Some(entry) = config.notes.iter_mut().find(|n| n.slug == "my-note") {
+            entry.color = Some("blue".to_string());
+            entry.label = Some("important".to_string());
+        }
+        save_notes_config(pp.clone(), config).unwrap();
+
+        // Rename with slug change
+        rename_note(
+            pp.clone(),
+            "my-note".to_string(),
+            "Renamed Note".to_string(),
+        )
+        .unwrap();
+
+        let config = get_notes_config(pp).unwrap();
+        let entry = config
+            .notes
+            .iter()
+            .find(|n| n.slug == "renamed-note")
+            .unwrap();
+        assert_eq!(entry.color, Some("blue".to_string()));
+        assert_eq!(entry.label, Some("important".to_string()));
     }
 }
