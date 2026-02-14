@@ -1,0 +1,513 @@
+#+TITLE: Lexical Editor Design Document
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+Sakya's editor is built on Meta's Lexical framework via svelte-lexical. The core philosophy:
+
+- *Markdown as shorthand*: Writers type Markdown shortcuts (=**bold**=, =# heading=) and see rich text immediately
+- *WYSIWYG rendering*: The editor displays formatted text, not raw Markdown
+- *Files stored as Markdown*: On disk, content is plain Markdown with YAML frontmatter
+- *Editor state is canonical*: While editing, the Lexical node tree is the source of truth; Markdown is the serialization format for persistence
+
+** Architecture Summary
+
+#+BEGIN_SRC
+┌─────────────────────────────────────────────────┐
+│                 SakyaEditor.svelte               │
+│  ┌─────────────────────────────────────────────┐ │
+│  │           svelte-lexical Composer            │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │ │
+│  │  │ RichText │  │ Markdown │  │  Custom    │ │ │
+│  │  │ Plugin   │  │ Shortcuts│  │  Plugins   │ │ │
+│  │  └──────────┘  └──────────┘  └───────────┘ │ │
+│  │  ┌──────────────────────────────────────┐   │ │
+│  │  │     Lexical Editor Core               │   │ │
+│  │  │  EditorState (immutable node tree)    │   │ │
+│  │  │  Commands | Transforms | Listeners    │   │ │
+│  │  └──────────────────────────────────────┘   │ │
+│  └─────────────────────────────────────────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+│  │ Toolbar  │  │ WordCount│  │ AutoSave     │   │
+│  │ Plugin   │  │ Plugin   │  │ Plugin       │   │
+│  └──────────┘  └──────────┘  └──────────────┘   │
+└─────────────────────────────────────────────────┘
+         ↕ Markdown (import/export)
+┌─────────────────────────────────────────────────┐
+│              Tauri File I/O                       │
+│  YAML frontmatter + Markdown body                │
+└─────────────────────────────────────────────────┘
+#+END_SRC
+
+* Node Type Catalog
+:PROPERTIES:
+:CUSTOM_ID: nodes
+:END:
+
+** Current Nodes (MVP)
+
+| Node Type | Lexical Class | Markdown Syntax | CSS Theme Key |
+|-----------+---------------+-----------------+---------------|
+| Paragraph | ParagraphNode | (default block) | =paragraph= |
+| Heading | HeadingNode | =# ## ### #### ##### ######= | =heading.h1= ... =heading.h6= |
+| Quote | QuoteNode | => text= | =quote= |
+| List | ListNode | =- item= or =1. item= | =list.ul=, =list.ol= |
+| List Item | ListItemNode | (child of list) | =listitem= |
+| Code Block | CodeNode | =``` ... ```= | =code= |
+| Link | LinkNode | =[text](url)= | =link= |
+| Wiki Link | WikiLinkNode | =[[Entity Name]]= | =wikiLink= |
+
+** Text Format Nodes (inline)
+
+| Format | Markdown Syntax | CSS Theme Key |
+|--------+-----------------+---------------|
+| Bold | =**text**= | =text.bold= |
+| Italic | =*text*= or =_text_= | =text.italic= |
+| Strikethrough | =~~text~~= | =text.strikethrough= |
+| Inline Code | =`code`= | =text.code= |
+
+** Planned Nodes (Post-MVP)
+
+| Node Type | Lexical Class | Markdown Syntax | Purpose |
+|-----------+---------------+-----------------+---------|
+| Callout | CalloutNode (DecoratorNode) | =>! type\n> content= | Highlighted information blocks |
+| Footnote | FootnoteNode (ElementNode) | =[^ref]= | Academic/literary footnotes |
+| Comment | CommentNode (DecoratorNode) | =<!-- comment -->= | Author notes not in export |
+| Inline Metadata | InlineMetadataNode (DecoratorNode) | ={status:draft}= | Per-paragraph metadata |
+
+* Plugin Registry
+:PROPERTIES:
+:CUSTOM_ID: plugins
+:END:
+
+** RichTextPlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =@lexical/rich-text= (via svelte-lexical) |
+| Purpose | Core rich text editing (headings, formatting, lists) |
+| Commands | FORMAT_TEXT_COMMAND, FORMAT_ELEMENT_COMMAND |
+| Events | None (core functionality) |
+| Config | None |
+
+** MarkdownShortcutsPlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =src/lib/editor/plugins/MarkdownShortcutsPlugin.svelte= |
+| Purpose | Convert Markdown syntax to rich text as user types |
+| Commands | None (uses =registerMarkdownShortcuts=) |
+| Events | Listens to text input transforms |
+| Config | TRANSFORMERS array (standard + custom) |
+
+Shortcut triggers:
+- =# = through =######= -> Heading 1-6
+- =**text**= -> Bold
+- =*text*= -> Italic
+- =~~text~~= -> Strikethrough
+- =`code`= -> Inline code
+- =```= -> Code block
+- => = -> Blockquote
+- =- = or =* = -> Unordered list
+- =1. = -> Ordered list
+- =[text](url)= -> Link
+
+** WikiLinkPlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =src/lib/editor/plugins/WikiLinkPlugin.svelte= |
+| Purpose | Detect =[[= and create WikiLinkNodes, style by resolution status |
+| Commands | WIKI_LINK_COMMAND (custom) |
+| Events | registerNodeTransform on TextNode (detect =[[...]]= pattern) |
+| Config | Entity list for resolution, click handler for navigation |
+
+Behavior:
+1. User types =[[=
+2. Plugin detects pattern and shows autocomplete (PROJ-006)
+3. On selection or =]]= close, creates WikiLinkNode
+4. Node styled: resolved (colored by entity type) vs unresolved (dimmed)
+5. Click navigates to entity
+
+** AutoSavePlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =src/lib/editor/plugins/AutoSavePlugin.svelte= |
+| Purpose | Debounced auto-save of editor content to disk via Tauri |
+| Commands | None |
+| Events | =registerUpdateListener= with 800ms debounce |
+| Config | Debounce interval (ms), save callback |
+
+Flow:
+1. Editor state changes
+2. 800ms debounce timer starts/resets
+3. On trigger: =$convertToMarkdownString(TRANSFORMERS)=
+4. Call Tauri =save_chapter= or =save_note= command with Markdown
+5. Update dirty indicator in editor store
+
+** WordCountPlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =src/lib/editor/plugins/WordCountPlugin.svelte= |
+| Purpose | Real-time word and character count |
+| Commands | None |
+| Events | =registerUpdateListener= |
+| Config | Count callback or reactive store binding |
+
+Implementation:
+1. On editor update, read text content via =$getRoot().getTextContent()=
+2. Split by whitespace, filter empty, count words
+3. Count characters (with and without spaces)
+4. Expose via callback prop or direct store update
+
+** ToolbarPlugin
+
+| Property | Value |
+|----------+-------|
+| Source | =src/lib/editor/plugins/ToolbarPlugin.svelte= |
+| Purpose | Formatting toolbar with active state indicators |
+| Commands | Dispatches FORMAT_TEXT_COMMAND, FORMAT_ELEMENT_COMMAND |
+| Events | =registerUpdateListener= for selection tracking |
+| Config | Visible buttons configuration |
+
+Toolbar buttons:
+| Button | Command | Active When |
+|--------+---------+-------------|
+| Bold | FORMAT_TEXT_COMMAND('bold') | Selection has bold format |
+| Italic | FORMAT_TEXT_COMMAND('italic') | Selection has italic format |
+| Strikethrough | FORMAT_TEXT_COMMAND('strikethrough') | Selection has strikethrough |
+| H1-H3 | FORMAT_ELEMENT_COMMAND | Current block is heading |
+| Bullet List | INSERT_UNORDERED_LIST_COMMAND | Current block is ul |
+| Number List | INSERT_ORDERED_LIST_COMMAND | Current block is ol |
+| Blockquote | FORMAT_ELEMENT_COMMAND | Current block is quote |
+| Code | FORMAT_TEXT_COMMAND('code') | Selection has code format |
+| Link | TOGGLE_LINK_COMMAND | Selection is link |
+
+* Markdown Transformer Specification
+:PROPERTIES:
+:CUSTOM_ID: transformers
+:END:
+
+** Standard Transformers (from @lexical/markdown)
+
+*** Element Transformers
+
+| Transformer | Trigger | Import Pattern | Export Pattern |
+|-------------+---------+----------------+----------------|
+| Heading | =^#{1,6}\s= | Line starts with =#= | Prepend =#= chars |
+| Quote | =^>\s= | Line starts with =>= | Prepend =>= |
+| Unordered List | =^[-*]\s= | Line starts with =-= or =*= | Prepend =-= |
+| Ordered List | =^\d+\.\s= | Line starts with number | Prepend =N.= |
+| Code Block | =^```= | Fenced code block | Wrap in =```= |
+
+*** Text Format Transformers
+
+| Transformer | Trigger | Pattern | Format |
+|-------------+---------+---------+--------|
+| Bold | =**= | =\*\*(.+?)\*\*= | Bold |
+| Italic | =*= or =_= | =\*(.+?)\*= or =_(.+?)_= | Italic |
+| Strikethrough | =~~= | =~~(.+?)~~= | Strikethrough |
+| Inline Code | =`= | =`(.+?)`= | Code |
+
+*** Text Match Transformers
+
+| Transformer | Trigger | Pattern | Node |
+|-------------+---------+---------+------|
+| Link | =)= | =\[(.+?)\]\((.+?)\)= | LinkNode |
+
+** Custom Transformers
+
+*** Wiki Link Transformer
+
+| Property | Value |
+|----------+-------|
+| Type | Text Match |
+| Trigger | =]= |
+| Import RegExp | =\[\[([^\]]+)\]\]= |
+| Export | =[[linkTarget]]= |
+| Node | WikiLinkNode |
+
+#+BEGIN_SRC typescript
+const WIKI_LINK_TRANSFORMER: TextMatchTransformer = {
+    dependencies: [WikiLinkNode],
+    export: (node) => {
+        if (!$isWikiLinkNode(node)) return null;
+        return `[[${node.getLinkTarget()}]]`;
+    },
+    importRegExp: /\[\[([^\]]+)\]\]/,
+    regExp: /\[\[([^\]]+)\]\]/,
+    replace: (textNode, match) => {
+        const [, linkTarget] = match;
+        const wikiLinkNode = $createWikiLinkNode(linkTarget);
+        wikiLinkNode.append($createTextNode(linkTarget));
+        textNode.replace(wikiLinkNode);
+    },
+    trigger: ']',
+    type: 'text-match',
+};
+#+END_SRC
+
+** Transformer Bundle
+
+#+BEGIN_SRC typescript
+// src/lib/editor/transformers/index.ts
+import { TRANSFORMERS as STANDARD_TRANSFORMERS } from '@lexical/markdown';
+import { WIKI_LINK_TRANSFORMER } from './wiki-link';
+
+export const SAKYA_TRANSFORMERS = [
+    ...STANDARD_TRANSFORMERS,
+    WIKI_LINK_TRANSFORMER,
+];
+#+END_SRC
+
+* Theme Class Mapping
+:PROPERTIES:
+:CUSTOM_ID: theme
+:END:
+
+** Lexical Theme Object
+
+#+BEGIN_SRC typescript
+// src/lib/editor/theme.ts
+export const sakyaEditorTheme = {
+    paragraph: 'editor-paragraph',
+    heading: {
+        h1: 'editor-heading-h1',
+        h2: 'editor-heading-h2',
+        h3: 'editor-heading-h3',
+        h4: 'editor-heading-h4',
+        h5: 'editor-heading-h5',
+        h6: 'editor-heading-h6',
+    },
+    quote: 'editor-quote',
+    list: {
+        ul: 'editor-list-ul',
+        ol: 'editor-list-ol',
+        listitem: 'editor-listitem',
+        nested: {
+            listitem: 'editor-nested-listitem',
+        },
+    },
+    code: 'editor-code',
+    link: 'editor-link',
+    wikiLink: 'editor-wiki-link',
+    text: {
+        bold: 'editor-text-bold',
+        italic: 'editor-text-italic',
+        strikethrough: 'editor-text-strikethrough',
+        code: 'editor-text-code',
+        underline: 'editor-text-underline',
+    },
+};
+#+END_SRC
+
+** CSS Class → Custom Property Mapping
+
+| CSS Class | Key Properties |
+|-----------+----------------|
+| =.editor-paragraph= | =font-family: var(--editor-font-family)=; =line-height: var(--editor-line-height)=; =margin-bottom: var(--editor-paragraph-spacing)= |
+| =.editor-heading-h1= | =font-size: 2em=; =font-weight: 700=; =color: var(--text-primary)= |
+| =.editor-heading-h2= | =font-size: 1.5em=; =font-weight: 600=; =color: var(--text-primary)= |
+| =.editor-heading-h3= | =font-size: 1.25em=; =font-weight: 600=; =color: var(--text-primary)= |
+| =.editor-quote= | =border-left: 3px solid var(--border-accent)=; =padding-left: var(--spacing-md)=; =color: var(--text-secondary)=; =font-style: italic= |
+| =.editor-list-ul= | =list-style-type: disc=; =padding-left: var(--spacing-lg)= |
+| =.editor-list-ol= | =list-style-type: decimal=; =padding-left: var(--spacing-lg)= |
+| =.editor-code= | =font-family: var(--font-mono)=; =background: var(--bg-tertiary)=; =border-radius: var(--radius-sm)=; =padding: var(--spacing-md)= |
+| =.editor-link= | =color: var(--text-link)=; =text-decoration: underline= |
+| =.editor-wiki-link= | =color: var(--color-entity-character)=; =background: var(--bg-tertiary)=; =border-radius: var(--radius-xs)=; =padding: 1px 4px=; =cursor: pointer= |
+| =.editor-text-bold= | =font-weight: 700= |
+| =.editor-text-italic= | =font-style: italic= |
+| =.editor-text-strikethrough= | =text-decoration: line-through= |
+| =.editor-text-code= | =font-family: var(--font-mono)=; =background: var(--bg-tertiary)=; =border-radius: var(--radius-xs)=; =padding: 1px 4px=; =font-size: 0.9em= |
+
+* Keyboard Shortcut Map
+:PROPERTIES:
+:CUSTOM_ID: shortcuts
+:END:
+
+** Editor Formatting Shortcuts
+
+| Shortcut | Action | Command |
+|----------+--------+---------|
+| =Cmd+B= | Bold | =FORMAT_TEXT_COMMAND('bold')= |
+| =Cmd+I= | Italic | =FORMAT_TEXT_COMMAND('italic')= |
+| =Cmd+U= | Underline | =FORMAT_TEXT_COMMAND('underline')= |
+| =Cmd+Shift+S= | Strikethrough | =FORMAT_TEXT_COMMAND('strikethrough')= |
+| =Cmd+E= | Inline code | =FORMAT_TEXT_COMMAND('code')= |
+| =Cmd+K= | Insert link | =TOGGLE_LINK_COMMAND= |
+| =Cmd+Shift+7= | Ordered list | =INSERT_ORDERED_LIST_COMMAND= |
+| =Cmd+Shift+8= | Unordered list | =INSERT_UNORDERED_LIST_COMMAND= |
+
+** Markdown Typing Shortcuts
+
+| Typed | Result |
+|-------+--------|
+| =# = (at line start) | Heading 1 |
+| =## = | Heading 2 |
+| =### = | Heading 3 |
+| =**text**= | Bold text |
+| =*text*= | Italic text |
+| =~~text~~= | Strikethrough text |
+| =`code`= | Inline code |
+| =```= (at line start) | Code block |
+| => = (at line start) | Blockquote |
+| =- = or =* = | Unordered list item |
+| =1. = | Ordered list item |
+| =[text](url)= | Link |
+| =[[Entity]]= | Wiki link |
+
+* Content Flow
+:PROPERTIES:
+:CUSTOM_ID: content-flow
+:END:
+
+** Open Document
+
+#+BEGIN_SRC
+Disk (.md file)
+    ↓ Tauri read_file
+Raw string (frontmatter + body)
+    ↓ services/frontmatter.rs
+Frontmatter (YAML) + Body (Markdown)
+    ↓ IPC to frontend
+TypeScript receives { frontmatter, body }
+    ↓ $convertFromMarkdownString(body, SAKYA_TRANSFORMERS)
+Lexical EditorState (node tree)
+    ↓ DOM reconciliation
+Rendered rich text in editor
+#+END_SRC
+
+** Save Document
+
+#+BEGIN_SRC
+Lexical EditorState (node tree)
+    ↓ $convertToMarkdownString(SAKYA_TRANSFORMERS)
+Markdown string (body only)
+    ↓ IPC to backend
+Tauri receives { frontmatter, body }
+    ↓ services/frontmatter.rs
+Combined string (--- frontmatter --- body)
+    ↓ Tauri write_file
+Disk (.md file)
+#+END_SRC
+
+** Round-Trip Guarantee
+
+For all supported Markdown syntax, the following must hold:
+
+#+BEGIN_SRC
+markdown_string
+    → $convertFromMarkdownString(markdown_string, TRANSFORMERS)
+    → EditorState
+    → $convertToMarkdownString(TRANSFORMERS)
+    → result_string
+
+assert(markdown_string === result_string)
+#+END_SRC
+
+Exceptions:
+- Whitespace normalization (trailing spaces removed)
+- Heading style normalization (=setext= headers → =atx= style)
+- List marker normalization (=*= → =-= for unordered lists)
+
+* Future Features
+:PROPERTIES:
+:CUSTOM_ID: future
+:END:
+
+** Focus Mode
+Dim all paragraphs except the one containing the cursor. Implemented as a plugin that:
+1. Listens to selection changes
+2. Adds/removes =editor-dimmed= class on paragraph DOM nodes
+3. Active paragraph has =opacity: 1=, others =opacity: 0.3=
+4. Smooth transition between states
+
+** Typewriter Scrolling
+Keep the cursor vertically centered in the viewport. Implemented as:
+1. Listen to selection changes
+2. Calculate cursor position in DOM
+3. Scroll container to center cursor vertically
+4. Smooth scroll animation
+
+** Distraction-Free Mode
+Hide all chrome (binder, inspector, toolbar, status bar). Show only the editor with generous padding. ESC returns to normal mode.
+
+** Writing Goals
+Session-based word count targets. Plugin tracks:
+- Session start word count
+- Current word count
+- Target word count
+- Progress bar in status bar
+
+** Reading Time Estimate
+Calculate estimated reading time (average 250 WPM) and display in status bar.
+
+** Split Editor
+Two editor panes side-by-side for reference. One pane editing, one pane read-only.
+
+* Performance Considerations
+:PROPERTIES:
+:CUSTOM_ID: performance
+:END:
+
+** Large Document Handling
+
+Lexical performance degrades with very large documents (500KB+, ~100,000 words). Mitigation strategies:
+
+*** For MVP
+- Single document per editor instance (no virtual scrolling)
+- Chapters are separate files (natural size limit)
+- Debounced saves and word counts to reduce state reads
+
+*** For Post-MVP
+- *Lazy rendering*: Only render visible paragraphs, use placeholder heights for off-screen
+- *Document splitting*: Alert user when chapter exceeds recommended size
+- *Incremental saves*: Track dirty paragraphs, only serialize changed content
+
+** Memory Management
+- Clean up editor instances when tabs close
+- Dispose all listeners on component destroy
+- Avoid retaining references to old EditorState objects
+
+** Markdown Conversion
+- =$convertToMarkdownString= traverses the full node tree; for auto-save, this is acceptable with debouncing
+- =$convertFromMarkdownString= parses the full Markdown string; only runs on document open
+
+* File Structure
+:PROPERTIES:
+:CUSTOM_ID: file-structure
+:END:
+
+#+BEGIN_SRC
+src/lib/editor/
+├── SakyaEditor.svelte          # Main editor component
+├── theme.ts                     # Lexical theme class mapping
+├── nodes/
+│   └── WikiLinkNode.ts          # Custom wiki-link node
+├── plugins/
+│   ├── MarkdownShortcutsPlugin.svelte
+│   ├── WikiLinkPlugin.svelte
+│   ├── AutoSavePlugin.svelte
+│   ├── WordCountPlugin.svelte
+│   └── ToolbarPlugin.svelte
+├── transformers/
+│   ├── index.ts                 # SAKYA_TRANSFORMERS bundle
+│   └── wiki-link.ts             # Custom wiki-link transformer
+└── utils/
+    └── markdown-io.ts           # markdownToEditorState, editorStateToMarkdown
+#+END_SRC
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:../../@research/lexical-editor.md][Lexical Editor Research]] - Technical research on Lexical framework
+- [[file:../../@tasks/projects/PROJ-003-lexical-editor.org][PROJ-003]] - Implementation tasks
+- [[file:../../@tasks/agents/lexical-specialist.org][Lexical Specialist Agent]] - Agent definition
