@@ -1,0 +1,194 @@
+/* ==========================================================================
+   Sakya Editor Styles
+   ==========================================================================
+   CSS classes for the Lexical editor theme. All visual properties reference
+   CSS custom properties defined in app.css to support light/dark theming.
+   ========================================================================== */
+
+/* -- Editor Content Wrapper ----------------------------------------------- */
+
+.editor-content {
+	max-width: var(--editor-max-width);
+	padding: var(--editor-padding);
+	margin: 0 auto;
+	font-family: var(--editor-font-family);
+	font-size: var(--editor-font-size);
+	line-height: var(--editor-line-height);
+	color: var(--text-primary);
+	outline: none;
+}
+
+/* -- Paragraph ------------------------------------------------------------ */
+
+.editor-paragraph {
+	font-family: var(--editor-font-family);
+	line-height: var(--editor-line-height);
+	margin-bottom: 0.75em;
+}
+
+/* -- Headings ------------------------------------------------------------- */
+
+.editor-heading-h1 {
+	font-size: 2em;
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
+	color: var(--text-primary);
+}
+
+.editor-heading-h2 {
+	font-size: 1.5em;
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+	margin-top: 1.25em;
+	margin-bottom: 0.5em;
+	color: var(--text-primary);
+}
+
+.editor-heading-h3 {
+	font-size: 1.25em;
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	margin-top: 1em;
+	margin-bottom: 0.5em;
+	color: var(--text-primary);
+}
+
+.editor-heading-h4 {
+	font-size: 1.125em;
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	margin-top: 1em;
+	margin-bottom: 0.375em;
+	color: var(--text-primary);
+}
+
+.editor-heading-h5 {
+	font-size: 1em;
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	margin-top: 0.75em;
+	margin-bottom: 0.375em;
+	color: var(--text-secondary);
+}
+
+.editor-heading-h6 {
+	font-size: 0.875em;
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	margin-top: 0.75em;
+	margin-bottom: 0.375em;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* -- Blockquote ----------------------------------------------------------- */
+
+.editor-quote {
+	border-left: 3px solid var(--border-accent);
+	padding-left: var(--spacing-md);
+	margin-top: 0.75em;
+	margin-bottom: 0.75em;
+	font-style: italic;
+	color: var(--text-secondary);
+}
+
+/* -- Lists ---------------------------------------------------------------- */
+
+.editor-list-ul {
+	list-style-type: disc;
+	padding-left: var(--spacing-xl);
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.editor-list-ol {
+	list-style-type: decimal;
+	padding-left: var(--spacing-xl);
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.editor-listitem {
+	margin-bottom: 0.25em;
+	line-height: var(--editor-line-height);
+}
+
+.editor-nested-listitem {
+	list-style-type: none;
+}
+
+/* -- Code Block ----------------------------------------------------------- */
+
+.editor-code {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+	padding: var(--spacing-md);
+	margin-top: 0.75em;
+	margin-bottom: 0.75em;
+	overflow-x: auto;
+	line-height: 1.6;
+	tab-size: 2;
+}
+
+/* -- Links ---------------------------------------------------------------- */
+
+.editor-link {
+	color: var(--text-link);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+	transition: color var(--transition-fast);
+}
+
+.editor-link:hover {
+	color: var(--accent-primary);
+}
+
+/* -- Wiki Links ----------------------------------------------------------- */
+
+.editor-wiki-link {
+	color: var(--color-entity-character);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	padding: 0.0625em 0.25em;
+	cursor: pointer;
+	transition:
+		color var(--transition-fast),
+		background-color var(--transition-fast);
+}
+
+.editor-wiki-link:hover {
+	background: var(--bg-secondary);
+}
+
+/* -- Inline Text Formats -------------------------------------------------- */
+
+.editor-text-bold {
+	font-weight: var(--font-weight-bold);
+}
+
+.editor-text-italic {
+	font-style: italic;
+}
+
+.editor-text-strikethrough {
+	text-decoration: line-through;
+}
+
+.editor-text-code {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	padding: 0.125em 0.375em;
+}
+
+.editor-text-underline {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
