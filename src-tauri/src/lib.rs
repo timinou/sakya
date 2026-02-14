@@ -40,6 +40,12 @@ pub fn run() {
             commands::manuscript::create_chapter,
             commands::manuscript::delete_chapter,
             commands::manuscript::reorder_chapters,
+            commands::notes::get_notes_config,
+            commands::notes::save_notes_config,
+            commands::notes::get_note,
+            commands::notes::save_note,
+            commands::notes::create_note,
+            commands::notes::delete_note,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
