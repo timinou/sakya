@@ -12,14 +12,12 @@
 
   interface Props {
     onSelectEntity?: (schemaType: string, slug: string) => void;
-    onCreateEntity?: (schemaType: string) => void;
     onSelectChapter?: (slug: string) => void;
     onSelectNote?: (slug: string) => void;
   }
 
   let {
     onSelectEntity,
-    onCreateEntity,
     onSelectChapter,
     onSelectNote,
   }: Props = $props();
@@ -29,6 +27,11 @@
 
   // Selected item tracking
   let selectedItem = $state<{ type: string; slug: string } | null>(null);
+
+  // Inline entity creation state
+  let isCreatingEntity = $state<Record<string, boolean>>({});
+  let newEntityTitle = $state<Record<string, string>>({});
+  let entityInputRefs = $state<Record<string, HTMLInputElement | null>>({});
 
   // Icon mapping for known entity types
   const entityIcons: Record<string, IconComponent> = {
@@ -55,7 +58,6 @@
   }
 
   function getSectionTitle(schema: { name: string; entityType: string }): string {
-    // Pluralize the schema name for the section header
     const name = schema.name;
     if (name.endsWith('s') || name.endsWith('x') || name.endsWith('z')) {
       return name + 'es';
@@ -79,9 +81,63 @@
     onSelectEntity?.(schemaType, slug);
   }
 
-  function handleCreateEntity(schemaType: string): void {
-    onCreateEntity?.(schemaType);
+  function startCreateEntity(schemaType: string): void {
+    isCreatingEntity[schemaType] = true;
+    newEntityTitle[schemaType] = '';
   }
+
+  async function confirmCreateEntity(schemaType: string): Promise<void> {
+    const title = (newEntityTitle[schemaType] ?? '').trim();
+    if (!title || !projectState.projectPath) {
+      cancelCreateEntity(schemaType);
+      return;
+    }
+    try {
+      await entityStore.createEntity(projectState.projectPath, schemaType, title);
+      await entityStore.loadEntities(projectState.projectPath, schemaType);
+    } catch (e) {
+      console.error('Failed to create entity:', e);
+    }
+    cancelCreateEntity(schemaType);
+  }
+
+  function cancelCreateEntity(schemaType: string): void {
+    isCreatingEntity[schemaType] = false;
+    newEntityTitle[schemaType] = '';
+  }
+
+  function handleEntityInputKeydown(e: KeyboardEvent, schemaType: string): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmCreateEntity(schemaType);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelCreateEntity(schemaType);
+    }
+  }
+
+  // Auto-focus input when creating entity
+  $effect(() => {
+    for (const [type, creating] of Object.entries(isCreatingEntity)) {
+      if (creating && entityInputRefs[type]) {
+        entityInputRefs[type]!.focus();
+      }
+    }
+  });
+
+  // Listen for sakya:create-entity custom events from WelcomeCard
+  $effect(() => {
+    function handleCreateEntityEvent(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.entityType) {
+        startCreateEntity(detail.entityType);
+      }
+    }
+    window.addEventListener('sakya:create-entity', handleCreateEntityEvent);
+    return () => {
+      window.removeEventListener('sakya:create-entity', handleCreateEntityEvent);
+    };
+  });
 
   // Auto-load schemas on mount if not loaded
   $effect(() => {
@@ -109,7 +165,6 @@
     if (!path || schemas.length === 0) return;
 
     for (const schema of schemas) {
-      // Only load if not already cached
       if (!entityStore.entitiesByType[schema.entityType]) {
         entityStore.loadEntities(path, schema.entityType);
       }
@@ -131,25 +186,39 @@
       color={getColorForType(entityType)}
       count={entities.length}
       isOpen={isSectionOpen(entityType)}
-      onAdd={() => handleCreateEntity(entityType)}
+      onAdd={() => startCreateEntity(entityType)}
       ontoggle={() => toggleSection(entityType)}
     >
-      {#if entities.length === 0}
+      {#if entities.length === 0 && !isCreatingEntity[entityType]}
         <div class="placeholder-text">
           No {schema.name.toLowerCase()}s yet
         </div>
-      {:else}
-        {#each entities as entity (entity.slug)}
-          <BinderItem
-            label={entity.title}
-            icon={getIconForType(entityType)}
-            color={getColorForType(entityType)}
-            isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
-            isActive={entityStore.currentEntity?.slug === entity.slug}
-            onclick={() => handleSelectEntity(entityType, entity.slug)}
-            indent={1}
+      {/if}
+
+      {#each entities as entity (entity.slug)}
+        <BinderItem
+          label={entity.title}
+          icon={getIconForType(entityType)}
+          color={getColorForType(entityType)}
+          isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
+          isActive={entityStore.currentEntity?.slug === entity.slug}
+          onclick={() => handleSelectEntity(entityType, entity.slug)}
+          indent={1}
+        />
+      {/each}
+
+      {#if isCreatingEntity[entityType]}
+        <div class="inline-input-wrapper">
+          <input
+            bind:this={entityInputRefs[entityType]}
+            bind:value={newEntityTitle[entityType]}
+            class="inline-input"
+            type="text"
+            placeholder="{schema.name} name..."
+            onkeydown={(e) => handleEntityInputKeydown(e, entityType)}
+            onblur={() => confirmCreateEntity(entityType)}
           />
-        {/each}
+        </div>
       {/if}
     </BinderSection>
   {/each}
@@ -178,6 +247,31 @@
     font-size: var(--font-size-xs);
     color: var(--text-tertiary);
     font-style: italic;
+  }
+
+  .inline-input-wrapper {
+    padding: 2px var(--spacing-xs);
+    padding-left: calc(8px + 1 * 16px);
+  }
+
+  .inline-input {
+    width: 100%;
+    padding: 3px var(--spacing-xs);
+    border: 1px solid var(--border-primary, #555);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary, #1e1e1e);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    outline: none;
+  }
+
+  .inline-input:focus {
+    border-color: var(--accent-primary, #7c4dbd);
+  }
+
+  .inline-input::placeholder {
+    color: var(--text-tertiary);
   }
 
   .loading-indicator {

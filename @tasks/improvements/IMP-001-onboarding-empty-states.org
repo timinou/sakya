@@ -1,0 +1,132 @@
+#+TITLE: IMP-001 New Project Onboarding & Empty States
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-001 New Project Onboarding & Empty States
+:PROPERTIES:
+:CUSTOM_ID: IMP-001
+:GOAL: When a user creates a new project, guide them with actionable empty states instead of passive text. Fix dead entity creation buttons, add WelcomeCard, and replace placeholder text with CTAs.
+:COMPLETION: All ITEMs complete, entity + buttons work, WelcomeCard appears for empty editor, binder CTAs invite creation.
+:END:
+
+** TODO Fix entity creation from binder + button
+:PROPERTIES:
+:CUSTOM_ID: ITEM-046-entity-create-fix
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+The entity + buttons in BinderTree call =onCreateEntity?.(schemaType)= but AppShell renders =<Binder />= with no props, so the callback is always undefined. Add inline-create directly in BinderTree (same pattern as ManuscriptSection).
+
+*** Acceptance Criteria
+- [ ] Click + on entity section -> inline input appears with placeholder "{Type} name..."
+- [ ] Type name + Enter -> entity created via entityStore.createEntity(), list refreshed
+- [ ] Escape -> input disappears, no entity created
+- [ ] Blur with empty input -> no entity created
+
+** TODO Write E2E tests for entity creation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-047-entity-create-e2e
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/onboarding.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+TDD red phase: write failing E2E tests for entity + button inline creation flow.
+
+** TODO Create WelcomeCard component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-048-welcome-card
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-046-entity-create-fix
+:FILES: src/lib/components/layout/WelcomeCard.svelte, src/lib/components/layout/EditorArea.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Create a literary-warmth WelcomeCard that replaces the passive empty state in EditorArea. Floats without card border, uses serif heading, staggered fade-in animations.
+
+*** Acceptance Criteria
+- [ ] WelcomeCard visible when no tabs open
+- [ ] "Write first chapter" primary CTA button
+- [ ] Ghost buttons for Character, Place, Idea entity creation
+- [ ] Keyboard hints (Cmd+K, Cmd+\) visible
+- [ ] Disappears when a document is opened
+- [ ] Reappears when all tabs closed
+
+** TODO Wire custom events for cross-component creation triggers
+:PROPERTIES:
+:CUSTOM_ID: ITEM-049-custom-events
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-046-entity-create-fix
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/NotesSection.svelte, src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add sakya:create-chapter, sakya:create-note, sakya:create-entity custom events so WelcomeCard can trigger binder's inline-create flow.
+
+** TODO Write E2E tests for WelcomeCard
+:PROPERTIES:
+:CUSTOM_ID: ITEM-050-welcome-card-e2e
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: e2e/onboarding.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+TDD red phase: write failing E2E tests for WelcomeCard and its cross-component triggers.
+
+** TODO Replace binder passive empty states with actionable CTAs
+:PROPERTIES:
+:CUSTOM_ID: ITEM-051-binder-ctas
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-046-entity-create-fix
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/NotesSection.svelte, src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Replace "No chapters yet", "No notes yet", "No {type}s yet" with clickable CTA buttons that trigger the inline-create flow.
+
+** TODO Write E2E tests for binder CTAs
+:PROPERTIES:
+:CUSTOM_ID: ITEM-052-binder-ctas-e2e
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: e2e/onboarding.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+TDD red phase: write failing E2E tests for binder CTA buttons.
+
+** TODO Integration verification and task completion
+:PROPERTIES:
+:CUSTOM_ID: ITEM-053-integration
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-046-entity-create-fix, ITEM-048-welcome-card, ITEM-049-custom-events, ITEM-051-binder-ctas
+:FILES: e2e/entity-workflow.spec.ts
+:TEST_PLAN: compile, test-rust, e2e
+:END:
+
+*** Description
+Run full test suite, update entity-workflow.spec.ts broken-add-button test, mark all ITEMs DONE.

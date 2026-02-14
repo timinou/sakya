@@ -4,14 +4,12 @@
 
   interface Props {
     onSelectEntity?: (schemaType: string, slug: string) => void;
-    onCreateEntity?: (schemaType: string) => void;
     onSelectChapter?: (slug: string) => void;
     children?: Snippet;
   }
 
   let {
     onSelectEntity,
-    onCreateEntity,
     onSelectChapter,
     children,
   }: Props = $props();
@@ -24,7 +22,6 @@
   <div class="binder-content">
     <BinderTree
       {onSelectEntity}
-      {onCreateEntity}
       {onSelectChapter}
     />
     {#if children}
