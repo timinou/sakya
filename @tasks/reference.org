@@ -56,7 +56,8 @@ This system draws from:
 │   └── [IMP-XXX-name.org]   # User creates as needed
 ├── process/
 │   ├── index.org          # Process registry
-│   └── multi-file-changes.org
+│   ├── multi-file-changes.org
+│   └── planning.org       # Planning with checkpoints
 ├── elisp/
 │   ├── prd-tasks.el       # Main validation and automation
 │   ├── prd-tasks-test.el  # Tests for the elisp modules
@@ -338,6 +339,115 @@ While the system recommends structured dependencies, org-mode's flexibility allo
 ** ITEM Data list Svelte component
 ** ITEM Data detail Svelte component
 #+END_SRC
+
+* Checkpoints
+:PROPERTIES:
+:CUSTOM_ID: checkpoints
+:END:
+
+A checkpoint is a phase boundary heading placed within a category file, between groups of ITEMs. It marks the end of one phase and defines explicit gate conditions that must be satisfied before proceeding to the next.
+
+** Purpose
+
+Checkpoints formalize what was previously implicit: "these items form a phase, verify X before moving on." They provide:
+- Clear phase boundaries within a flat ITEM list
+- Verifiable criteria at each boundary
+- Agent handoff points
+- A structure for orchestration plans
+
+** Heading Format
+
+#+BEGIN_SRC org
+,** CHECKPOINT Descriptive phase boundary name
+:PROPERTIES:
+:CUSTOM_ID: CHK-NNN-MM-slug
+:CRITERIA: Single sentence defining done for this phase
+:VERIFY: Shell command(s) that confirm the checkpoint
+:REVIEW_BY: agent-name(s) who review at this gate
+:END:
+
+,*** Gate Conditions
+- [ ] Specific verifiable condition 1
+- [ ] Specific verifiable condition 2
+#+END_SRC
+
+** Properties
+
+| Property | Required | Format | Description |
+|----------+----------+--------+-------------|
+| =CUSTOM_ID= | Yes | =CHK-NNN-MM-slug= | Unique checkpoint identifier |
+| =CRITERIA= | Yes | Single sentence | Definition of done for the phase |
+| =VERIFY= | Yes | Shell command(s) | Command(s) to confirm the checkpoint |
+| =REVIEW_BY= | No | Comma-separated names | Agent(s) who review at this gate |
+
+** Naming Convention
+
+=CHK-NNN-MM-slug= where:
+- =NNN= — parent category number (e.g. =007= for PROJ-007)
+- =MM= — sequential checkpoint number within that category (=01=, =02=, ...)
+- =slug= — short kebab-case description
+
+** Example
+
+#+BEGIN_SRC org
+,** ITEM Create search index module
+:PROPERTIES:
+:CUSTOM_ID: ITEM-070-search-index
+:AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:TEST_PLAN: compile, test-rust
+:END:
+
+,** ITEM Add indexing Tauri command
+:PROPERTIES:
+:CUSTOM_ID: ITEM-071-index-command
+:DEPENDS: ITEM-070-search-index
+:AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:TEST_PLAN: compile, test-rust
+:END:
+
+,** CHECKPOINT Backend search ready
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-01-backend-ready
+:CRITERIA: Search index builds and queries return results via Tauri command
+:VERIFY: cargo test --lib search
+:REVIEW_BY: rust-architect
+:END:
+
+,*** Gate Conditions
+- [ ] cargo test passes for search module
+- [ ] Tauri command returns results for test corpus
+- [ ] No clippy warnings
+
+,** ITEM Create search UI component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-072-search-ui
+:DEPENDS: ITEM-071-index-command
+:AGENT: [[file:agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+#+END_SRC
+
+** Validator Compatibility
+
+Checkpoints are *not* validated by the elisp system. The validator only processes:
+- Headings with TODO keywords from =prd-todo-keywords= (ITEM, DOING, REVIEW, DONE, BLOCKED)
+- Category headings matching =(PROJ|BUG|IMP)-[0-9]+=
+
+=CHECKPOINT= headings match neither pattern — they are silently skipped. =CHK-*= IDs do not enter the item index. Metrics, dashboard, velocity, and burndown calculations are unaffected.
+
+** Dependency Rules
+
+- ITEMs should *NOT* use =DEPENDS= to reference =CHK-*= IDs — dependencies point to ITEMs only
+- Items after a checkpoint should depend on the last item(s) before the checkpoint
+- Checkpoints serve as visual and structural markers, not dependency targets
+
+For detailed planning methodology including when and how to place checkpoints, see [[file:process/planning.org][the Planning process guide]].
 
 * Verification and Testing
 :PROPERTIES:

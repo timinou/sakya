@@ -12,6 +12,7 @@ This document instructs Claude Code on how to work with the `@tasks` PRD system.
   - [Multi-File Changes](process/multi-file-changes.org) — `/multi-file-changes`
   - [Task Runner](process/task-runner.org) — `/task`
   - [Dashboard](process/dashboard.org) — `/dashboard`
+  - [Planning](process/planning.org) — `/plan`
 
 ## Validation Commands
 

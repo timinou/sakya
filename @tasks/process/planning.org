@@ -1,0 +1,453 @@
+#+TITLE: Planning
+#+AUTHOR: Sakya Development Team
+#+DESCRIPTION: Creating plans with 5+ items, phased checkpoints, orchestration
+#+STARTUP: overview
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+The Planning skill helps you create structured, phased plans for work that spans 5+ items. It guides you through decomposition, checkpoint placement, dependency mapping, agent assignment, and orchestration design.
+
+Invoke with =/plan=.
+
+* Step 1: Understand the Scope
+:PROPERTIES:
+:CUSTOM_ID: understand-scope
+:END:
+
+Before decomposing, understand what you're building:
+
+1. *Read the requirements* - Gather all input: user request, linked issues, design docs, existing code
+2. *Identify the category type* - Is this a PROJ (new feature), BUG (fix), or IMP (improvement)?
+3. *Estimate total effort* - Rough hours for the entire body of work
+4. *Identify boundaries* - What's in scope vs out of scope?
+
+** Scope Signals
+
+| Signal | Category | Typical Size |
+|--------+----------+--------------|
+| New user-visible capability | PROJ | 8-30h |
+| Something is broken | BUG | 1-8h |
+| Code quality, performance, DX | IMP | 4-16h |
+
+If total effort is under ~4h (2-3 items), a flat list of ITEMs with dependencies is sufficient — skip checkpoints.
+
+* Step 2: Decompose into Items
+:PROPERTIES:
+:CUSTOM_ID: decompose
+:END:
+
+Break the work into atomic ITEMs following the [[file:../reference.org::#granularity][Task Granularity Guidelines]]:
+
+- Each ITEM takes 1-2 hours
+- Each ITEM has self-contained testing
+- Each ITEM is assigned to exactly one agent
+- Each ITEM touches at most 3-4 files
+
+** Decomposition Strategies
+
+- *Bottom-up*: Start from the lowest dependency (data model, types) and build upward
+- *Top-down*: Start from the user-facing outcome and work backward to what's needed
+- *Vertical slices*: Each item delivers a thin, testable slice through the stack
+
+** Naming Convention
+
+Use descriptive titles that make the work clear at a glance:
+
+#+BEGIN_SRC org
+** ITEM Define search index data types            ;; Good: specific
+** ITEM Set up search                              ;; Bad: too vague
+** ITEM Implement search index, query API, and UI  ;; Bad: too large
+#+END_SRC
+
+* Step 3: Identify Phases
+:PROPERTIES:
+:CUSTOM_ID: identify-phases
+:END:
+
+Group items into phases by finding natural boundaries. Look for these patterns:
+
+** Phase Boundary Signals
+
+| Signal | Example |
+|--------+---------|
+| *Sequential dependency* | Backend must exist before frontend can call it |
+| *Domain boundary* | Rust modules complete before Svelte components start |
+| *Risk layer* | Core logic verified before edge cases addressed |
+| *Verification point* | Integration tests meaningful only after both sides exist |
+| *Agent handoff* | rust-architect finishes, svelte-developer begins |
+
+** Phase Sizing
+
+- 2-5 ITEMs per phase is the sweet spot
+- Fewer than 2 ITEMs doesn't justify a checkpoint
+- More than 5 ITEMs suggests a missing intermediate boundary
+
+** Typical Phase Patterns
+
+*** Backend → Frontend
+#+BEGIN_SRC
+Phase 1: Data types, Rust modules, Tauri commands
+Phase 2: Svelte components, stores, UI integration
+Phase 3: E2E tests, polish, edge cases
+#+END_SRC
+
+*** Infrastructure → Features → Polish
+#+BEGIN_SRC
+Phase 1: Scaffolding, configuration, base types
+Phase 2: Core feature implementation
+Phase 3: Error handling, performance, documentation
+#+END_SRC
+
+* Step 4: Create Checkpoints
+:PROPERTIES:
+:CUSTOM_ID: create-checkpoints
+:END:
+
+Place a =** CHECKPOINT= heading between each phase group. Each checkpoint defines what must be true before proceeding.
+
+** Checkpoint Heading Format
+
+#+BEGIN_SRC org
+,** CHECKPOINT Descriptive phase boundary name
+:PROPERTIES:
+:CUSTOM_ID: CHK-NNN-MM-slug
+:CRITERIA: Single sentence defining done for this phase
+:VERIFY: Shell command(s) that confirm the checkpoint
+:REVIEW_BY: agent-name(s) who should review
+:END:
+
+,*** Gate Conditions
+- [ ] Specific verifiable condition 1
+- [ ] Specific verifiable condition 2
+- [ ] Specific verifiable condition 3
+#+END_SRC
+
+** Property Reference
+
+| Property | Required | Description | Example |
+|----------+----------+-------------+---------|
+| =CUSTOM_ID= | Yes | Unique checkpoint ID | =CHK-007-01-backend-ready= |
+| =CRITERIA= | Yes | Single-sentence definition of done | =Search index builds and queries return results= |
+| =VERIFY= | Yes | Shell command(s) to run | =cargo test --lib search= |
+| =REVIEW_BY= | No | Agent(s) who review at this gate | =rust-architect, testing-engineer= |
+
+** Naming Convention
+
+=CHK-NNN-MM-slug= where:
+- =NNN= is the parent category number (e.g. =007= for PROJ-007)
+- =MM= is the sequential checkpoint number within that category (=01=, =02=, ...)
+- =slug= is a short kebab-case description
+
+** Writing Good Gate Conditions
+
+Gate conditions should be:
+- *Verifiable* — can be checked by running a command or inspecting output
+- *Specific* — "cargo test passes for search module" not "tests pass"
+- *Complete* — cover the meaningful outputs of the phase, not just compilation
+
+#+BEGIN_SRC org
+;; Good gate conditions:
+- [ ] cargo test passes for search module
+- [ ] Tauri command returns results for test corpus
+- [ ] No clippy warnings in new code
+
+;; Bad gate conditions:
+- [ ] Code looks good
+- [ ] Everything works
+- [ ] Tests pass
+#+END_SRC
+
+* Step 5: Map Dependencies
+:PROPERTIES:
+:CUSTOM_ID: map-dependencies
+:END:
+
+Wire =DEPENDS= properties between ITEMs to encode execution order.
+
+** Rules
+
+1. *ITEM-to-ITEM only* — Dependencies point to ITEM IDs, never to CHK-* IDs
+2. *Items after a checkpoint depend on items before it* — The last item(s) of phase N should be in the DEPENDS of the first item(s) of phase N+1
+3. *Minimize transitive dependencies* — If A→B→C, item C only needs =DEPENDS: B= (not both A and B)
+4. *Cross-category dependencies* use the =PROJ-NNN:ITEM-XXX= syntax
+
+** Dependency Diagram
+
+For a 2-phase project:
+
+#+BEGIN_SRC
+Phase 1:  ITEM-070 ──→ ITEM-071
+                              │
+          ── CHECKPOINT ──────┤
+                              │
+Phase 2:  ITEM-072 (DEPENDS: ITEM-071) ──→ ITEM-073
+#+END_SRC
+
+* Step 6: Assign Agents
+:PROPERTIES:
+:CUSTOM_ID: assign-agents
+:END:
+
+Match each ITEM to the agent best suited for the work. Consult the [[file:../agents/index.org][Agent Registry]] for available agents and their expertise.
+
+** Assignment Guidelines
+
+| Domain | Primary Agent | Secondary |
+|--------+---------------+-----------|
+| Rust modules, Tauri commands | rust-architect | svelte-developer |
+| Svelte components, stores | svelte-developer | rust-architect |
+| E2E tests, test infrastructure | testing-engineer | svelte-developer |
+
+** Checkpoint Handoffs
+
+Note where agent responsibility changes at checkpoint boundaries. This is a natural review point:
+- The outgoing agent's work should be reviewed at the checkpoint
+- The incoming agent reads the checkpoint's gate conditions to understand the starting state
+
+* Step 7: Design Orchestration
+:PROPERTIES:
+:CUSTOM_ID: design-orchestration
+:END:
+
+Define how the plan will be executed, including parallelization and coordination.
+
+** Parallelization Strategy
+
+Identify which items can run concurrently:
+
+#+BEGIN_SRC
+Sequential (dependency chain):
+  ITEM-070 → ITEM-071 → [CHECKPOINT] → ITEM-072
+
+Parallel (independent within phase):
+  ITEM-073 ─┐
+  ITEM-074 ─┤→ [CHECKPOINT]
+  ITEM-075 ─┘
+#+END_SRC
+
+** Agent Coordination
+
+For each phase, specify:
+1. Which agents are active
+2. What they're working on in parallel
+3. What synchronization points exist (checkpoints)
+
+** Testing at Each Checkpoint
+
+Define the test strategy per phase:
+
+| Phase | Test Layers | Commands |
+|-------+-------------+----------|
+| Backend | compile, test-rust, clippy | =cargo test=, =cargo clippy= |
+| Frontend | compile, test-svelte | =bun run check=, =bun vitest= |
+| Integration | e2e | =bun run test:e2e= |
+| Visual | visual | =bun run test:e2e= (with screenshots) |
+
+* Step 8: Write the Plan File
+:PROPERTIES:
+:CUSTOM_ID: write-plan-file
+:END:
+
+Assemble the org file in the appropriate directory:
+
+- Projects: =@tasks/projects/PROJ-NNN-name.org=
+- Bugfixes: =@tasks/bugfixes/BUG-NNN-name.org=
+- Improvements: =@tasks/improvements/IMP-NNN-name.org=
+
+** File Structure
+
+#+BEGIN_SRC org
+#+TITLE: Short Project Title
+#+STARTUP: overview
+
+,* PROJ-NNN Project Title
+:PROPERTIES:
+:CUSTOM_ID: PROJ-NNN
+:GOAL: Clear outcome statement
+:END:
+
+;; Phase 1 items
+,** ITEM First task
+:PROPERTIES:
+...
+:END:
+
+,** ITEM Second task
+:PROPERTIES:
+...
+:END:
+
+,** CHECKPOINT Phase 1 complete
+:PROPERTIES:
+...
+:END:
+
+;; Phase 2 items
+,** ITEM Third task
+:PROPERTIES:
+...
+:END:
+
+,** CHECKPOINT Phase 2 complete
+:PROPERTIES:
+...
+:END:
+#+END_SRC
+
+* Step 9: Validate
+:PROPERTIES:
+:CUSTOM_ID: validate
+:END:
+
+Run validation to confirm the plan file is well-formed:
+
+#+BEGIN_SRC bash
+emacsclient -s sakya -e '(prd-validate-all-cli)'
+#+END_SRC
+
+** What to Check
+
+1. *No validation errors* — All ITEMs have required properties
+2. *No broken dependencies* — All DEPENDS targets exist
+3. *No circular dependencies* — Dependency graph is a DAG
+4. *Checkpoints ignored* — CHECKPOINT headings produce no errors (they're a convention, not validated entities)
+
+If validation fails, fix the reported issues and re-validate.
+
+* Checkpoint Reference
+:PROPERTIES:
+:CUSTOM_ID: checkpoint-reference
+:END:
+
+** What is a Checkpoint?
+
+A checkpoint is a =** CHECKPOINT= heading placed between groups of ITEMs in a category file. It marks a phase boundary with explicit criteria that must be satisfied before proceeding to the next phase.
+
+Checkpoints are a *convention*, not a validated entity type. The elisp validator silently ignores them because =CHECKPOINT= is not a TODO keyword and =CHK-*= IDs don't match the category ID pattern. This means:
+
+- No elisp changes required
+- No impact on metrics, dashboard, velocity, or burndown
+- They serve as human-readable (and agent-readable) planning structure
+
+** Full Property Specification
+
+| Property | Required | Format | Description |
+|----------+----------+--------+-------------|
+| =CUSTOM_ID= | Yes | =CHK-NNN-MM-slug= | Unique checkpoint identifier |
+| =CRITERIA= | Yes | Single sentence | Definition of done for the phase |
+| =VERIFY= | Yes | Shell command(s) | Command(s) to confirm the checkpoint |
+| =REVIEW_BY= | No | Comma-separated agent names | Who reviews at this gate |
+
+** Important Constraints
+
+- ITEMs should *NOT* use =DEPENDS= to reference =CHK-*= IDs — dependencies point to ITEMs only
+- Checkpoints don't have a TODO state — they're structural markers, not tasks
+- Gate condition checklists use standard org-mode =- [ ]= syntax
+
+** Worked Example
+
+A project with 2 phases and checkpoints:
+
+#+BEGIN_SRC org
+,* PROJ-007 Search Feature
+:PROPERTIES:
+:CUSTOM_ID: PROJ-007
+:GOAL: Full-text search across manuscripts
+:END:
+
+,** ITEM Create search index module
+:PROPERTIES:
+:CUSTOM_ID: ITEM-070-search-index
+:AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:TEST_PLAN: compile, test-rust
+:END:
+
+,*** Description
+Implement a search index using tantivy. Define the schema, indexing pipeline,
+and query interface as a Rust module.
+
+,*** Acceptance Criteria
+- [ ] Search index builds from document corpus
+- [ ] Query returns ranked results
+- [ ] Module has unit tests
+
+,** ITEM Add indexing Tauri command
+:PROPERTIES:
+:CUSTOM_ID: ITEM-071-index-command
+:AGENT: [[file:agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-070-search-index
+:TEST_PLAN: compile, test-rust
+:END:
+
+,*** Description
+Expose the search index as Tauri commands: index_documents and search_query.
+
+,*** Acceptance Criteria
+- [ ] Tauri command indexes documents
+- [ ] Tauri command returns search results as JSON
+- [ ] Integration test exercises the IPC boundary
+
+,** CHECKPOINT Backend search ready
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-01-backend-ready
+:CRITERIA: Search index builds and queries return results via Tauri command
+:VERIFY: cargo test --lib search
+:REVIEW_BY: rust-architect
+:END:
+
+,*** Gate Conditions
+- [ ] cargo test passes for search module
+- [ ] Tauri command returns results for test corpus
+- [ ] No clippy warnings
+
+,** ITEM Create search UI component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-072-search-ui
+:AGENT: [[file:agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-071-index-command
+:TEST_PLAN: compile, test-svelte, e2e
+:END:
+
+,*** Description
+Build the search interface: input field, results list, and navigation to
+matching documents. Calls the search_query Tauri command.
+
+,*** Acceptance Criteria
+- [ ] Search input triggers query on keypress (debounced)
+- [ ] Results display with title and context snippet
+- [ ] Clicking a result navigates to the document
+
+,** CHECKPOINT Search feature complete
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-02-feature-complete
+:CRITERIA: User can search manuscripts and navigate to results
+:VERIFY: bun run test:e2e -- --grep search
+:REVIEW_BY: svelte-developer, testing-engineer
+:END:
+
+,*** Gate Conditions
+- [ ] E2E test covers search flow
+- [ ] Visual regression passes
+- [ ] Performance: <200ms for 1000-document corpus
+#+END_SRC
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:index.org][Process Registry]]
+- [[file:task-runner.org][Task Runner]] - For picking and starting individual tasks
+- [[file:multi-file-changes.org][Multi-File Changes]] - For complex cross-file work
+- [[file:../agents/index.org][Agent Registry]] - Available agents and expertise
+- [[file:../reference.org][Reference Guide]] - Full PRD system documentation
+- [[file:../reference.org::#granularity][Task Granularity Guidelines]] - Sizing individual ITEMs

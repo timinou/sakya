@@ -22,6 +22,7 @@ Consult these before starting work that matches their trigger conditions.
 | Task Runner | [[file:task-runner.org][task-runner.org]] | Starting work on a task, picking next task |
 | Dashboard | [[file:dashboard.org][dashboard.org]] | Orientation, project status, discovering skills/agents |
 | Visual Testing | [[file:visual-testing.org][visual-testing.org]] | New pages, layout changes, CSS refactors, visual QA |
+| Planning | [[file:planning.org][planning.org]] | Creating plans with 5+ items, phased checkpoints, orchestration |
 
 * Adding New Process Docs
 :PROPERTIES:
