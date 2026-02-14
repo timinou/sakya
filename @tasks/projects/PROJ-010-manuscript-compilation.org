@@ -37,7 +37,7 @@ Define the core data structures for manuscript compilation. =CompileConfig= capt
 - [ ] All structs derive Serialize, Deserialize, Clone
 - [ ] Module registered in =models/mod.rs=
 
-*** ITEM compile_manuscript Tauri command
+*** DONE compile_manuscript Tauri command
 :PROPERTIES:
 :CUSTOM_ID: ITEM-100
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
