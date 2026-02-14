@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { ComponentType } from 'svelte';
-  import { BookOpen, Users, MapPin, Package, Lightbulb, File } from 'lucide-svelte';
+  import { Users, MapPin, Package, Lightbulb, File } from 'lucide-svelte';
   import { entityStore, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
+  import ManuscriptSection from './ManuscriptSection.svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -21,7 +22,6 @@
   }: Props = $props();
 
   // Section open states
-  let manuscriptOpen = $state(true);
   let entitySectionsOpen = $state<Record<string, boolean>>({});
 
   // Selected item tracking
@@ -105,16 +105,8 @@
 </script>
 
 <nav class="binder-tree" aria-label="Project binder">
-  <!-- Manuscript section (placeholder for ITEM-031) -->
-  <BinderSection
-    title="Manuscript"
-    icon={BookOpen}
-    bind:isOpen={manuscriptOpen}
-  >
-    <div class="placeholder-text">
-      No chapters yet
-    </div>
-  </BinderSection>
+  <!-- Manuscript section -->
+  <ManuscriptSection {onSelectChapter} />
 
   <!-- Entity sections from loaded schemas -->
   {#each entityStore.schemaSummaries as schema (schema.entityType)}
