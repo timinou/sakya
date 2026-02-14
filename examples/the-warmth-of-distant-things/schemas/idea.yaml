@@ -1,0 +1,66 @@
+name: Idea
+slug: idea
+icon: lightbulb
+color: "#3B82F6"
+description: A theme, motif, or concept in your story
+
+fields:
+  - name: category
+    type: select
+    label: Category
+    options: [Theme, Motif, Symbol, Question, Rule]
+    default: Theme
+
+  - name: status
+    type: select
+    label: Development Status
+    options: [Seed, Developing, Integrated, Resolved]
+    default: Seed
+
+  - name: related_themes
+    type: short_text
+    label: Related Themes
+    placeholder: "Comma-separated theme names"
+
+  - name: description
+    type: long_text
+    label: Description
+    description: What this idea is and how it manifests in the story
+
+spider_chart:
+  axes:
+    - name: Originality
+      min: 0
+      max: 10
+      default: 5
+      description: How fresh or unexpected this idea feels
+
+    - name: Emotional Impact
+      min: 0
+      max: 10
+      default: 5
+      description: How strongly this idea resonates with readers
+
+    - name: Plot Relevance
+      min: 0
+      max: 10
+      default: 5
+      description: How directly this idea drives the plot forward
+
+    - name: Thematic Depth
+      min: 0
+      max: 10
+      default: 5
+      description: How many layers of meaning this idea contains
+
+    - name: Versatility
+      min: 0
+      max: 10
+      default: 5
+      description: How many scenes and characters this idea can touch
+
+    - name: Clarity
+      min: 0
+      max: 10
+      default: 5
+      description: How easily a reader can grasp this idea without exposition

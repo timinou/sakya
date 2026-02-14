@@ -1,0 +1,70 @@
+name: Place
+slug: place
+icon: map-pin
+color: "#10B981"
+description: A location in your story
+
+fields:
+  - name: type
+    type: select
+    label: Place Type
+    options: [Interior, Exterior, Transitional, Imagined]
+    default: Interior
+
+  - name: era
+    type: short_text
+    label: Era / Time Period
+    placeholder: "e.g., Present day, 1990s, Timeless"
+
+  - name: atmosphere
+    type: long_text
+    label: Atmosphere & Mood
+    description: What it feels like to be here—sounds, light, temperature, emotional tone
+
+  - name: significance
+    type: long_text
+    label: Narrative Significance
+    description: Why this place matters to the story and characters
+
+  - name: description
+    type: long_text
+    label: Physical Description
+    description: What you see, hear, smell, and feel when you walk in
+
+spider_chart:
+  axes:
+    - name: Familiarity
+      min: 0
+      max: 10
+      default: 5
+      description: How well-known and comfortable this place feels to the protagonist
+
+    - name: Safety
+      min: 0
+      max: 10
+      default: 5
+      description: How secure and protected characters feel here
+
+    - name: Beauty
+      min: 0
+      max: 10
+      default: 5
+      description: Aesthetic quality—not just visual, but sensory richness
+
+    - name: Isolation
+      min: 0
+      max: 10
+      default: 5
+      description: How cut off from the outside world this place feels
+
+    - name: History
+      min: 0
+      max: 10
+      default: 5
+      description: Weight of past events and memories embedded here
+
+    - name: Emotional Weight
+      min: 0
+      max: 10
+      default: 5
+      description: How strongly this place evokes feelings in those who visit

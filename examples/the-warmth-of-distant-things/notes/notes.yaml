@@ -1,0 +1,24 @@
+notes:
+  - slug: plot-outline
+    title: Plot Outline
+    color: "#EF4444"
+    label: Structure
+    position:
+      x: 10
+      y: 15
+
+  - slug: thematic-analysis
+    title: Thematic Analysis
+    color: "#8B5CF6"
+    label: Theme
+    position:
+      x: 45
+      y: 12
+
+  - slug: neighborhood-research
+    title: Neighborhood Research
+    color: "#10B981"
+    label: Research
+    position:
+      x: 75
+      y: 20

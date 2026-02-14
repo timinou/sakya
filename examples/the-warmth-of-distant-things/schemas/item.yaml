@@ -1,0 +1,70 @@
+name: Item
+slug: item
+icon: box
+color: "#F59E0B"
+description: A significant object in your story
+
+fields:
+  - name: type
+    type: select
+    label: Item Type
+    options: [Personal, Shared, Found, Inherited, Symbolic]
+    default: Personal
+
+  - name: owner
+    type: short_text
+    label: Current Owner
+    placeholder: "Character name or 'Lost'"
+
+  - name: origin
+    type: long_text
+    label: Origin Story
+    description: Where this item came from and how it entered the story
+
+  - name: significance
+    type: long_text
+    label: Narrative Significance
+    description: What this object means to the characters and story
+
+  - name: description
+    type: long_text
+    label: Physical Description
+    description: What it looks like, feels like, weighs
+
+spider_chart:
+  axes:
+    - name: Sentimental Value
+      min: 0
+      max: 10
+      default: 5
+      description: Emotional attachment characters have to this object
+
+    - name: Rarity
+      min: 0
+      max: 10
+      default: 5
+      description: How unique or irreplaceable this item is
+
+    - name: Power
+      min: 0
+      max: 10
+      default: 5
+      description: The item's ability to affect events, people, or emotions
+
+    - name: Age
+      min: 0
+      max: 10
+      default: 5
+      description: How old this item is and how much wear it carries
+
+    - name: Condition
+      min: 0
+      max: 10
+      default: 5
+      description: Physical state—pristine to barely holding together
+
+    - name: Narrative Importance
+      min: 0
+      max: 10
+      default: 5
+      description: How central this item is to the plot and themes

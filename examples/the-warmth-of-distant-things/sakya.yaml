@@ -1,0 +1,14 @@
+name: The Warmth of Distant Things
+author: Sakya Example Project
+created: 2026-02-14
+genre: Magical Realism
+description: >
+  A person in their thirties looks back at their twenties—the friendships,
+  the bars, the late nights, the slow drift apart. Objects hold warmth that
+  shouldn't be there. Streets stretch longer at night. Photographs shift
+  when you're not looking. Memory is unreliable, but the feelings are real.
+schemas:
+  - character
+  - place
+  - item
+  - idea

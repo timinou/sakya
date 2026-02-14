@@ -1,0 +1,74 @@
+name: Character
+slug: character
+icon: user
+color: "#8B5CF6"
+description: A person in your story
+
+fields:
+  - name: role
+    type: select
+    label: Story Role
+    options: [Protagonist, Antagonist, Supporting, Minor, Mentioned]
+    default: Supporting
+
+  - name: age
+    type: short_text
+    label: Age
+    placeholder: "e.g., 32, Late twenties, Ancient"
+
+  - name: occupation
+    type: short_text
+    label: Occupation
+
+  - name: personality
+    type: long_text
+    label: Personality & Voice
+    description: How they speak, think, and present themselves
+
+  - name: backstory
+    type: long_text
+    label: Backstory
+    description: Key events that shaped who they are
+
+  - name: arc
+    type: long_text
+    label: Character Arc
+    description: How they change (or don't) through the story
+
+spider_chart:
+  axes:
+    - name: Empathy
+      min: 0
+      max: 10
+      default: 5
+      description: Ability to understand and share others' feelings
+
+    - name: Resilience
+      min: 0
+      max: 10
+      default: 5
+      description: How well they endure and recover from hardship
+
+    - name: Ambition
+      min: 0
+      max: 10
+      default: 5
+      description: Drive to achieve goals, willingness to sacrifice
+
+    - name: Honesty
+      min: 0
+      max: 10
+      default: 5
+      description: Truthfulness with others and themselves
+
+    - name: Confidence
+      min: 0
+      max: 10
+      default: 5
+      description: Self-assurance in decisions and social situations
+
+    - name: Adaptability
+      min: 0
+      max: 10
+      default: 5
+      description: Flexibility when circumstances change unexpectedly
