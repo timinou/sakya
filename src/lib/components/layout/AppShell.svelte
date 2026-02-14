@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { uiState } from '$lib/stores';
+  import { uiState, editorState, manuscriptStore, notesStore } from '$lib/stores';
+  import { SearchPalette } from '$lib/components/common';
   import Toolbar from './Toolbar.svelte';
   import StatusBar from './StatusBar.svelte';
   import PaneResizer from './PaneResizer.svelte';
@@ -15,6 +16,9 @@
   }
 
   let { binderContent, editorContent, inspectorContent }: Props = $props();
+
+  // Search palette state
+  let searchOpen = $state(false);
 
   let binderCol = $derived(
     uiState.panes.binderVisible ? `${uiState.panes.binderWidth}px` : '0px'
@@ -37,8 +41,60 @@
     uiState.setInspectorWidth(uiState.panes.inspectorWidth - delta);
   }
 
+  function handleSearchNavigate(fileType: string, slug: string, entityType?: string) {
+    switch (fileType) {
+      case 'chapter':
+        manuscriptStore.selectChapter(slug);
+        break;
+      case 'entity':
+        // Open entity by selecting it via the entity store flow
+        // The entity type is the schema type for entity navigation
+        if (entityType) {
+          editorState.openDocument({
+            id: `entity:${entityType}:${slug}`,
+            title: slug,
+            documentType: 'entity',
+            documentSlug: slug,
+            isDirty: false,
+          });
+        }
+        break;
+      case 'note':
+        notesStore.selectNote(slug);
+        break;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
+
+    // Cmd+K: Toggle search palette
+    if (mod && e.key === 'k') {
+      e.preventDefault();
+      searchOpen = !searchOpen;
+      return;
+    }
+
+    // Cmd+W: Close active tab
+    if (mod && e.key === 'w') {
+      if (editorState.activeTabId) {
+        e.preventDefault();
+        editorState.closeTab(editorState.activeTabId);
+      }
+      return;
+    }
+
+    // Cmd+S: Trigger immediate save
+    if (mod && e.key === 's') {
+      if (editorState.activeTab) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('sakya:save'));
+      }
+      // If no active tab, don't prevent default — let browser/Tauri handle
+      return;
+    }
+
+    // Cmd+\ / Cmd+Shift+\: Toggle binder / inspector
     if (mod && e.key === '\\') {
       e.preventDefault();
       if (e.shiftKey) {
@@ -91,6 +147,12 @@
 
   <StatusBar />
 </div>
+
+<SearchPalette
+  isOpen={searchOpen}
+  onClose={() => { searchOpen = false; }}
+  onNavigate={handleSearchNavigate}
+/>
 
 <style>
   .app-shell {
