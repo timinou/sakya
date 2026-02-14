@@ -476,6 +476,19 @@ export async function setupDefaultTauriMocks(
       body: "",
     })) as MockHandler,
     delete_chapter: null,
+    rename_chapter: ((args: Record<string, unknown> | undefined) => ({
+      slug: (args?.newTitle as string)?.toLowerCase().replace(/\s+/g, "-") ?? args?.slug,
+      frontmatter: {
+        slug: (args?.newTitle as string)?.toLowerCase().replace(/\s+/g, "-") ?? args?.slug,
+        title: args?.newTitle ?? "Renamed Chapter",
+        status: "draft",
+        pov: null,
+        synopsis: null,
+        targetWords: null,
+        order: 0,
+      },
+      body: "",
+    })) as MockHandler,
     reorder_chapters: null,
 
     // --- Notes commands ---
@@ -498,6 +511,11 @@ export async function setupDefaultTauriMocks(
       body: "",
     })) as MockHandler,
     delete_note: null,
+    rename_note: ((args: Record<string, unknown> | undefined) => ({
+      slug: (args?.newTitle as string)?.toLowerCase().replace(/\s+/g, "-") ?? args?.slug,
+      title: args?.newTitle ?? "Renamed Note",
+      body: "",
+    })) as MockHandler,
     save_notes_config: null,
 
     // --- Search commands ---

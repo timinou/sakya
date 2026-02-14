@@ -112,6 +112,36 @@ class ManuscriptStore {
     }
   }
 
+  async renameChapter(projectPath: string, slug: string, newTitle: string): Promise<void> {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      await invoke('rename_chapter', { projectPath, slug, newTitle });
+      delete this.chapterContent[slug];
+      if (this.activeChapterSlug === slug) {
+        this.activeChapterSlug = null;
+      }
+      await this.loadConfig(projectPath);
+    } catch (e) {
+      this.error = String(e);
+      throw e;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async updateChapterMetadata(
+    projectPath: string,
+    slug: string,
+    updates: Partial<Chapter>,
+  ): Promise<void> {
+    const chapter = this.chapters.find((c) => c.slug === slug);
+    if (!chapter) return;
+    const updated = { ...chapter, ...updates };
+    const body = this.chapterContent[slug]?.body ?? '';
+    await this.saveChapterContent(projectPath, slug, updated, body);
+  }
+
   selectChapter(slug: string): void {
     this.activeChapterSlug = slug;
   }

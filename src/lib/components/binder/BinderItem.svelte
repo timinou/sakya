@@ -12,6 +12,7 @@
     isSelected?: boolean;
     isActive?: boolean;
     onclick?: () => void;
+    oncontextmenu?: (e: MouseEvent) => void;
     indent?: number;
   }
 
@@ -22,6 +23,7 @@
     isSelected = false,
     isActive = false,
     onclick,
+    oncontextmenu,
     indent = 0,
   }: Props = $props();
 
@@ -34,6 +36,7 @@
   class:active={isActive}
   style:padding-left={paddingLeft}
   {onclick}
+  {oncontextmenu}
   type="button"
   title={label}
 >
