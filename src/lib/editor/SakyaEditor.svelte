@@ -19,6 +19,7 @@
   import ToolbarPlugin from './plugins/ToolbarPlugin.svelte';
   import AutoSavePlugin from './plugins/AutoSavePlugin.svelte';
   import WordCountPlugin from './plugins/WordCountPlugin.svelte';
+  import WikiLinkPlugin from './plugins/WikiLinkPlugin.svelte';
   import '$lib/editor/editor.css';
 
   interface Props {
@@ -29,10 +30,11 @@
       characters: number;
       charactersNoSpaces: number;
     }) => void;
+    onNavigateWikiLink?: (target: string) => void;
     readonly?: boolean;
   }
 
-  let { content = '', onSave, onCountChange, readonly = false }: Props = $props();
+  let { content = '', onSave, onCountChange, onNavigateWikiLink, readonly = false }: Props = $props();
 
   const initialConfig = {
     namespace: 'SakyaEditor',
@@ -72,6 +74,9 @@
     <ListPlugin />
     <LinkPlugin />
     <MarkdownShortcutPlugin transformers={SAKYA_TRANSFORMERS} />
+    {#if !readonly}
+      <WikiLinkPlugin onNavigate={onNavigateWikiLink} />
+    {/if}
     {#if !readonly && onSave}
       <AutoSavePlugin {onSave} />
     {/if}

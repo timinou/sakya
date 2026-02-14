@@ -1,3 +1,4 @@
+import { writeTextFile, readTextFile, mkdir } from '@tauri-apps/plugin-fs';
 import type { Theme, ViewMode, PaneConfig } from '$lib/types';
 
 class UIState {
@@ -41,6 +42,38 @@ class UIState {
 
   setInspectorWidth(width: number): void {
     this.panes.inspectorWidth = Math.max(200, Math.min(500, width));
+  }
+
+  async persist(projectPath: string): Promise<void> {
+    const state = {
+      theme: this.theme,
+      viewMode: this.viewMode,
+      panes: { ...this.panes },
+    };
+    const dir = `${projectPath}/.sakya`;
+    try {
+      await mkdir(dir, { recursive: true });
+    } catch {
+      /* directory may already exist */
+    }
+    await writeTextFile(`${dir}/ui-state.json`, JSON.stringify(state, null, 2));
+  }
+
+  async restore(projectPath: string): Promise<void> {
+    try {
+      const content = await readTextFile(`${projectPath}/.sakya/ui-state.json`);
+      const state = JSON.parse(content);
+      if (state.theme) this.theme = state.theme;
+      if (state.viewMode) this.viewMode = state.viewMode;
+      if (state.panes) {
+        if (state.panes.binderWidth) this.panes.binderWidth = state.panes.binderWidth;
+        if (state.panes.inspectorWidth) this.panes.inspectorWidth = state.panes.inspectorWidth;
+        if (state.panes.binderVisible !== undefined) this.panes.binderVisible = state.panes.binderVisible;
+        if (state.panes.inspectorVisible !== undefined) this.panes.inspectorVisible = state.panes.inspectorVisible;
+      }
+    } catch {
+      // File missing or corrupt — use defaults (do nothing)
+    }
   }
 }
 

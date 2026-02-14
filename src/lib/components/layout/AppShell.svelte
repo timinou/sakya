@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { uiState, editorState, manuscriptStore, notesStore } from '$lib/stores';
+  import { uiState, editorState, manuscriptStore, notesStore, projectState } from '$lib/stores';
   import { SearchPalette } from '$lib/components/common';
   import Toolbar from './Toolbar.svelte';
   import StatusBar from './StatusBar.svelte';
@@ -64,6 +64,46 @@
         break;
     }
   }
+
+  // --- UI State Persistence ---
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let hasRestored = $state(false);
+
+  // Restore UI state when project opens
+  $effect(() => {
+    const path = projectState.projectPath;
+    if (path && !hasRestored) {
+      uiState.restore(path).then(() => {
+        hasRestored = true;
+      });
+    }
+    if (!path) {
+      hasRestored = false;
+    }
+  });
+
+  // Persist UI state on changes (debounced 1s)
+  $effect(() => {
+    const path = projectState.projectPath;
+    if (!path || !hasRestored) return;
+
+    // Read reactive state to track changes
+    const _theme = uiState.theme;
+    const _viewMode = uiState.viewMode;
+    const _binderWidth = uiState.panes.binderWidth;
+    const _inspectorWidth = uiState.panes.inspectorWidth;
+    const _binderVisible = uiState.panes.binderVisible;
+    const _inspectorVisible = uiState.panes.inspectorVisible;
+
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      uiState.persist(path);
+    }, 1000);
+
+    return () => {
+      if (persistTimer) clearTimeout(persistTimer);
+    };
+  });
 
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
