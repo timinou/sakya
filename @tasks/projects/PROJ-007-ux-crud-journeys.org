@@ -1,0 +1,580 @@
+#+TITLE: PROJ-007 Complete CRUD Journeys & UX Polish
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-007 Complete CRUD Journeys & UX Polish
+:PROPERTIES:
+:CUSTOM_ID: PROJ-007
+:GOAL: Wire all missing CRUD operations (delete, rename, reorder, edit note bodies, chapter metadata, schema management) to the frontend. Fill every gap in the user journey from project creation to book completion.
+:DEPENDS_INIT: PROJ-001, PROJ-002, PROJ-004, PROJ-005
+:COMPLETION: All 16 missing user journey items are functional, context menus wired, delete/rename/reorder working, notes editable in tabs, chapter inspector operational, schema editor connected.
+:END:
+
+** CHK-007-01 Context Menus Foundation
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-01
+:END:
+
+*** ITEM Wire ContextMenu to ManuscriptSection chapters
+:PROPERTIES:
+:CUSTOM_ID: ITEM-057
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/ManuscriptSection.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add right-click handler on chapter items in ManuscriptSection to show ContextMenu with Rename, separator, Change Status submenu, separator, Delete items.
+
+**** Acceptance Criteria
+- [ ] Right-click on chapter item shows context menu
+- [ ] Menu contains: Rename, separator, Change Status (draft/revised/final), separator, Delete
+- [ ] Menu uses existing ContextMenu component
+- [ ] Click outside or Escape closes menu
+
+*** ITEM Wire ContextMenu to BinderTree entity items
+:PROPERTIES:
+:CUSTOM_ID: ITEM-058
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add right-click handler on entity items in BinderTree to show ContextMenu with Rename, separator, Delete items.
+
+**** Acceptance Criteria
+- [ ] Right-click on entity item shows context menu
+- [ ] Menu contains: Rename, separator, Delete
+- [ ] Correct entity slug and schemaType passed to handlers
+
+*** ITEM Wire ContextMenu to NotesSection notes
+:PROPERTIES:
+:CUSTOM_ID: ITEM-059
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/NotesSection.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add right-click handler on note items in NotesSection to show ContextMenu with Rename, separator, Delete items.
+
+**** Acceptance Criteria
+- [ ] Right-click on note item shows context menu
+- [ ] Menu contains: Rename, separator, Delete
+
+*** ITEM Wire ContextMenu to entity type section headers
+:PROPERTIES:
+:CUSTOM_ID: ITEM-060
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-058
+:FILES: src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add right-click handler on entity type section headers (Characters, Places, etc.) to show context menu with Edit Type, separator, New Entity Type, separator, Delete Type.
+
+**** Acceptance Criteria
+- [ ] Right-click on section header shows context menu
+- [ ] Menu contains: Edit Type, separator, New Entity Type, separator, Delete Type
+
+*** ITEM E2E tests for context menus
+:PROPERTIES:
+:CUSTOM_ID: ITEM-061
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-057, ITEM-058, ITEM-059
+:FILES: e2e/context-menus.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests covering context menu appearance, items, keyboard navigation, and dismiss behavior.
+
+**** Acceptance Criteria
+- [ ] Tests for chapter, entity, note context menus
+- [ ] Tests for keyboard (Escape, Enter, arrow keys)
+- [ ] Tests for click-outside dismiss
+- [ ] All tests pass
+
+** CHK-007-02 Delete Operations
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-02
+:END:
+
+*** ITEM Delete chapter with confirmation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-062
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-057
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Delete context menu item for chapters: show ConfirmDialog (destructive), on confirm call manuscriptStore.deleteChapter, close open tab if applicable.
+
+**** Acceptance Criteria
+- [ ] Delete shows destructive ConfirmDialog
+- [ ] Confirm calls deleteChapter with correct slug
+- [ ] Open tab for deleted chapter is closed
+- [ ] Cancel dismisses dialog, no deletion
+
+*** ITEM Delete entity with confirmation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-063
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-058
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/stores/entities.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Delete context menu item for entities: show ConfirmDialog, on confirm call entityStore.deleteEntity.
+
+**** Acceptance Criteria
+- [ ] Delete shows destructive ConfirmDialog with entity name
+- [ ] Confirm calls deleteEntity with correct schemaType and slug
+- [ ] Entity removed from binder
+
+*** ITEM Delete note with confirmation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-064
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-059
+:FILES: src/lib/components/binder/NotesSection.svelte, src/lib/stores/notes.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Delete context menu item for notes: show ConfirmDialog, on confirm call notesStore.deleteNote.
+
+**** Acceptance Criteria
+- [ ] Delete shows destructive ConfirmDialog with note name
+- [ ] Confirm calls deleteNote with correct slug
+- [ ] Note removed from binder and corkboard
+
+*** ITEM E2E tests for delete operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-065
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-062, ITEM-063, ITEM-064
+:FILES: e2e/delete-operations.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests for all delete operations: confirm dialog appearance, confirm/cancel flows, IPC calls.
+
+**** Acceptance Criteria
+- [ ] Tests for chapter, entity, note delete
+- [ ] Tests for cancel path
+- [ ] Tests for open tab closure on delete
+- [ ] All tests pass
+
+** CHK-007-03 Rename Operations
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-03
+:END:
+
+*** ITEM Rust rename commands for chapters and notes
+:PROPERTIES:
+:CUSTOM_ID: ITEM-066
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/manuscript.rs, src-tauri/src/commands/notes.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Add rename_chapter and rename_note Tauri commands. Entity rename already exists. These must handle slug migration (new file, delete old, update config).
+
+**** Acceptance Criteria
+- [ ] rename_chapter(projectPath, slug, newTitle) command
+- [ ] rename_note(projectPath, slug, newTitle) command
+- [ ] Both handle slug change (file rename + config update)
+- [ ] Both return updated data
+- [ ] Rust unit tests pass
+
+*** ITEM Rename chapter inline
+:PROPERTIES:
+:CUSTOM_ID: ITEM-067
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-057, ITEM-066
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Rename context menu item: inline input replaces chapter title text. Enter confirms (calls rename), Escape cancels. Pre-filled and selected.
+
+**** Acceptance Criteria
+- [ ] Rename shows inline input pre-filled with current title
+- [ ] Enter confirms, calls renameChapter
+- [ ] Escape cancels, restores original title
+- [ ] Tab title updates if chapter tab is open
+
+*** ITEM Rename entity inline
+:PROPERTIES:
+:CUSTOM_ID: ITEM-068
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-058
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/stores/entities.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Rename context menu item for entities using existing rename_entity command.
+
+**** Acceptance Criteria
+- [ ] Rename shows inline input pre-filled
+- [ ] Enter confirms, calls rename_entity
+- [ ] Escape cancels
+
+*** ITEM Rename note inline
+:PROPERTIES:
+:CUSTOM_ID: ITEM-069
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-059, ITEM-066
+:FILES: src/lib/components/binder/NotesSection.svelte, src/lib/stores/notes.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire Rename context menu item for notes using the new rename_note command.
+
+**** Acceptance Criteria
+- [ ] Rename shows inline input pre-filled
+- [ ] Enter confirms, calls renameNote
+- [ ] Escape cancels
+
+*** ITEM E2E tests for rename operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-070
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-067, ITEM-068, ITEM-069
+:FILES: e2e/rename-operations.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests for all rename operations: inline input appearance, confirm/cancel, IPC calls.
+
+**** Acceptance Criteria
+- [ ] Tests for chapter, entity, note rename
+- [ ] Tests for cancel (Escape) path
+- [ ] Tests for empty rename (reverts)
+- [ ] All tests pass
+
+** CHK-007-04 Note Body Editing
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-04
+:END:
+
+*** ITEM Wire notes to editor tabs
+:PROPERTIES:
+:CUSTOM_ID: ITEM-071
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/layout/EditorArea.svelte, src/lib/stores/notes.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add $effect watching notesStore.activeNoteSlug to open note tabs. Add note save handler for Cmd+S.
+
+**** Acceptance Criteria
+- [ ] Clicking note in binder opens editor tab
+- [ ] Note content loads in editor
+- [ ] Cmd+S saves note content
+- [ ] Closing tab clears activeNoteSlug
+
+*** ITEM E2E tests for note editing
+:PROPERTIES:
+:CUSTOM_ID: ITEM-072
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-071
+:FILES: e2e/notes-corkboard.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Add E2E tests for note body editing in tabs.
+
+**** Acceptance Criteria
+- [ ] Test note opens in tab
+- [ ] Test note content loads
+- [ ] Test note/chapter tabs coexist
+
+** CHK-007-05 Chapter Metadata Inspector
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-05
+:END:
+
+*** ITEM Create ChapterInspector component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-073
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/inspector/ChapterInspector.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Create ChapterInspector component with status dropdown (draft/revised/final), POV character selector, synopsis textarea, word target input, and progress bar.
+
+**** Acceptance Criteria
+- [ ] Status dropdown with colored indicator
+- [ ] POV character field (entity select)
+- [ ] Synopsis textarea
+- [ ] Word count target + progress bar
+- [ ] Auto-saves changes
+
+*** ITEM Wire Inspector to active tab context
+:PROPERTIES:
+:CUSTOM_ID: ITEM-074
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-073
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/components/layout/Inspector.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire AppShell to render ChapterInspector inside Inspector pane when active tab is a chapter.
+
+**** Acceptance Criteria
+- [ ] Inspector shows ChapterInspector when chapter tab active
+- [ ] Inspector empty/placeholder when no tab active
+- [ ] Inspector updates on tab switch
+
+*** ITEM Chapter status change saves to frontmatter
+:PROPERTIES:
+:CUSTOM_ID: ITEM-075
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-073
+:FILES: src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add updateChapterMetadata method to manuscript store. Save status, POV, synopsis, targetWords changes.
+
+**** Acceptance Criteria
+- [ ] Status change persists via save_chapter
+- [ ] Binder dot color updates immediately
+- [ ] Other metadata fields persist
+
+*** ITEM E2E tests for chapter metadata
+:PROPERTIES:
+:CUSTOM_ID: ITEM-076
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-073, ITEM-074, ITEM-075
+:FILES: e2e/chapter-metadata.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests for chapter inspector metadata editing.
+
+**** Acceptance Criteria
+- [ ] Tests for status change
+- [ ] Tests for inspector visibility on tab switch
+- [ ] All tests pass
+
+** CHK-007-06 Chapter Reordering
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-06
+:END:
+
+*** ITEM Drag-and-drop chapter reordering
+:PROPERTIES:
+:CUSTOM_ID: ITEM-077
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add HTML5 drag-and-drop for chapters in the binder. Show insertion indicator at drop point.
+
+**** Acceptance Criteria
+- [ ] Chapters are draggable
+- [ ] Drop indicator shows at target position
+- [ ] Drop reorders via reorderChapters store method
+- [ ] Visual feedback during drag
+
+*** ITEM Context menu Move Up/Down for chapters
+:PROPERTIES:
+:CUSTOM_ID: ITEM-078
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-057
+:FILES: src/lib/components/binder/ManuscriptSection.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Add Move Up and Move Down items to chapter context menu as keyboard-accessible alternative to drag.
+
+**** Acceptance Criteria
+- [ ] Move Up disabled for first chapter
+- [ ] Move Down disabled for last chapter
+- [ ] Actions reorder chapters via store
+
+*** ITEM E2E tests for chapter reordering
+:PROPERTIES:
+:CUSTOM_ID: ITEM-079
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-077, ITEM-078
+:FILES: e2e/chapter-reorder.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests for chapter reordering via context menu Move Up/Down.
+
+**** Acceptance Criteria
+- [ ] Tests for Move Up/Down
+- [ ] Tests for disabled states (first/last)
+- [ ] Tests for IPC calls
+- [ ] All tests pass
+
+** CHK-007-07 Entity Type Management
+:PROPERTIES:
+:CUSTOM_ID: CHK-007-07
+:END:
+
+*** ITEM Wire SchemaEditor to backend
+:PROPERTIES:
+:CUSTOM_ID: ITEM-080
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/entities/SchemaEditor.svelte, src/lib/stores/entities.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire SchemaEditor save/cancel to entityStore.saveSchema. Connect it to tab system.
+
+**** Acceptance Criteria
+- [ ] Save calls entityStore.saveSchema
+- [ ] Cancel closes tab without saving
+- [ ] Schema changes reflect in binder
+
+*** ITEM Open SchemaEditor from context menu
+:PROPERTIES:
+:CUSTOM_ID: ITEM-081
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-060, ITEM-080
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/components/layout/EditorArea.svelte, src/lib/types/editor.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire "Edit Type" and "New Entity Type" context menu actions to open SchemaEditor in a tab.
+
+**** Acceptance Criteria
+- [ ] "Edit Type" opens SchemaEditor with existing schema
+- [ ] "New Entity Type" opens SchemaEditor with blank schema
+- [ ] EditorTab.documentType supports 'schema'
+
+*** ITEM Dynamic icons/colors from schema
+:PROPERTIES:
+:CUSTOM_ID: ITEM-082
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Replace hardcoded icon/color maps with dynamic values from loaded schemas.
+
+**** Acceptance Criteria
+- [ ] Icons read from schema.icon field with fallback to hardcoded map
+- [ ] Colors read from schema.color field with fallback to hardcoded map
+
+*** ITEM Delete entity type with confirmation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-083
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-060
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/stores/entities.svelte.ts
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Wire "Delete Type" context menu action with destructive ConfirmDialog.
+
+**** Acceptance Criteria
+- [ ] Delete Type shows destructive confirmation
+- [ ] Confirm calls entityStore.deleteSchema
+- [ ] Entity section removed from binder
+
+*** ITEM E2E tests for schema management
+:PROPERTIES:
+:CUSTOM_ID: ITEM-084
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-080, ITEM-081, ITEM-082, ITEM-083
+:FILES: e2e/schema-management.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Write E2E tests for schema management: edit type, new type, delete type, dynamic icons/colors.
+
+**** Acceptance Criteria
+- [ ] Tests for schema context menu
+- [ ] Tests for SchemaEditor in tab
+- [ ] Tests for delete type confirmation
+- [ ] All tests pass
