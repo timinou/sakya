@@ -164,18 +164,11 @@ end
 # ============================================================
 
 if $has_tasks
-    if emacsclient -s sakya -e 't' >/dev/null 2>&1
-        set -l raw_validation (emacsclient -s sakya -e '(prd-validate-all-cli)' 2>/dev/null)
+    source "$CLAUDE_PROJECT_DIR/.claude/hooks/lib/sakya-emacs.fish"
 
-        # Handle potential elisp string wrapping
-        set -l validation "$raw_validation"
+    if sakya_emacs_ensure
+        set -l validation (sakya_emacs_eval '(prd-validate-all-cli)')
         set -l valid (echo -n "$validation" | jq -r '.valid // empty' 2>/dev/null)
-
-        # If parsing fails, try stripping elisp string quotes
-        if test -z "$valid"
-            set validation (echo -n "$raw_validation" | string replace -r '^"' '' | string replace -r '"$' '' | string replace -a '\\"' '"')
-            set valid (echo -n "$validation" | jq -r '.valid // empty' 2>/dev/null)
-        end
 
         if test "$valid" = "false"
             set -l errors (echo -n "$validation" | jq -r '.errors[]? | "  - [\(.file // "?"):\(.line // "?")] \(.message // "unknown error")"' 2>/dev/null)

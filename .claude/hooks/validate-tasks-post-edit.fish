@@ -19,21 +19,16 @@ if not string match -q '*.org' -- "$file_path"
     exit 0
 end
 
-# Check emacs daemon
-if not emacsclient -s sakya -e 't' >/dev/null 2>&1
+source "$CLAUDE_PROJECT_DIR/.claude/hooks/lib/sakya-emacs.fish"
+
+# Check emacs daemon + functions
+if not sakya_emacs_ensure
     exit 0
 end
 
 # Run validation on the specific file
-set -l raw_validation (emacsclient -s sakya -e "(prd-validate-file-cli \"$file_path\")" 2>/dev/null)
-
-# Handle potential elisp string wrapping
-set -l validation "$raw_validation"
+set -l validation (sakya_emacs_eval "(prd-validate-file-cli \"$file_path\")")
 set -l valid (echo -n "$validation" | jq -r '.valid // empty' 2>/dev/null)
-if test -z "$valid"
-    set validation (echo -n "$raw_validation" | string replace -r '^"' '' | string replace -r '"$' '' | string replace -a '\\"' '"')
-    set valid (echo -n "$validation" | jq -r '.valid // empty' 2>/dev/null)
-end
 
 # If we can't parse, exit silently
 if test -z "$valid"

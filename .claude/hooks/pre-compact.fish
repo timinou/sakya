@@ -15,12 +15,15 @@ mkdir -p (dirname "$state_file") 2>/dev/null
 
 # --- Gather state ---
 
+source "$CLAUDE_PROJECT_DIR/.claude/hooks/lib/sakya-emacs.fish"
+
 # DOING items from PRD
-set -l doing_items "[]"
-if emacsclient -s sakya -e 't' >/dev/null 2>&1
-    set -l quick_status (emacsclient -s sakya -e '(prd-quick-status)' 2>/dev/null)
+set -l doing_items '""'
+if sakya_emacs_ensure
+    set -l quick_status (sakya_emacs_eval '(prd-quick-status)')
     if test $status -eq 0; and test -n "$quick_status"
-        set doing_items (echo -n "$quick_status" | jq -Rs '.')
+        # sakya_emacs_eval returns clean text — wrap as JSON string for jq --argjson
+        set doing_items (printf '%s' "$quick_status" | jq -Rs '.')
     end
 end
 
