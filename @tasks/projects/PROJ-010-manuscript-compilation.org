@@ -17,7 +17,7 @@
 :VERIFY: cargo test -- compile, cargo clippy
 :END:
 
-*** ITEM Compile data model & template types
+*** DONE Compile data model & template types
 :PROPERTIES:
 :CUSTOM_ID: ITEM-099
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
