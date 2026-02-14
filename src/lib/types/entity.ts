@@ -39,20 +39,18 @@ export interface SchemaSummary {
 }
 
 export interface EntityInstance {
-  slug: string;
   title: string;
+  slug: string;
   schemaSlug: string;
-  fields: Record<string, string | number | boolean>;
-  spiderValues: Record<string, number>;
   tags: string[];
+  spiderValues: Record<string, number>;
+  fields: Record<string, unknown>;
   body: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface EntitySummary {
-  slug: string;
   title: string;
-  schemaSlug: string;
+  slug: string;
+  schemaType: string;
   tags: string[];
 }
