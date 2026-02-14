@@ -19,6 +19,13 @@ class EditorState {
     this.activeTabId = tab.id;
   }
 
+  switchTab(tabId: string): void {
+    const tab = this.tabs.find((t) => t.id === tabId);
+    if (tab) {
+      this.activeTabId = tab.id;
+    }
+  }
+
   closeTab(tabId: string): void {
     this.tabs = this.tabs.filter((t) => t.id !== tabId);
     if (this.activeTabId === tabId) {

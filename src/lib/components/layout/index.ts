@@ -4,3 +4,4 @@ export { default as Toolbar } from './Toolbar.svelte';
 export { default as StatusBar } from './StatusBar.svelte';
 export { default as Binder } from './Binder.svelte';
 export { default as Inspector } from './Inspector.svelte';
+export { default as EditorTabs } from './EditorTabs.svelte';
