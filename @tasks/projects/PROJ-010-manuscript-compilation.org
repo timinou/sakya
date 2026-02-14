@@ -65,7 +65,7 @@ Implement the =compile_manuscript= Tauri command. Reads all chapters in order fr
 - [ ] Handles missing chapter files gracefully (skips with warning or returns error)
 - [ ] Command module registered in =commands/mod.rs=
 
-*** ITEM HTML export format
+*** DONE HTML export format
 :PROPERTIES:
 :CUSTOM_ID: ITEM-101
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

@@ -29,6 +29,7 @@ walkdir = "2"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 slug = "0.1"
+pulldown-cmark = "0.12"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
