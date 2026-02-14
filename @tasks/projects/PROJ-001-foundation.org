@@ -172,7 +172,7 @@ Create class-based Svelte 5 stores using runes for global state management.
 - [ ] Tauri invoke calls in store methods
 - [ ] No TypeScript errors
 
-** ITEM Create AppShell three-pane layout
+** DONE Create AppShell three-pane layout
 :PROPERTIES:
 :CUSTOM_ID: ITEM-008-app-shell
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -187,16 +187,16 @@ Create class-based Svelte 5 stores using runes for global state management.
 Create the three-pane layout shell with resizable panels.
 
 *** Acceptance Criteria
-- [ ] =AppShell.svelte=: CSS Grid with three columns (binder | editor | inspector)
-- [ ] =PaneResizer.svelte=: Draggable divider with pointer events for resizing
-- [ ] =Toolbar.svelte=: Project name display, view toggles, theme switcher
-- [ ] =StatusBar.svelte=: Word count display, save status indicator
-- [ ] =Binder.svelte=: Left sidebar shell (collapsible)
-- [ ] =Inspector.svelte=: Right panel shell (collapsible)
-- [ ] Binder and Inspector toggle via keyboard shortcuts and UI buttons
-- [ ] Pane sizes persisted in UI store
+- [X] =AppShell.svelte=: CSS Grid with three columns (binder | editor | inspector)
+- [X] =PaneResizer.svelte=: Draggable divider with pointer events for resizing
+- [X] =Toolbar.svelte=: Project name display, view toggles, theme switcher
+- [X] =StatusBar.svelte=: Word count display, save status indicator
+- [X] =Binder.svelte=: Left sidebar shell (collapsible)
+- [X] =Inspector.svelte=: Right panel shell (collapsible)
+- [X] Binder and Inspector toggle via keyboard shortcuts and UI buttons
+- [X] Pane sizes persisted in UI store
 
-** ITEM Create project launcher page
+** DOING Create project launcher page
 :PROPERTIES:
 :CUSTOM_ID: ITEM-009-launcher
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
