@@ -34,7 +34,7 @@ Add right-click handler on chapter items in ManuscriptSection to show ContextMen
 - [ ] Menu uses existing ContextMenu component
 - [ ] Click outside or Escape closes menu
 
-*** DOING Wire ContextMenu to BinderTree entity items
+*** DONE Wire ContextMenu to BinderTree entity items
 :PROPERTIES:
 :CUSTOM_ID: ITEM-058
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -69,7 +69,7 @@ Add right-click handler on note items in NotesSection to show ContextMenu with R
 - [ ] Right-click on note item shows context menu
 - [ ] Menu contains: Rename, separator, Delete
 
-*** DOING Wire ContextMenu to entity type section headers
+*** DONE Wire ContextMenu to entity type section headers
 :PROPERTIES:
 :CUSTOM_ID: ITEM-060
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -132,7 +132,7 @@ Wire Delete context menu item for chapters: show ConfirmDialog (destructive), on
 - [ ] Open tab for deleted chapter is closed
 - [ ] Cancel dismisses dialog, no deletion
 
-*** DOING Delete entity with confirmation
+*** DONE Delete entity with confirmation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-063
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -235,7 +235,7 @@ Wire Rename context menu item: inline input replaces chapter title text. Enter c
 - [ ] Escape cancels, restores original title
 - [ ] Tab title updates if chapter tab is open
 
-*** DOING Rename entity inline
+*** DONE Rename entity inline
 :PROPERTIES:
 :CUSTOM_ID: ITEM-068
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -540,7 +540,7 @@ Replace hardcoded icon/color maps with dynamic values from loaded schemas.
 - [ ] Icons read from schema.icon field with fallback to hardcoded map
 - [ ] Colors read from schema.color field with fallback to hardcoded map
 
-*** DOING Delete entity type with confirmation
+*** DONE Delete entity type with confirmation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-083
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

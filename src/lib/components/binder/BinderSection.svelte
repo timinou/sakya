@@ -13,6 +13,7 @@
     isOpen: boolean;
     onAdd?: () => void;
     ontoggle?: () => void;
+    oncontextmenu?: (e: MouseEvent) => void;
     children: Snippet;
   }
 
@@ -24,6 +25,7 @@
     isOpen = $bindable(),
     onAdd,
     ontoggle,
+    oncontextmenu,
     children,
   }: Props = $props();
 
@@ -38,7 +40,7 @@
 
 <div class="section" class:open={isOpen}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="section-header" onclick={toggle} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }} role="button" tabindex={0}>
+  <div class="section-header" onclick={toggle} {oncontextmenu} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }} role="button" tabindex={0}>
     <span class="chevron" class:rotated={isOpen}>
       <ChevronRight size={14} />
     </span>

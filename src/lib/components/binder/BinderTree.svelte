@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { ComponentType } from 'svelte';
-  import { Users, MapPin, Package, Lightbulb, File, Plus } from 'lucide-svelte';
-  import { entityStore, projectState } from '$lib/stores';
+  import { Users, MapPin, Package, Lightbulb, File, Plus, Pencil, Trash2, Settings } from 'lucide-svelte';
+  import { entityStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
   import ManuscriptSection from './ManuscriptSection.svelte';
   import NotesSection from './NotesSection.svelte';
+  import ContextMenu from '$lib/components/common/ContextMenu.svelte';
+  import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -32,6 +34,23 @@
   let isCreatingEntity = $state<Record<string, boolean>>({});
   let newEntityTitle = $state<Record<string, string>>({});
   let entityInputRefs = $state<Record<string, HTMLInputElement | null>>({});
+
+  // Context menu state — entity items
+  let entityContextMenu = $state<{ x: number; y: number; slug: string; title: string; schemaType: string } | null>(null);
+
+  // Context menu state — section headers
+  let sectionContextMenu = $state<{ x: number; y: number; schemaType: string; sectionTitle: string } | null>(null);
+
+  // Delete entity state
+  let deleteTarget = $state<{ slug: string; title: string; schemaType: string } | null>(null);
+
+  // Delete entity type state
+  let deleteTypeTarget = $state<{ schemaType: string; sectionTitle: string } | null>(null);
+
+  // Rename state
+  let renamingKey = $state<string | null>(null);  // "schemaType:slug" format
+  let renameValue = $state('');
+  let renameInputEl = $state<HTMLInputElement | null>(null);
 
   // Icon mapping for known entity types
   const entityIcons: Record<string, IconComponent> = {
@@ -116,12 +135,166 @@
     }
   }
 
+  // --- Entity item context menu ---
+  function handleEntityContextMenu(e: MouseEvent, schemaType: string, slug: string, title: string): void {
+    e.preventDefault();
+    entityContextMenu = { x: e.clientX, y: e.clientY, slug, title, schemaType };
+  }
+
+  function closeEntityContextMenu(): void {
+    entityContextMenu = null;
+  }
+
+  function getEntityContextMenuItems(slug: string, title: string, schemaType: string) {
+    return [
+      { label: 'Rename', icon: Pencil, onclick: () => startRename(schemaType, slug, title) },
+      { label: '', separator: true },
+      { label: 'Delete', icon: Trash2, onclick: () => handleDeleteRequest(schemaType, slug, title) },
+    ];
+  }
+
+  // --- Section header context menu ---
+  function handleSectionContextMenu(e: MouseEvent, schemaType: string, sectionTitle: string): void {
+    e.preventDefault();
+    sectionContextMenu = { x: e.clientX, y: e.clientY, schemaType, sectionTitle };
+  }
+
+  function closeSectionContextMenu(): void {
+    sectionContextMenu = null;
+  }
+
+  function getSectionContextMenuItems(schemaType: string, sectionTitle: string) {
+    return [
+      { label: 'Edit Type...', icon: Settings, onclick: () => handleEditType(schemaType) },
+      { label: '', separator: true },
+      { label: 'New Entity Type...', icon: Plus, onclick: () => handleNewType() },
+      { label: '', separator: true },
+      { label: 'Delete Type', icon: Trash2, onclick: () => handleDeleteTypeRequest(schemaType, sectionTitle) },
+    ];
+  }
+
+  // --- Edit Type / New Entity Type dispatchers ---
+  function handleEditType(entityType: string): void {
+    closeSectionContextMenu();
+    window.dispatchEvent(new CustomEvent('sakya:edit-schema', { detail: { entityType } }));
+  }
+
+  function handleNewType(): void {
+    closeSectionContextMenu();
+    window.dispatchEvent(new CustomEvent('sakya:new-schema'));
+  }
+
+  // --- Delete entity ---
+  function handleDeleteRequest(schemaType: string, slug: string, title: string): void {
+    closeEntityContextMenu();
+    deleteTarget = { slug, title, schemaType };
+  }
+
+  async function confirmDelete(): Promise<void> {
+    if (!deleteTarget || !projectState.projectPath) return;
+    const { slug, schemaType } = deleteTarget;
+    try {
+      // Close open tab for this entity
+      const tabId = `entity:${slug}`;
+      editorState.closeTab(tabId);
+      await entityStore.deleteEntity(projectState.projectPath, schemaType, slug);
+      await entityStore.loadEntities(projectState.projectPath, schemaType);
+    } catch (e) {
+      console.error('Failed to delete entity:', e);
+    }
+    deleteTarget = null;
+  }
+
+  function cancelDelete(): void {
+    deleteTarget = null;
+  }
+
+  // --- Delete entity type ---
+  function handleDeleteTypeRequest(schemaType: string, sectionTitle: string): void {
+    closeSectionContextMenu();
+    deleteTypeTarget = { schemaType, sectionTitle };
+  }
+
+  async function confirmDeleteType(): Promise<void> {
+    if (!deleteTypeTarget || !projectState.projectPath) return;
+    const { schemaType } = deleteTypeTarget;
+    try {
+      // Close all open tabs for entities of this type
+      const entities = entityStore.entitiesByType[schemaType] ?? [];
+      for (const entity of entities) {
+        editorState.closeTab(`entity:${entity.slug}`);
+      }
+      await entityStore.deleteSchema(projectState.projectPath, schemaType);
+      await entityStore.loadSchemas(projectState.projectPath);
+    } catch (e) {
+      console.error('Failed to delete entity type:', e);
+    }
+    deleteTypeTarget = null;
+  }
+
+  function cancelDeleteType(): void {
+    deleteTypeTarget = null;
+  }
+
+  // --- Rename entity ---
+  function startRename(schemaType: string, slug: string, title: string): void {
+    closeEntityContextMenu();
+    renamingKey = `${schemaType}:${slug}`;
+    renameValue = title;
+  }
+
+  async function confirmRename(): Promise<void> {
+    const newTitle = renameValue.trim();
+    if (!newTitle || !renamingKey || !projectState.projectPath) {
+      cancelRename();
+      return;
+    }
+    const [schemaType, slug] = renamingKey.split(':');
+    // Check if title actually changed
+    const entities = entityStore.entitiesByType[schemaType] ?? [];
+    const original = entities.find(e => e.slug === slug);
+    if (!original || newTitle === original.title) {
+      cancelRename();
+      return;
+    }
+    try {
+      await entityStore.renameEntity(projectState.projectPath, schemaType, slug, newTitle);
+      await entityStore.loadEntities(projectState.projectPath, schemaType);
+    } catch (e) {
+      console.error('Failed to rename entity:', e);
+    }
+    cancelRename();
+  }
+
+  function cancelRename(): void {
+    renamingKey = null;
+    renameValue = '';
+  }
+
+  function handleRenameKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
+  }
+
   // Auto-focus input when creating entity
   $effect(() => {
     for (const [type, creating] of Object.entries(isCreatingEntity)) {
       if (creating && entityInputRefs[type]) {
         entityInputRefs[type]!.focus();
       }
+    }
+  });
+
+  // Auto-focus rename input
+  $effect(() => {
+    if (renamingKey && renameInputEl) {
+      renameInputEl.focus();
+      renameInputEl.select();
     }
   });
 
@@ -188,6 +361,7 @@
       isOpen={isSectionOpen(entityType)}
       onAdd={() => startCreateEntity(entityType)}
       ontoggle={() => toggleSection(entityType)}
+      oncontextmenu={(e) => handleSectionContextMenu(e, entityType, getSectionTitle(schema))}
     >
       {#if entities.length === 0 && !isCreatingEntity[entityType]}
         <button class="placeholder-cta" type="button" onclick={() => startCreateEntity(entityType)}>
@@ -196,15 +370,30 @@
       {/if}
 
       {#each entities as entity (entity.slug)}
-        <BinderItem
-          label={entity.title}
-          icon={getIconForType(entityType)}
-          color={getColorForType(entityType)}
-          isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
-          isActive={entityStore.currentEntity?.slug === entity.slug}
-          onclick={() => handleSelectEntity(entityType, entity.slug)}
-          indent={1}
-        />
+        {#if renamingKey === `${entityType}:${entity.slug}`}
+          <div class="inline-input-wrapper">
+            <input
+              bind:this={renameInputEl}
+              bind:value={renameValue}
+              class="inline-input rename-input"
+              type="text"
+              placeholder="Entity name..."
+              onkeydown={handleRenameKeydown}
+              onblur={confirmRename}
+            />
+          </div>
+        {:else}
+          <BinderItem
+            label={entity.title}
+            icon={getIconForType(entityType)}
+            color={getColorForType(entityType)}
+            isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
+            isActive={entityStore.currentEntity?.slug === entity.slug}
+            onclick={() => handleSelectEntity(entityType, entity.slug)}
+            oncontextmenu={(e) => handleEntityContextMenu(e, entityType, entity.slug, entity.title)}
+            indent={1}
+          />
+        {/if}
       {/each}
 
       {#if isCreatingEntity[entityType]}
@@ -233,6 +422,48 @@
     </div>
   {/if}
 </nav>
+
+<!-- Entity item context menu -->
+{#if entityContextMenu}
+  <ContextMenu
+    items={getEntityContextMenuItems(entityContextMenu.slug, entityContextMenu.title, entityContextMenu.schemaType)}
+    x={entityContextMenu.x}
+    y={entityContextMenu.y}
+    onClose={closeEntityContextMenu}
+  />
+{/if}
+
+<!-- Section header context menu -->
+{#if sectionContextMenu}
+  <ContextMenu
+    items={getSectionContextMenuItems(sectionContextMenu.schemaType, sectionContextMenu.sectionTitle)}
+    x={sectionContextMenu.x}
+    y={sectionContextMenu.y}
+    onClose={closeSectionContextMenu}
+  />
+{/if}
+
+<!-- Delete entity confirmation -->
+<ConfirmDialog
+  isOpen={deleteTarget !== null}
+  title="Delete Entity"
+  message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.title}"? This action cannot be undone.` : ''}
+  confirmLabel="Delete"
+  destructive={true}
+  onConfirm={confirmDelete}
+  onCancel={cancelDelete}
+/>
+
+<!-- Delete entity type confirmation -->
+<ConfirmDialog
+  isOpen={deleteTypeTarget !== null}
+  title="Delete Entity Type"
+  message={deleteTypeTarget ? `Are you sure you want to delete the "${deleteTypeTarget.sectionTitle}" type? All entities of this type will be affected. This action cannot be undone.` : ''}
+  confirmLabel="Delete Type"
+  destructive={true}
+  onConfirm={confirmDeleteType}
+  onCancel={cancelDeleteType}
+/>
 
 <style>
   .binder-tree {
@@ -298,6 +529,11 @@
 
   .inline-input::placeholder {
     color: var(--text-tertiary);
+  }
+
+  .rename-input {
+    border-color: var(--accent-primary, #7c4dbd);
+    box-shadow: 0 0 0 1px var(--accent-primary, #7c4dbd);
   }
 
   .loading-indicator {

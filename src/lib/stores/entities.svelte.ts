@@ -151,6 +151,31 @@ class EntityStore {
     }
   }
 
+  async renameEntity(
+    projectPath: string,
+    schemaType: string,
+    oldSlug: string,
+    newTitle: string,
+  ): Promise<void> {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      const updated = await invoke<EntityInstance>('rename_entity', {
+        projectPath,
+        schemaType,
+        oldSlug,
+        newTitle,
+      });
+      this.currentEntity = updated;
+      this.invalidateType(schemaType);
+    } catch (e) {
+      this.error = String(e);
+      throw e;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   async deleteEntity(
     projectPath: string,
     schemaType: string,
