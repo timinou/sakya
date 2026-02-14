@@ -1,5 +1,7 @@
 #+TITLE: Rust Architect
 #+AUTHOR: Sakya Development Team
+#+MODEL: opus
+#+TOOLS: Read, Grep, Glob, Bash, Edit, Write
 #+STARTUP: overview
 
 * Identity

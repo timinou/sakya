@@ -1,5 +1,7 @@
 #+TITLE: Testing Engineer
 #+AUTHOR: Sakya Development Team
+#+MODEL: sonnet
+#+TOOLS: Read, Grep, Glob, Bash, Edit, Write
 #+STARTUP: overview
 
 * Identity

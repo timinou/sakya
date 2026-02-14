@@ -1,5 +1,7 @@
 #+TITLE: Lexical Editor Specialist
 #+AUTHOR: Sakya Development Team
+#+MODEL: opus
+#+TOOLS: Read, Grep, Glob, Bash, Edit, Write, WebFetch
 #+STARTUP: overview
 
 * Identity
