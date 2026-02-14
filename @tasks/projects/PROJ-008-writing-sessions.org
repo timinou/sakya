@@ -89,7 +89,7 @@ Test matrix:
 :REVIEW_BY: svelte-developer
 :END:
 
-*** ITEM Sprint timer component
+*** DONE Sprint timer component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-087
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -279,7 +279,7 @@ The view is accessible from the toolbar (a stats/chart icon button) or from a de
 - [ ] Toolbar or status bar button opens the stats view
 - [ ] Data refreshes when returning to the stats tab after a sprint
 
-*** ITEM Sprint history list
+*** DONE Sprint history list
 :PROPERTIES:
 :CUSTOM_ID: ITEM-092
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

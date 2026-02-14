@@ -4,3 +4,4 @@ export { uiState } from './ui.svelte';
 export { entityStore } from './entities.svelte';
 export { manuscriptStore } from './manuscript.svelte';
 export { notesStore } from './notes.svelte';
+export { sprintStore } from './sprint.svelte';
