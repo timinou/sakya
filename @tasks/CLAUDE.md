@@ -8,6 +8,7 @@ This document instructs Claude Code on how to work with the `@tasks` PRD system.
 - **Elisp Documentation**: [elisp/readme.org](elisp/readme.org)
 - **Agent Definitions**: [agents/index.org](agents/index.org)
 - **Current Dashboard**: [dashboard.org](dashboard.org)
+- **Process Guides**: [process/multi-file-changes.org](process/multi-file-changes.org)
 
 ## Validation Commands
 
@@ -210,7 +211,7 @@ ERROR in PROJ-001.org:42
 
   Fix: Add :AGENT: property referencing an agent definition
 
-  Available agents: svelte-developer, rust-architect, testing-engineer
+  Available agents: svelte-developer, rust-architect, testing-engineer, lexical-specialist, writing-app-designer
 ```
 
 ## Agent Assignment
@@ -222,6 +223,8 @@ ERROR in PROJ-001.org:42
 | Svelte pages, components, stores | `svelte-developer` |
 | Tauri commands, architecture, modules | `rust-architect` |
 | Vitest, Playwright E2E | `testing-engineer` |
+| Lexical editor integration, rich text | `lexical-specialist` |
+| UX flows, writing workflows, app design | `writing-app-designer` |
 
 ### Agent Reference Format
 
