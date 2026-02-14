@@ -132,7 +132,7 @@ The timer uses =setInterval= at 1-second resolution. When countdown reaches zero
 - [ ] Sprint store state is reactive and accessible from other components
 - [ ] Component uses Svelte 5 runes ($state, $derived, $effect)
 
-*** ITEM Sprint mode overlay
+*** DONE Sprint mode overlay
 :PROPERTIES:
 :CUSTOM_ID: ITEM-088
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

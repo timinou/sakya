@@ -1,8 +1,11 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { Chapter, ChapterStatus } from '$lib/types';
-  import { uiState, editorState, manuscriptStore, notesStore, projectState } from '$lib/stores';
-  import { SearchPalette } from '$lib/components/common';
+  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore } from '$lib/stores';
+  import { SearchPalette, ToastContainer } from '$lib/components/common';
+  import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+  import SprintOverlay from '$lib/components/sprint/SprintOverlay.svelte';
+  import SprintTimer from '$lib/components/sprint/SprintTimer.svelte';
   import Toolbar from './Toolbar.svelte';
   import StatusBar from './StatusBar.svelte';
   import PaneResizer from './PaneResizer.svelte';
@@ -23,6 +26,24 @@
   // Search palette state
   let searchOpen = $state(false);
 
+  // Sprint stop confirmation state
+  let sprintStopConfirmOpen = $state(false);
+
+  // Sprint panel (pre-start timer) visibility
+  let sprintPanelOpen = $state(false);
+
+  // Close sprint panel when sprint becomes active (overlay takes over)
+  $effect(() => {
+    if (sprintStore.isActive) {
+      sprintPanelOpen = false;
+    }
+  });
+
+  function handleSprintEnd(): void {
+    // Trigger auto-save of the current chapter
+    window.dispatchEvent(new CustomEvent('sakya:save'));
+  }
+
   // --- Distraction-free mode state ---
   let peekBinder = $state(false);
   let peekInspector = $state(false);
@@ -35,29 +56,31 @@
   // Determine whether binder/inspector should be shown in the DOM
   // In normal mode: only when visible. In distraction-free: always (for peek transitions).
   let showBinderInDom = $derived(
-    uiState.panes.binderVisible || uiState.distractionFreeMode
+    uiState.panes.binderVisible || uiState.distractionFreeMode || sprintStore.isActive
   );
   let showInspectorInDom = $derived(
-    uiState.panes.inspectorVisible || uiState.distractionFreeMode
+    uiState.panes.inspectorVisible || uiState.distractionFreeMode || sprintStore.isActive
   );
 
+  let hideChrome = $derived(uiState.distractionFreeMode || sprintStore.isActive);
+
   let binderCol = $derived(
-    uiState.distractionFreeMode
+    hideChrome
       ? '0px'
       : uiState.panes.binderVisible ? `${uiState.panes.binderWidth}px` : '0px'
   );
   let inspectorCol = $derived(
-    uiState.distractionFreeMode
+    hideChrome
       ? '0px'
       : uiState.panes.inspectorVisible ? `${uiState.panes.inspectorWidth}px` : '0px'
   );
   let binderResizerCol = $derived(
-    uiState.distractionFreeMode
+    hideChrome
       ? '0px'
       : uiState.panes.binderVisible ? '4px' : '0px'
   );
   let inspectorResizerCol = $derived(
-    uiState.distractionFreeMode
+    hideChrome
       ? '0px'
       : uiState.panes.inspectorVisible ? '4px' : '0px'
   );
@@ -223,11 +246,18 @@
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
 
-    // Escape: Exit distraction-free mode
-    if (e.key === 'Escape' && uiState.distractionFreeMode) {
-      e.preventDefault();
-      uiState.distractionFreeMode = false;
-      return;
+    // Escape: Stop sprint (with confirmation) or exit distraction-free mode
+    if (e.key === 'Escape') {
+      if (sprintStore.isActive) {
+        e.preventDefault();
+        sprintStopConfirmOpen = true;
+        return;
+      }
+      if (uiState.distractionFreeMode) {
+        e.preventDefault();
+        uiState.distractionFreeMode = false;
+        return;
+      }
     }
 
     // Cmd+K: Toggle search palette
@@ -295,6 +325,30 @@
       return;
     }
   }
+
+  async function confirmStopSprint(): Promise<void> {
+    sprintStopConfirmOpen = false;
+    await sprintStore.stop(editorState.wordCount.words, projectState.projectPath ?? '');
+  }
+
+  function cancelStopSprint(): void {
+    sprintStopConfirmOpen = false;
+  }
+
+  function handleToggleSprint(): void {
+    if (sprintStore.isActive) {
+      // If sprint is active, the overlay is already visible — do nothing
+      return;
+    }
+    sprintPanelOpen = !sprintPanelOpen;
+  }
+
+  // Listen for toolbar sprint toggle event
+  $effect(() => {
+    const handler = () => handleToggleSprint();
+    window.addEventListener('sakya:toggle-sprint', handler);
+    return () => window.removeEventListener('sakya:toggle-sprint', handler);
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
@@ -302,6 +356,7 @@
 <div
   class="app-shell"
   class:distraction-free={uiState.distractionFreeMode}
+  class:sprint-active={sprintStore.isActive}
   class:peek-binder={peekBinder}
   class:peek-inspector={peekInspector}
   style:grid-template-columns={gridTemplateColumns}
@@ -374,6 +429,40 @@
   isOpen={searchOpen}
   onClose={() => { searchOpen = false; }}
   onNavigate={handleSearchNavigate}
+/>
+
+{#if sprintStore.isActive}
+  <SprintOverlay
+    chapterSlug={manuscriptStore.activeChapterSlug}
+    projectPath={projectState.projectPath ?? ''}
+    currentWordCount={editorState.wordCount.words}
+    onSprintEnd={handleSprintEnd}
+  />
+{/if}
+
+{#if sprintPanelOpen && !sprintStore.isActive}
+  <div class="sprint-panel-backdrop" onclick={() => { sprintPanelOpen = false; }} role="presentation"></div>
+  <div class="sprint-panel" role="dialog" aria-label="Sprint Timer">
+    <SprintTimer
+      chapterSlug={manuscriptStore.activeChapterSlug}
+      projectPath={projectState.projectPath ?? ''}
+      currentWordCount={editorState.wordCount.words}
+      onSprintEnd={handleSprintEnd}
+    />
+  </div>
+{/if}
+
+<ToastContainer />
+
+<ConfirmDialog
+  isOpen={sprintStopConfirmOpen}
+  title="Stop Sprint?"
+  message="Are you sure you want to stop this sprint? Your progress will be saved."
+  confirmLabel="Stop Sprint"
+  cancelLabel="Keep Writing"
+  destructive={true}
+  onConfirm={confirmStopSprint}
+  onCancel={cancelStopSprint}
 />
 
 <style>
@@ -526,5 +615,112 @@
     pointer-events: auto;
     transform: translateX(0);
     box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+
+  /* ==========================================================================
+     Sprint active mode
+     ========================================================================== */
+
+  /* Hide toolbar — collapse row to 0 */
+  .app-shell.sprint-active {
+    grid-template-rows: 0px 1fr 0px;
+    transition: grid-template-rows 300ms ease, grid-template-columns 300ms ease;
+  }
+
+  .app-shell.sprint-active :global(.toolbar) {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: opacity 300ms ease, transform 300ms ease;
+    overflow: hidden;
+  }
+
+  /* Hide status bar — collapse */
+  .app-shell.sprint-active :global(.status-bar) {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+    transition: opacity 300ms ease, transform 300ms ease;
+    overflow: hidden;
+  }
+
+  /* Hide binder — slide out left */
+  .app-shell.sprint-active .binder-pane {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: opacity 300ms ease, transform 300ms ease;
+  }
+
+  /* Hide inspector — slide out right */
+  .app-shell.sprint-active .inspector-pane {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 300px;
+    z-index: 100;
+    transform: translateX(100%);
+    transition: opacity 300ms ease, transform 300ms ease;
+  }
+
+  /* Hide resizers during sprint */
+  .app-shell.sprint-active :global(.pane-resizer) {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    overflow: hidden;
+    transition: opacity 300ms ease;
+  }
+
+  /* Editor area: full width with comfortable reading margins */
+  .app-shell.sprint-active .editor-pane {
+    max-width: 720px;
+    margin: 0 auto;
+    grid-column: 1 / -1;
+    transition: max-width 300ms ease, margin 300ms ease;
+  }
+
+  /* ==========================================================================
+     Sprint panel (pre-start popover)
+     ========================================================================== */
+
+  .sprint-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: transparent;
+  }
+
+  .sprint-panel {
+    position: fixed;
+    top: calc(var(--toolbar-height) + var(--spacing-xs));
+    right: var(--spacing-md);
+    z-index: 200;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    min-width: 280px;
+    animation: sprint-panel-in 150ms ease forwards;
+  }
+
+  @keyframes sprint-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>
