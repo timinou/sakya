@@ -10,7 +10,7 @@
 :COMPLETION: All ITEMs complete, chapters can be created/edited/reordered, content editable in Lexical editor with auto-save.
 :END:
 
-** ITEM Create Tauri manuscript commands
+** DONE Create Tauri manuscript commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-029-manuscript-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -33,7 +33,7 @@ Implement Tauri commands for chapter lifecycle and manuscript configuration mana
 - [ ] =reorder_chapters=: Updates chapter ordering in manuscript.yaml
 - [ ] All commands return serializable Result types
 
-** ITEM Create manuscript store
+** DONE Create manuscript store
 :PROPERTIES:
 :CUSTOM_ID: ITEM-030-manuscript-store
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -53,7 +53,7 @@ Create a Svelte 5 store for manuscript state management.
 - [ ] Tauri invoke calls for all backend operations
 - [ ] Singleton export
 
-** ITEM Create manuscript binder section
+** DONE Create manuscript binder section
 :PROPERTIES:
 :CUSTOM_ID: ITEM-031-manuscript-binder
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -75,7 +75,7 @@ Create the manuscript section in the binder with ordered chapter list.
 - [ ] Context menu for delete/rename
 - [ ] Click opens chapter in editor
 
-** ITEM Create chapter inspector panel
+** DONE Create chapter inspector panel
 :PROPERTIES:
 :CUSTOM_ID: ITEM-032-chapter-inspector
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -98,7 +98,7 @@ Create the inspector panel content for when a chapter is selected.
 - [ ] Current word count (from WordCountPlugin, read-only display)
 - [ ] Auto-save metadata changes
 
-** ITEM Wire editor to manuscript
+** DONE Wire editor to manuscript
 :PROPERTIES:
 :CUSTOM_ID: ITEM-033-wire-editor
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
