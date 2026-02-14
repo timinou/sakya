@@ -1,13 +1,19 @@
 #!/usr/bin/env fish
 # Sync @tasks/agents/*.org → .claude/agents/<name>.md
+# Sync @tasks/process/*.org → .claude/skills/<name>/SKILL.md
 # Run via direnv (.envrc) on directory entry, or manually.
 #
-# Each org file should have #+MODEL: and #+TOOLS: headers.
+# Agents: each org file should have #+MODEL: and #+TOOLS: headers.
 # Falls back to model=sonnet, tools="Read, Grep, Glob, Bash, Edit, Write".
+#
+# Skills: each org file should have #+DESCRIPTION: header.
+# Optional #+ALLOWED_TOOLS: restricts tool access.
 
 set REPO_ROOT (cd (dirname (status filename))/.. && pwd)
 set AGENTS_SRC "$REPO_ROOT/@tasks/agents"
 set AGENTS_OUT "$REPO_ROOT/.claude/agents"
+set SKILLS_SRC "$REPO_ROOT/@tasks/process"
+set SKILLS_OUT "$REPO_ROOT/.claude/skills"
 
 set DEFAULT_MODEL sonnet
 set DEFAULT_TOOLS "Read, Grep, Glob, Bash, Edit, Write"
@@ -89,4 +95,80 @@ for org_file in $AGENTS_SRC/*.org
         > "$out_file"
 
     echo "Synced agent: $name"
+end
+
+# ---------- Cleanup stale auto-generated skill SKILL.md files ----------
+mkdir -p "$SKILLS_OUT"
+
+for skill_dir in $SKILLS_OUT/*/
+    test -d "$skill_dir"; or continue
+    set skill_file "$skill_dir/SKILL.md"
+    test -f "$skill_file"; or continue
+    grep -q '^<!-- auto-generated ' "$skill_file"; or continue
+    set name (basename "$skill_dir")
+    if not test -f "$SKILLS_SRC/$name.org"
+        rm -rf "$skill_dir"
+        echo "Removed stale skill: $name"
+    end
+end
+
+# ---------- Sync each skill ----------
+for org_file in $SKILLS_SRC/*.org
+    test -f "$org_file"; or continue
+    set name (basename "$org_file" .org)
+
+    # Skip index.org
+    test "$name" = index; and continue
+
+    set out_dir "$SKILLS_OUT/$name"
+    set out_file "$out_dir/SKILL.md"
+
+    # Timestamp skip: if output exists, is auto-generated, and org is older → skip
+    if test -f "$out_file"
+        and grep -q '^<!-- auto-generated ' "$out_file"
+        and test "$org_file" -ot "$out_file"
+        continue
+    end
+
+    # Safety: if output exists but is NOT auto-generated, don't clobber
+    if test -f "$out_file"
+        and not grep -q '^<!-- auto-generated ' "$out_file"
+        echo "Warning: $out_file exists without auto-generated marker — skipping (hand-crafted?)"
+        continue
+    end
+
+    # Extract metadata from org headers
+    set title (grep '^#+TITLE:' "$org_file" | head -1 | sed 's/^#+TITLE: *//')
+    set description (grep '^#+DESCRIPTION:' "$org_file" | head -1 | sed 's/^#+DESCRIPTION: *//')
+    set allowed_tools (grep '^#+ALLOWED_TOOLS:' "$org_file" | head -1 | sed 's/^#+ALLOWED_TOOLS: *//')
+
+    # Description is required for skills
+    if test -z "$description"
+        echo "Warning: $org_file has no #+DESCRIPTION: — skipping"
+        continue
+    end
+
+    # Convert org → GitHub-flavored markdown via pandoc
+    set body (pandoc -f org -t gfm --wrap=none "$org_file")
+
+    # Build SKILL.md
+    mkdir -p "$out_dir"
+
+    # Write with marker comment and YAML frontmatter
+    set -l lines \
+        "<!-- auto-generated from @tasks/process/$name.org — do not edit -->" \
+        "---" \
+        "name: $name" \
+        "description: \"$description\""
+    if test -n "$allowed_tools"
+        set -a lines "allowed-tools: $allowed_tools"
+    end
+    set -a lines \
+        "---" \
+        "" \
+        "$body"
+
+    printf '%s\n' $lines > "$out_file"
+
+    echo "Synced skill: $name"
 end

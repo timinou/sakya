@@ -1,5 +1,6 @@
 #+TITLE: Multi-File Changes
 #+AUTHOR: Sakya Development Team
+#+DESCRIPTION: Methodology for complex changes spanning 3+ files, vendored code, or cross-crate boundaries. Consult before any multi-file change.
 #+STARTUP: overview
 
 * Overview
