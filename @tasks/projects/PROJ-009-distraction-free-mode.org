@@ -38,7 +38,7 @@ Create a Lexical editor plugin that keeps the active line (caret position) verti
 - [ ] Works correctly with long documents that exceed viewport height
 - [ ] Cleanup: all listeners deregistered on component destroy
 
-*** DOING Focus mode (dim non-current paragraph)
+*** DONE Focus mode (dim non-current paragraph)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-095
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]

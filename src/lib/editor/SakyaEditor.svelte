@@ -21,6 +21,7 @@
   import WordCountPlugin from './plugins/WordCountPlugin.svelte';
   import WikiLinkPlugin from './plugins/WikiLinkPlugin.svelte';
   import TypewriterPlugin from './plugins/TypewriterPlugin.svelte';
+  import FocusPlugin from './plugins/FocusPlugin.svelte';
   import '$lib/editor/editor.css';
 
   interface Props {
@@ -87,6 +88,7 @@
     {/if}
     {#if !readonly}
       <TypewriterPlugin />
+      <FocusPlugin />
     {/if}
   </Composer>
 </div>
