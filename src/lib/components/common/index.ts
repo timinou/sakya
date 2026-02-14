@@ -5,5 +5,4 @@ export { default as ToastContainer } from './ToastContainer.svelte';
 export { default as Tooltip } from './Tooltip.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as SearchPalette } from './SearchPalette.svelte';
-export { default as SearchPalette } from './SearchPalette.svelte';
 export { toastManager } from './Toast.svelte';
