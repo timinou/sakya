@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { StickyNote, FileText, Plus } from 'lucide-svelte';
-  import { notesStore, projectState } from '$lib/stores';
+  import { StickyNote, FileText, Plus, Pencil, Trash2 } from 'lucide-svelte';
+  import { notesStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
+  import ContextMenu from '$lib/components/common/ContextMenu.svelte';
+  import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 
   interface Props {
     onSelectNote?: (slug: string) => void;
@@ -15,6 +17,17 @@
   let newNoteTitle = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
 
+  // Context menu state
+  let contextMenu = $state<{ x: number; y: number; slug: string; title: string } | null>(null);
+
+  // Delete confirmation state
+  let deleteTarget = $state<{ slug: string; title: string } | null>(null);
+
+  // Rename state
+  let renamingSlug = $state<string | null>(null);
+  let renameValue = $state('');
+  let renameInputEl = $state<HTMLInputElement | null>(null);
+
   function handleAdd(): void {
     isCreating = true;
   }
@@ -22,6 +35,14 @@
   $effect(() => {
     if (isCreating && inputEl) {
       inputEl.focus();
+    }
+  });
+
+  // Auto-focus rename input
+  $effect(() => {
+    if (renamingSlug && renameInputEl) {
+      renameInputEl.focus();
+      renameInputEl.select();
     }
   });
 
@@ -57,6 +78,89 @@
   function handleNoteClick(slug: string): void {
     notesStore.selectNote(slug);
     onSelectNote?.(slug);
+  }
+
+  // Context menu handlers
+  function handleContextMenu(e: MouseEvent, slug: string, title: string): void {
+    e.preventDefault();
+    contextMenu = { x: e.clientX, y: e.clientY, slug, title };
+  }
+
+  function closeContextMenu(): void {
+    contextMenu = null;
+  }
+
+  // Delete handlers
+  function handleDeleteRequest(slug: string, title: string): void {
+    closeContextMenu();
+    deleteTarget = { slug, title };
+  }
+
+  async function confirmDelete(): Promise<void> {
+    if (!deleteTarget || !projectState.projectPath) return;
+    const { slug } = deleteTarget;
+    try {
+      // Close open tab for this note
+      const tabId = `note:${slug}`;
+      editorState.closeTab(tabId);
+      await notesStore.deleteNote(projectState.projectPath, slug);
+    } catch (e) {
+      console.error('Failed to delete note:', e);
+    }
+    deleteTarget = null;
+  }
+
+  function cancelDelete(): void {
+    deleteTarget = null;
+  }
+
+  // Rename handlers
+  function startRename(slug: string, title: string): void {
+    closeContextMenu();
+    renamingSlug = slug;
+    renameValue = title;
+  }
+
+  async function confirmRename(): Promise<void> {
+    const newTitle = renameValue.trim();
+    if (!newTitle || !renamingSlug || !projectState.projectPath || newTitle === getNoteTitle(renamingSlug)) {
+      cancelRename();
+      return;
+    }
+    try {
+      await notesStore.renameNote(projectState.projectPath, renamingSlug, newTitle);
+    } catch (e) {
+      console.error('Failed to rename note:', e);
+    }
+    cancelRename();
+  }
+
+  function cancelRename(): void {
+    renamingSlug = null;
+    renameValue = '';
+  }
+
+  function handleRenameKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
+  }
+
+  function getNoteTitle(slug: string): string {
+    return notesStore.notes.find(n => n.slug === slug)?.title ?? '';
+  }
+
+  // Context menu items for a note
+  function getContextMenuItems(slug: string, title: string) {
+    return [
+      { label: 'Rename', icon: Pencil, onclick: () => startRename(slug, title) },
+      { label: '', separator: true },
+      { label: 'Delete', icon: Trash2, onclick: () => handleDeleteRequest(slug, title) },
+    ];
   }
 
   // Listen for sakya:create-note custom events from WelcomeCard
@@ -98,22 +202,37 @@
   {/if}
 
   {#each notesStore.notes as note (note.slug)}
-    <div class="note-row">
-      <BinderItem
-        label={note.title}
-        icon={FileText}
-        isSelected={notesStore.activeNoteSlug === note.slug}
-        isActive={notesStore.activeNoteSlug === note.slug}
-        onclick={() => handleNoteClick(note.slug)}
-        indent={1}
-      />
-      {#if note.color}
-        <span
-          class="color-dot"
-          style:background-color={note.color}
-        ></span>
-      {/if}
-    </div>
+    {#if renamingSlug === note.slug}
+      <div class="inline-input-wrapper">
+        <input
+          bind:this={renameInputEl}
+          bind:value={renameValue}
+          class="inline-input rename-input"
+          type="text"
+          placeholder="Note title..."
+          onkeydown={handleRenameKeydown}
+          onblur={confirmRename}
+        />
+      </div>
+    {:else}
+      <div class="note-row">
+        <BinderItem
+          label={note.title}
+          icon={FileText}
+          isSelected={notesStore.activeNoteSlug === note.slug}
+          isActive={notesStore.activeNoteSlug === note.slug}
+          onclick={() => handleNoteClick(note.slug)}
+          oncontextmenu={(e) => handleContextMenu(e, note.slug, note.title)}
+          indent={1}
+        />
+        {#if note.color}
+          <span
+            class="color-dot"
+            style:background-color={note.color}
+          ></span>
+        {/if}
+      </div>
+    {/if}
   {/each}
 
   {#if isCreating}
@@ -130,6 +249,25 @@
     </div>
   {/if}
 </BinderSection>
+
+{#if contextMenu}
+  <ContextMenu
+    items={getContextMenuItems(contextMenu.slug, contextMenu.title)}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    onClose={closeContextMenu}
+  />
+{/if}
+
+<ConfirmDialog
+  isOpen={deleteTarget !== null}
+  title="Delete Note"
+  message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.title}"? This action cannot be undone.` : ''}
+  confirmLabel="Delete"
+  destructive={true}
+  onConfirm={confirmDelete}
+  onCancel={cancelDelete}
+/>
 
 <style>
   .placeholder-cta {
@@ -210,5 +348,10 @@
 
   .inline-input::placeholder {
     color: var(--text-tertiary);
+  }
+
+  .rename-input {
+    border-color: var(--accent-primary, #7c4dbd);
+    box-shadow: 0 0 0 1px var(--accent-primary, #7c4dbd);
   }
 </style>

@@ -52,7 +52,7 @@ Add right-click handler on entity items in BinderTree to show ContextMenu with R
 - [ ] Menu contains: Rename, separator, Delete
 - [ ] Correct entity slug and schemaType passed to handlers
 
-*** ITEM Wire ContextMenu to NotesSection notes
+*** DOING Wire ContextMenu to NotesSection notes
 :PROPERTIES:
 :CUSTOM_ID: ITEM-059
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -151,7 +151,7 @@ Wire Delete context menu item for entities: show ConfirmDialog, on confirm call 
 - [ ] Confirm calls deleteEntity with correct schemaType and slug
 - [ ] Entity removed from binder
 
-*** ITEM Delete note with confirmation
+*** DOING Delete note with confirmation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-064
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -254,7 +254,7 @@ Wire Rename context menu item for entities using existing rename_entity command.
 - [ ] Enter confirms, calls rename_entity
 - [ ] Escape cancels
 
-*** ITEM Rename note inline
+*** DOING Rename note inline
 :PROPERTIES:
 :CUSTOM_ID: ITEM-069
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
