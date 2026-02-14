@@ -87,7 +87,7 @@ Add right-click handler on entity type section headers (Characters, Places, etc.
 - [ ] Right-click on section header shows context menu
 - [ ] Menu contains: Edit Type, separator, New Entity Type, separator, Delete Type
 
-*** ITEM E2E tests for context menus
+*** DONE E2E tests for context menus
 :PROPERTIES:
 :CUSTOM_ID: ITEM-061
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -170,7 +170,7 @@ Wire Delete context menu item for notes: show ConfirmDialog, on confirm call not
 - [ ] Confirm calls deleteNote with correct slug
 - [ ] Note removed from binder and corkboard
 
-*** ITEM E2E tests for delete operations
+*** DONE E2E tests for delete operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-065
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -273,7 +273,7 @@ Wire Rename context menu item for notes using the new rename_note command.
 - [ ] Enter confirms, calls renameNote
 - [ ] Escape cancels
 
-*** ITEM E2E tests for rename operations
+*** DONE E2E tests for rename operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-070
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -317,7 +317,7 @@ Add $effect watching notesStore.activeNoteSlug to open note tabs. Add note save 
 - [ ] Cmd+S saves note content
 - [ ] Closing tab clears activeNoteSlug
 
-*** ITEM E2E tests for note editing
+*** DONE E2E tests for note editing
 :PROPERTIES:
 :CUSTOM_ID: ITEM-072
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -399,7 +399,7 @@ Add updateChapterMetadata method to manuscript store. Save status, POV, synopsis
 - [ ] Binder dot color updates immediately
 - [ ] Other metadata fields persist
 
-*** ITEM E2E tests for chapter metadata
+*** DONE E2E tests for chapter metadata
 :PROPERTIES:
 :CUSTOM_ID: ITEM-076
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -461,7 +461,7 @@ Add Move Up and Move Down items to chapter context menu as keyboard-accessible a
 - [ ] Move Down disabled for last chapter
 - [ ] Actions reorder chapters via store
 
-*** ITEM E2E tests for chapter reordering
+*** DONE E2E tests for chapter reordering
 :PROPERTIES:
 :CUSTOM_ID: ITEM-079
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
