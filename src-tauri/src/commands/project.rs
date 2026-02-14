@@ -5,13 +5,7 @@ use crate::models::project::ProjectManifest;
 use crate::services::slug_service::slugify;
 use crate::services::yaml_service::{read_yaml, write_yaml};
 
-/// Default entity schema content for a given entity type.
-fn default_schema_yaml(entity_type: &str) -> String {
-    format!(
-        "name: {entity_type}\nentity_type: {entity_type}\nfields: []\nspider_axes: []\n",
-        entity_type = entity_type
-    )
-}
+use super::entity::default_schemas;
 
 /// Create a new Sakya project at `path/slugified-name`.
 ///
@@ -36,13 +30,12 @@ pub fn create_project(name: String, path: String) -> Result<ProjectManifest, App
         std::fs::create_dir_all(project_root.join(d))?;
     }
 
-    // Write default entity schemas
-    let entity_types = ["character", "place", "item", "idea"];
-    for entity_type in &entity_types {
+    // Write default entity schemas (rich defaults with fields, spider axes, etc.)
+    for schema in default_schemas() {
         let schema_path = project_root
             .join("schemas")
-            .join(format!("{}.yaml", entity_type));
-        std::fs::write(&schema_path, default_schema_yaml(entity_type))?;
+            .join(format!("{}.yaml", schema.entity_type));
+        write_yaml(&schema_path, &schema)?;
     }
 
     // Write empty manuscript.yaml
@@ -140,19 +133,21 @@ mod tests {
             assert!(schema_path.is_file(), "Missing schema: {}", entity_type);
 
             let content = std::fs::read_to_string(&schema_path).unwrap();
+            // Rich schemas use camelCase (serde rename_all)
             assert!(
-                content.contains(&format!("entity_type: {}", entity_type)),
-                "Schema {} missing entity_type field",
+                content.contains(&format!("entityType: {}", entity_type)),
+                "Schema {} missing entityType field",
                 entity_type
             );
+            // Rich schemas have actual fields and spider axes
             assert!(
-                content.contains("fields: []"),
+                content.contains("fields:"),
                 "Schema {} missing fields",
                 entity_type
             );
             assert!(
-                content.contains("spider_axes: []"),
-                "Schema {} missing spider_axes",
+                content.contains("spiderAxes:"),
+                "Schema {} missing spiderAxes",
                 entity_type
             );
         }
