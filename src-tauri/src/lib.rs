@@ -23,6 +23,10 @@ pub fn run() {
             commands::project::create_project,
             commands::project::open_project,
             commands::project::save_project_manifest,
+            commands::entity::list_schemas,
+            commands::entity::get_schema,
+            commands::entity::save_schema,
+            commands::entity::delete_schema,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
