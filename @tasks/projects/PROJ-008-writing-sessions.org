@@ -168,7 +168,7 @@ Wire the overlay into =AppShell.svelte= so it conditionally renders based on spr
 - [ ] Keyboard shortcut Escape can stop the sprint (with confirmation)
 - [ ] Component integrates into AppShell without disrupting non-sprint layout
 
-*** ITEM Wire sprint to session backend
+*** DONE Wire sprint to session backend
 :PROPERTIES:
 :CUSTOM_ID: ITEM-089
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -241,7 +241,7 @@ The component should be pure/presentational — it receives data as props and do
 - [ ] Uses CSS custom properties from the app theme
 - [ ] Renders correctly for partial years (new projects with < 1 year of data)
 
-*** ITEM Writing stats view
+*** DONE Writing stats view
 :PROPERTIES:
 :CUSTOM_ID: ITEM-091
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

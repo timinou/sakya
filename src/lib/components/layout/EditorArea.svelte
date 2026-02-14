@@ -3,6 +3,7 @@
   import type { EntitySchema } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import SchemaEditor from '$lib/components/entities/SchemaEditor.svelte';
+  import WritingStats from '$lib/components/stats/WritingStats.svelte';
   import EditorTabs from './EditorTabs.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
 
@@ -256,6 +257,10 @@
         />
       </div>
     {/key}
+  {:else if editorState.activeTab?.documentType === 'stats'}
+    <div class="editor-container stats-container">
+      <WritingStats />
+    </div>
   {:else if activeContent}
     {#key activeContent.slug}
       <div class="editor-container" oninput={handleDirty}>
@@ -296,6 +301,10 @@
   }
 
   .schema-editor-container {
+    overflow-y: auto;
+  }
+
+  .stats-container {
     overflow-y: auto;
   }
 

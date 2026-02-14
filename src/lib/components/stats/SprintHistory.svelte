@@ -44,8 +44,8 @@
   }
 
   function goalMet(session: WritingSession): boolean | null {
-    if (session.sprint_goal == null) return null;
-    return session.words_written >= session.sprint_goal;
+    if (session.sprintGoal == null) return null;
+    return session.wordsWritten >= session.sprintGoal;
   }
 
   function showMore(): void {
@@ -63,11 +63,11 @@
         <li class="sprint-entry">
           <div class="sprint-header">
             <span class="sprint-date">{formatDate(session.start)}</span>
-            <span class="sprint-chapter">{resolveChapterName(session.chapter_slug)}</span>
+            <span class="sprint-chapter">{resolveChapterName(session.chapterSlug)}</span>
           </div>
           <div class="sprint-details">
-            <span class="sprint-duration">{formatDuration(session.duration_minutes)}</span>
-            <span class="sprint-words">{session.words_written.toLocaleString()} words</span>
+            <span class="sprint-duration">{formatDuration(session.durationMinutes)}</span>
+            <span class="sprint-words">{session.wordsWritten.toLocaleString()} words</span>
             {#if met !== null}
               <span class="sprint-goal" class:goal-met={met} class:goal-missed={!met}>
                 {#if met}
@@ -79,7 +79,7 @@
                     <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z" fill="currentColor"/>
                   </svg>
                 {/if}
-                <span class="goal-target">{session.sprint_goal} goal</span>
+                <span class="goal-target">{session.sprintGoal} goal</span>
               </span>
             {/if}
           </div>

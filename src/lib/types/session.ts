@@ -2,8 +2,21 @@ export interface WritingSession {
   id: string;
   start: string;           // ISO 8601
   end?: string;             // ISO 8601
-  duration_minutes?: number;
-  words_written: number;
-  chapter_slug: string;
-  sprint_goal?: number;
+  durationMinutes?: number;
+  wordsWritten: number;
+  chapterSlug: string;
+  sprintGoal?: number;
+}
+
+export interface SessionStats {
+  totalSessions: number;
+  totalWords: number;
+  totalMinutes: number;
+  currentStreak: number;
+  longestStreak: number;
+  dailyAverage: number;
+  weeklyAverage: number;
+  monthlyAverage: number;
+  bestDayWords: number;
+  bestDayDate?: string;
 }

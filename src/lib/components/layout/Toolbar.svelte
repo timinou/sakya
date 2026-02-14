@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { uiState, projectState } from '$lib/stores';
-  import { PanelLeft, PanelRight, Sun, Moon, Monitor, Eye, Check } from 'lucide-svelte';
+  import { uiState, projectState, sprintStore, editorState } from '$lib/stores';
+  import { PanelLeft, PanelRight, Sun, Moon, Monitor, Eye, Check, Timer, BarChart3 } from 'lucide-svelte';
   import type { Theme, ViewMode } from '$lib/types';
 
   const themes: Theme[] = ['light', 'dark', 'system'];
@@ -35,6 +35,20 @@
       focusDropdownOpen = false;
       triggerRef?.focus();
     }
+  }
+
+  function toggleSprintPanel() {
+    window.dispatchEvent(new CustomEvent('sakya:toggle-sprint'));
+  }
+
+  function openStats() {
+    editorState.openDocument({
+      id: 'stats:writing',
+      title: 'Writing Stats',
+      documentType: 'stats',
+      documentSlug: 'writing',
+      isDirty: false,
+    });
   }
 
   function handleClickOutside(e: MouseEvent) {
@@ -88,6 +102,28 @@
   </div>
 
   <div class="toolbar-right">
+    <!-- Sprint timer toggle -->
+    <button
+      class="toolbar-btn"
+      class:active={sprintStore.isActive}
+      onclick={toggleSprintPanel}
+      title={sprintStore.isActive ? 'Sprint in progress' : 'Start Sprint'}
+      aria-label={sprintStore.isActive ? 'Sprint in progress — click to show timer' : 'Open sprint timer'}
+    >
+      <Timer size={16} />
+    </button>
+
+    <!-- Writing Stats -->
+    <button
+      class="toolbar-btn"
+      class:active={editorState.activeTab?.documentType === 'stats'}
+      onclick={openStats}
+      title="Writing Stats"
+      aria-label="Open writing statistics"
+    >
+      <BarChart3 size={16} />
+    </button>
+
     <!-- Focus modes dropdown -->
     <div class="focus-dropdown-wrapper">
       <button
@@ -293,6 +329,11 @@
 
   .toolbar-btn.active {
     color: var(--accent-primary);
+  }
+
+  @keyframes sprint-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   /* --- Focus dropdown --- */
