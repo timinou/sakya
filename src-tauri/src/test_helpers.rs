@@ -15,7 +15,7 @@ pub fn setup_test_project() -> (TempDir, PathBuf) {
     let root = dir.path().to_path_buf();
 
     // Create standard Sakya project directories
-    let dirs = ["schemas", "entities", "manuscript"];
+    let dirs = ["schemas", "entities", "manuscript", "notes"];
     for d in &dirs {
         std::fs::create_dir_all(root.join(d)).expect("Failed to create project directory");
     }
@@ -45,6 +45,7 @@ mod tests {
         assert!(root.join("schemas").is_dir());
         assert!(root.join("entities").is_dir());
         assert!(root.join("manuscript").is_dir());
+        assert!(root.join("notes").is_dir());
         assert!(root.join("sakya.yaml").is_file());
 
         let content = std::fs::read_to_string(root.join("sakya.yaml")).unwrap();

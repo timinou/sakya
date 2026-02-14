@@ -127,7 +127,7 @@ Restructure =src-tauri/src/= into a clean module hierarchy with shared error typ
 - [ ] =services/mod.rs=: shared service modules
 - [ ] =cargo build= and =cargo test= pass
 
-** ITEM Create Tauri project commands
+** DONE Create Tauri project commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-006-tauri-project-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
