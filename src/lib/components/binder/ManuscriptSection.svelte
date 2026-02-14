@@ -70,10 +70,13 @@
     onSelectChapter?.(slug);
   }
 
-  // Load chapters when mounted if project is available and chapters haven't been loaded
+  // Load chapters once when mounted (track path to avoid infinite loop with empty chapters)
+  let loadedPath: string | null = null;
+
   $effect(() => {
     const path = projectState.projectPath;
-    if (path && manuscriptStore.chapters.length === 0 && !manuscriptStore.isLoading) {
+    if (path && path !== loadedPath && !manuscriptStore.isLoading) {
+      loadedPath = path;
       manuscriptStore.loadConfig(path).catch((e) => {
         console.error('Failed to load manuscript config:', e);
       });

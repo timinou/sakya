@@ -83,6 +83,16 @@
     onCreateEntity?.(schemaType);
   }
 
+  // Auto-load schemas on mount if not loaded
+  $effect(() => {
+    const path = projectState.projectPath;
+    if (path && !entityStore.schemasLoaded && !entityStore.isLoading) {
+      entityStore.loadSchemas(path).catch((e) => {
+        console.error('Failed to load entity schemas:', e);
+      });
+    }
+  });
+
   // Initialize section open states for new schemas
   $effect(() => {
     for (const schema of entityStore.schemaSummaries) {

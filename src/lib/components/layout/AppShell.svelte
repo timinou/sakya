@@ -8,6 +8,7 @@
   import EditorArea from './EditorArea.svelte';
   import Binder from './Binder.svelte';
   import Inspector from './Inspector.svelte';
+  import Corkboard from '$lib/components/notes/Corkboard.svelte';
 
   interface Props {
     binderContent?: Snippet;
@@ -117,9 +118,16 @@
 
     // Cmd+W: Close active tab
     if (mod && e.key === 'w') {
-      if (editorState.activeTabId) {
+      const tab = editorState.activeTab;
+      if (tab) {
         e.preventDefault();
-        editorState.closeTab(editorState.activeTabId);
+        editorState.closeTab(tab.id);
+        // Clear store selection to prevent $effect from re-opening the tab
+        if (tab.documentType === 'chapter') {
+          manuscriptStore.selectChapter('');
+        } else if (tab.documentType === 'note') {
+          notesStore.selectNote('');
+        }
       }
       return;
     }
@@ -169,6 +177,17 @@
   <main class="pane editor-pane">
     {#if editorContent}
       {@render editorContent()}
+    {:else if uiState.viewMode === 'corkboard'}
+      <Corkboard notes={notesStore.notes} />
+    {:else if uiState.viewMode === 'split'}
+      <div class="split-view">
+        <div class="split-editor">
+          <EditorArea />
+        </div>
+        <div class="split-corkboard">
+          <Corkboard notes={notesStore.notes} />
+        </div>
+      </div>
     {:else}
       <EditorArea />
     {/if}
@@ -221,6 +240,25 @@
 
   .inspector-pane {
     background: var(--bg-secondary);
+    border-left: 1px solid var(--border-secondary);
+  }
+
+  .split-view {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .split-editor {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .split-corkboard {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
     border-left: 1px solid var(--border-secondary);
   }
 </style>

@@ -59,10 +59,13 @@
     onSelectNote?.(slug);
   }
 
-  // Auto-load config on mount if not loaded
+  // Auto-load config once on mount (track path to avoid infinite loop with empty notes)
+  let loadedPath: string | null = null;
+
   $effect(() => {
     const path = projectState.projectPath;
-    if (path && notesStore.notes.length === 0 && !notesStore.isLoading) {
+    if (path && path !== loadedPath && !notesStore.isLoading) {
+      loadedPath = path;
       notesStore.loadConfig(path).catch((e) => {
         console.error('Failed to load notes config:', e);
       });

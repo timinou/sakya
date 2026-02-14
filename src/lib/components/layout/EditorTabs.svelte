@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { editorState } from '$lib/stores';
+  import { editorState, manuscriptStore, notesStore } from '$lib/stores';
   import { X } from 'lucide-svelte';
 
   function switchTab(tabId: string) {
@@ -8,7 +8,14 @@
 
   function closeTab(tabId: string, event: MouseEvent) {
     event.stopPropagation();
+    const tab = editorState.tabs.find((t) => t.id === tabId);
     editorState.closeTab(tabId);
+    // Clear store selection to prevent $effect from re-opening the tab
+    if (tab?.documentType === 'chapter') {
+      manuscriptStore.selectChapter('');
+    } else if (tab?.documentType === 'note') {
+      notesStore.selectNote('');
+    }
   }
 </script>
 
