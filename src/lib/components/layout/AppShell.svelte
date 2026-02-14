@@ -4,6 +4,9 @@
   import Toolbar from './Toolbar.svelte';
   import StatusBar from './StatusBar.svelte';
   import PaneResizer from './PaneResizer.svelte';
+  import EditorArea from './EditorArea.svelte';
+  import Binder from './Binder.svelte';
+  import Inspector from './Inspector.svelte';
 
   interface Props {
     binderContent?: Snippet;
@@ -60,6 +63,8 @@
     <div class="pane binder-pane">
       {#if binderContent}
         {@render binderContent()}
+      {:else}
+        <Binder />
       {/if}
     </div>
     <PaneResizer onResize={handleBinderResize} />
@@ -68,6 +73,8 @@
   <main class="pane editor-pane">
     {#if editorContent}
       {@render editorContent()}
+    {:else}
+      <EditorArea />
     {/if}
   </main>
 
@@ -76,6 +83,8 @@
     <div class="pane inspector-pane">
       {#if inspectorContent}
         {@render inspectorContent()}
+      {:else}
+        <Inspector />
       {/if}
     </div>
   {/if}
