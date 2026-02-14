@@ -1,11 +1,20 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { BinderTree } from '$lib/components/binder';
 
   interface Props {
+    onSelectEntity?: (schemaType: string, slug: string) => void;
+    onCreateEntity?: (schemaType: string) => void;
+    onSelectChapter?: (slug: string) => void;
     children?: Snippet;
   }
 
-  let { children }: Props = $props();
+  let {
+    onSelectEntity,
+    onCreateEntity,
+    onSelectChapter,
+    children,
+  }: Props = $props();
 </script>
 
 <aside class="binder">
@@ -13,6 +22,11 @@
     <h3 class="binder-title">Binder</h3>
   </header>
   <div class="binder-content">
+    <BinderTree
+      {onSelectEntity}
+      {onCreateEntity}
+      {onSelectChapter}
+    />
     {#if children}
       {@render children()}
     {/if}
