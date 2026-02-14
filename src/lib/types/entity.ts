@@ -17,18 +17,25 @@ export interface SpiderAxis {
   name: string;
   min: number;
   max: number;
-  defaultValue: number;
-  description: string;
+  default: number;
+  description?: string;
 }
 
 export interface EntitySchema {
   name: string;
-  slug: string;
-  icon: string;
-  color: string;
-  description: string;
+  entityType: string;
+  icon?: string;
+  color?: string;
+  description?: string;
   fields: EntityField[];
-  spiderChart: SpiderAxis[];
+  spiderAxes: SpiderAxis[];
+}
+
+export interface SchemaSummary {
+  name: string;
+  entityType: string;
+  fieldCount: number;
+  axisCount: number;
 }
 
 export interface EntityInstance {
