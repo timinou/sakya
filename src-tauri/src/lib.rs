@@ -1,3 +1,8 @@
+mod commands;
+mod error;
+mod models;
+mod services;
+
 #[cfg(test)]
 mod test_helpers;
 
