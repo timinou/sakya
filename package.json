@@ -21,8 +21,21 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@lexical/code": "^0.40.0",
+    "@lexical/link": "^0.40.0",
+    "@lexical/list": "^0.40.0",
+    "@lexical/markdown": "^0.40.0",
+    "@lexical/rich-text": "^0.40.0",
+    "@lexical/selection": "^0.40.0",
+    "@lexical/utils": "^0.40.0",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
+    "@tauri-apps/plugin-opener": "^2",
+    "lexical": "^0.40.0",
+    "lucide-svelte": "^0.564.0",
+    "svelte-lexical": "^0.6.4",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

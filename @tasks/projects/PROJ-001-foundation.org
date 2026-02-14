@@ -10,7 +10,7 @@
 :COMPLETION: All ITEMs complete, app shell renders with three-pane layout, projects can be created and opened.
 :END:
 
-** ITEM Install frontend dependencies
+** DONE Install frontend dependencies
 :PROPERTIES:
 :CUSTOM_ID: ITEM-001-install-frontend-deps
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -31,7 +31,7 @@ Install all required frontend npm packages via bun.
 - [ ] All packages resolve without conflicts
 - [ ] =bun run dev= still starts successfully
 
-** ITEM Install Rust dependencies
+** DONE Install Rust dependencies
 :PROPERTIES:
 :CUSTOM_ID: ITEM-002-install-rust-deps
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
