@@ -5,6 +5,7 @@
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
   import ManuscriptSection from './ManuscriptSection.svelte';
+  import NotesSection from './NotesSection.svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -13,12 +14,14 @@
     onSelectEntity?: (schemaType: string, slug: string) => void;
     onCreateEntity?: (schemaType: string) => void;
     onSelectChapter?: (slug: string) => void;
+    onSelectNote?: (slug: string) => void;
   }
 
   let {
     onSelectEntity,
     onCreateEntity,
     onSelectChapter,
+    onSelectNote,
   }: Props = $props();
 
   // Section open states
@@ -140,6 +143,9 @@
       {/if}
     </BinderSection>
   {/each}
+
+  <!-- Notes section -->
+  <NotesSection {onSelectNote} />
 
   {#if entityStore.isLoading}
     <div class="loading-indicator">
