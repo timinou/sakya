@@ -126,7 +126,7 @@ Create a plugin that detects wiki-link patterns and manages WikiLinkNode styling
 - [ ] Click handler navigates to entity (dispatches event/callback)
 - [ ] MVP: detection + styling only; autocomplete deferred to PROJ-006
 
-** ITEM Create AutoSavePlugin
+** DONE Create AutoSavePlugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-024-autosave-plugin
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -147,7 +147,7 @@ Create a plugin that auto-saves editor content to disk via Tauri commands with d
 - [ ] Updates dirty indicator in editor store
 - [ ] Cleans up listener on component destroy
 
-** ITEM Create WordCountPlugin
+** DONE Create WordCountPlugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-025-wordcount-plugin
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -167,7 +167,7 @@ Create a plugin that tracks word and character count in real-time.
 - [ ] Exposes counts via callback prop (=onCountChange=)
 - [ ] StatusBar consumes these values
 
-** ITEM Create ToolbarPlugin
+** DONE Create ToolbarPlugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-026-toolbar-plugin
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -188,7 +188,7 @@ Create a formatting toolbar above the editor with active state indicators.
 - [ ] Icons from lucide-svelte
 - [ ] Theme-aware styling
 
-** ITEM Create EditorTabs component
+** DONE Create EditorTabs component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-027-editor-tabs
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -208,7 +208,7 @@ Create a tab bar component for managing open documents.
 - [ ] Close button on each tab (with unsaved changes confirmation)
 - [ ] Svelte 5 runes for tab state from editor store
 
-** ITEM Create Markdown I/O utilities
+** DONE Create Markdown I/O utilities
 :PROPERTIES:
 :CUSTOM_ID: ITEM-028-markdown-io
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
