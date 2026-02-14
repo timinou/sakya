@@ -559,7 +559,7 @@ Wire "Delete Type" context menu action with destructive ConfirmDialog.
 - [ ] Confirm calls entityStore.deleteSchema
 - [ ] Entity section removed from binder
 
-*** ITEM E2E tests for schema management
+*** DONE E2E tests for schema management
 :PROPERTIES:
 :CUSTOM_ID: ITEM-084
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
