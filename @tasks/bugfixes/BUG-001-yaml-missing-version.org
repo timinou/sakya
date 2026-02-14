@@ -69,7 +69,7 @@ Rewrite =examples/the-warmth-of-distant-things/sakya.yaml= to use the current =P
 - [X] Legacy fields removed
 - [X] File can be deserialized by =serde_yaml::from_str::<ProjectManifest>()=
 
-** DOING Add E2E test for legacy project opening
+** DONE Add E2E test for legacy project opening
 :PROPERTIES:
 :CUSTOM_ID: ITEM-049-e2e-test
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -84,6 +84,6 @@ Rewrite =examples/the-warmth-of-distant-things/sakya.yaml= to use the current =P
 Add Playwright E2E test verifying that opening a project with legacy YAML (no version/timestamps) succeeds without showing an error banner. Mock =open_project= to return a manifest with default-filled values.
 
 *** Acceptance Criteria
-- [ ] E2E test opens a project with legacy manifest mock
-- [ ] No error banner or error message is visible
-- [ ] Project name and version are correctly displayed/loaded
+- [X] E2E test opens a project with legacy manifest mock
+- [X] No error banner or error message is visible
+- [X] Project name and version are correctly displayed/loaded

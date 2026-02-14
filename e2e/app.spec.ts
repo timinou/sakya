@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { setupDefaultTauriMocks, getIpcCalls } from "./utils/tauri-mocks";
+import {
+  setupDefaultTauriMocks,
+  openMockProject,
+  getIpcCalls,
+} from "./utils/tauri-mocks";
 
 test.beforeEach(async ({ page }) => {
   await setupDefaultTauriMocks(page);
@@ -73,5 +77,30 @@ test.describe("Project Launcher", () => {
     await page.getByRole("button", { name: /create project/i }).click();
     const createBtn = page.getByRole("button", { name: /^create$/i });
     await expect(createBtn).toBeDisabled();
+  });
+});
+
+test.describe("Legacy Project Compatibility", () => {
+  test("opens a legacy project without version/timestamps without error", async ({
+    page,
+  }) => {
+    // Simulate a legacy manifest that only has name and author
+    // (backend now fills defaults for missing version/timestamps)
+    await openMockProject(page, {
+      open_project: {
+        name: "Legacy Novel",
+        version: "0.1.0",
+        author: "Old Author",
+        description: null,
+        createdAt: "2026-02-14T00:00:00Z",
+        updatedAt: "2026-02-14T00:00:00Z",
+      },
+    });
+
+    // Binder should be visible (project opened successfully)
+    await expect(page.getByText("Binder")).toBeVisible();
+
+    // No error banner should appear
+    await expect(page.locator('[role="alert"]')).not.toBeVisible();
   });
 });
