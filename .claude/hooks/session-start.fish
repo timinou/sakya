@@ -5,16 +5,16 @@
 
 read -z INPUT
 
+set -l project_dir "$CLAUDE_PROJECT_DIR"
 set -l lines
 
 # --- Emacs daemon check ---
 if not emacsclient -s sakya -e 't' >/dev/null 2>&1
     # Attempt auto-start
-    set -l project_dir (echo -n "$INPUT" | jq -r '.cwd // empty')
-    if test -n "$project_dir"
+    if test -n "$project_dir" -a -f "$project_dir/@tasks/elisp/prd-tasks.el"
         emacs --daemon=sakya -l "$project_dir/@tasks/elisp/prd-tasks.el" >/dev/null 2>&1 &
         # Give it a moment
-        sleep 1
+        sleep 2
     end
 end
 
@@ -38,6 +38,13 @@ if $emacs_ok
         set -a lines "$quick_status"
         set -a lines ""
     end
+
+    set -l next_ids (emacsclient -s sakya -e '(prd-next-ids-cli)' 2>/dev/null)
+    if test $status -eq 0; and test -n "$next_ids"
+        set -a lines "## Next Available IDs"
+        set -a lines "$next_ids"
+        set -a lines ""
+    end
 else
     set -a lines "## PRD System"
     set -a lines "Emacs daemon 'sakya' not available. Start with:"
@@ -58,7 +65,6 @@ if test -n "$git_status"
 end
 
 # --- Compact recovery ---
-set -l project_dir (echo -n "$INPUT" | jq -r '.cwd // empty')
 set -l state_file "$project_dir/.claude/hooks/.working-state.json"
 if test -f "$state_file"
     set -l working_state (cat "$state_file" 2>/dev/null)
