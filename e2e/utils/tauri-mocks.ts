@@ -66,6 +66,24 @@ export async function setupDefaultTauriMocks(
   const defaults: Record<string, MockValue> = {
     greet: (args: Record<string, unknown> | undefined) =>
       `Hello, ${args?.name ?? ""}! You've been greeted from Rust!`,
+    create_project: (args: Record<string, unknown> | undefined) => ({
+      name: args?.name ?? "Test Project",
+      version: "0.1.0",
+      author: null,
+      description: null,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    }),
+    open_project: () => ({
+      name: "Opened Project",
+      version: "0.1.0",
+      author: null,
+      description: null,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    }),
+    save_project_manifest: () => null,
+    "plugin:dialog|open": () => "/mock/project/path",
   };
   await setupTauriMocks(page, { ...defaults, ...overrides });
 }

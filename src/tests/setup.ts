@@ -10,3 +10,8 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/plugin-opener", () => ({
   open: vi.fn(),
 }));
+
+// Mock @tauri-apps/plugin-dialog
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
+}));

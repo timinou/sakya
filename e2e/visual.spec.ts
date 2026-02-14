@@ -8,43 +8,23 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Visual regression", () => {
-  test("home page matches baseline", async ({ page }) => {
-    await expect(page.getByAltText("Vite Logo")).toBeVisible();
-    await expect(page.getByAltText("Tauri Logo")).toBeVisible();
-    await expect(page.getByAltText("SvelteKit Logo")).toBeVisible();
-
-    await expect(page).toHaveScreenshot("home-page.png");
-    await takeStepScreenshot(page, "home", "initial-load");
-  });
-
-  test("greet form after submission", async ({ page }) => {
-    await takeStepScreenshot(page, "greet", "before-submit");
-
-    const input = page.getByPlaceholder("Enter a name...");
-    const button = page.getByRole("button", { name: /greet/i });
-
-    await input.fill("Visual Test");
-    await button.click();
+  test("launcher page appearance", async ({ page }) => {
     await expect(
-      page.getByText("Hello, Visual Test! You've been greeted from Rust!"),
+      page.getByRole("heading", { name: /sakya/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /create project/i }),
     ).toBeVisible();
 
-    await expect(page).toHaveScreenshot("greet-result.png");
-    await takeStepScreenshot(page, "greet", "after-submit");
+    await expect(page).toHaveScreenshot("launcher-page.png");
+    await takeStepScreenshot(page, "launcher", "initial-load");
   });
 
-  test("logo row layout", async ({ page }) => {
-    const logoRow = page.locator(".row").first();
-    await expect(logoRow).toBeVisible();
-    await expect(page.getByAltText("Tauri Logo")).toBeVisible();
+  test("launcher page with create form open", async ({ page }) => {
+    await page.getByRole("button", { name: /create project/i }).click();
+    await expect(page.getByLabel(/project name/i)).toBeVisible();
 
-    await expect(logoRow).toHaveScreenshot("logo-row.png");
-  });
-
-  test("form elements layout", async ({ page }) => {
-    const form = page.locator("form");
-    await expect(form).toBeVisible();
-
-    await expect(form).toHaveScreenshot("form-row.png");
+    await takeStepScreenshot(page, "launcher", "create-form-open");
+    await expect(page).toHaveScreenshot("launcher-create-form.png");
   });
 });

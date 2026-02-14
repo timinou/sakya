@@ -196,7 +196,7 @@ Create the three-pane layout shell with resizable panels.
 - [X] Binder and Inspector toggle via keyboard shortcuts and UI buttons
 - [X] Pane sizes persisted in UI store
 
-** DOING Create project launcher page
+** DONE Create project launcher page
 :PROPERTIES:
 :CUSTOM_ID: ITEM-009-launcher
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -211,13 +211,13 @@ Create the three-pane layout shell with resizable panels.
 Replace the default SvelteKit page with a project launcher.
 
 *** Acceptance Criteria
-- [ ] "Create Project" button opens name/path dialog
-- [ ] "Open Project" button opens native folder picker via Tauri
+- [X] "Create Project" button opens name/path dialog
+- [X] "Open Project" button opens native folder picker via Tauri
 - [ ] Recent projects list (stored in app data)
-- [ ] =+layout.svelte=: Theme provider ($effect sets data-theme attribute)
-- [ ] =+layout.svelte=: Global CSS import
-- [ ] Successful create/open navigates to AppShell view
-- [ ] Error states for invalid project paths
+- [X] =+layout.svelte=: Theme provider ($effect sets data-theme attribute)
+- [X] =+layout.svelte=: Global CSS import
+- [X] Successful create/open navigates to AppShell view
+- [X] Error states for invalid project paths
 
 ** DONE Create Tauri service utilities
 :PROPERTIES:
