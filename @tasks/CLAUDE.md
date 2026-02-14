@@ -315,9 +315,10 @@ emacsclient -s sakya -e '(prd-repair-links)'
 
 ### emacsclient -s sakya not responding
 
-Ensure Emacs server is running:
+Ensure the named Emacs daemon is running with the elisp loaded:
 ```bash
-emacs --daemon
+# From the project root
+emacs --daemon=sakya -l @tasks/elisp/prd-tasks.el
 ```
 
 ### JSON parsing errors

@@ -25,7 +25,8 @@ Sakya is a writing application built with Tauri 2.x (Rust backend) and SvelteKit
 - `bun run build` -> production build
 - `cargo test` -> unit tests
 - `bun run test:e2e` -> end to end tests (write them thoroughly, every time)
-- `emacsclient -e '(prd-validate-all-cli)'` (after you've loaded the elisp files, outputs JSON by default)
+- Start the Emacs daemon (from the project root): `emacs --daemon=sakya -l @tasks/elisp/prd-tasks.el`
+- `emacsclient -s sakya -e '(prd-validate-all-cli)'` (outputs JSON by default)
   IMPORTANT: Read the `@tasks/reference.org` for a detailed understanding of the way to use the PRD system
 
 - Run `cargo fmt` before commits (Rust)

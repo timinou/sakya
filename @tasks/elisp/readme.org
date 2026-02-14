@@ -32,16 +32,16 @@ Get productive in 5 minutes.
 
 #+BEGIN_SRC bash
 # Validate everything (returns JSON)
-emacsclient -e '(prd-validate-all-cli)'
+emacsclient -s sakya -e '(prd-validate-all-cli)'
 
 # Get dashboard metrics
-emacsclient -e '(prd-dashboard-cli)'
+emacsclient -s sakya -e '(prd-dashboard-cli)'
 
 # Quick one-liner status
-emacsclient -e '(prd-quick-status)'
+emacsclient -s sakya -e '(prd-quick-status)'
 
 # Velocity report
-emacsclient -e '(prd-velocity-report 7)'
+emacsclient -s sakya -e '(prd-velocity-report 7)'
 #+END_SRC
 
 ** The 3-Minute Workflow
@@ -168,14 +168,14 @@ Add to your =init.el=:
 
 ** Emacs Server Setup
 
-Ensure the Emacs daemon is running for CLI access:
+Start the named Emacs daemon with the elisp module loaded (from the project root):
 
 #+BEGIN_SRC bash
-# Start daemon
-emacs --daemon
+# Start named daemon with prd-tasks loaded
+emacs --daemon=sakya -l @tasks/elisp/prd-tasks.el
 
 # Verify it's running
-emacsclient -e '(emacs-pid)'
+emacsclient -s sakya -e '(emacs-pid)'
 #+END_SRC
 
 * Function Reference
@@ -216,8 +216,8 @@ M-x prd-validate-all
 CLI-friendly validation with JSON output by default.
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-validate-file-cli "/path/to/file.org")'
-emacsclient -e '(prd-validate-file-cli "/path/to/file.org" (quote json))'
+emacsclient -s sakya -e '(prd-validate-file-cli "/path/to/file.org")'
+emacsclient -s sakya -e '(prd-validate-file-cli "/path/to/file.org" (quote json))'
 #+END_SRC
 
 *** prd-validate-all-cli
@@ -225,8 +225,8 @@ emacsclient -e '(prd-validate-file-cli "/path/to/file.org" (quote json))'
 CLI-friendly validation of all files.
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-validate-all-cli)'
-emacsclient -e '(prd-validate-all-cli (quote json))'
+emacsclient -s sakya -e '(prd-validate-all-cli)'
+emacsclient -s sakya -e '(prd-validate-all-cli (quote json))'
 #+END_SRC
 
 ** Dashboard Functions
@@ -249,7 +249,7 @@ M-x prd-dashboard
 CLI-friendly dashboard with JSON output.
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-dashboard-cli)'
+emacsclient -s sakya -e '(prd-dashboard-cli)'
 #+END_SRC
 
 *** prd-quick-status
@@ -573,7 +573,7 @@ Machine-parseable output for Claude Code integration.
 After editing any file in =@tasks/=, validate the changed file:
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-validate-file-cli "{{file}}")'
+emacsclient -s sakya -e '(prd-validate-file-cli "{{file}}")'
 #+END_SRC
 
 Parse the JSON response:
@@ -586,7 +586,7 @@ Parse the JSON response:
 Before committing changes that include @tasks files:
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-validate-all-cli)'
+emacsclient -s sakya -e '(prd-validate-all-cli)'
 #+END_SRC
 
 Block commit if =valid: false=.
@@ -596,7 +596,7 @@ Block commit if =valid: false=.
 On session start, optionally show dashboard:
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-dashboard-cli)'
+emacsclient -s sakya -e '(prd-dashboard-cli)'
 #+END_SRC
 
 ** Example Hook Script
@@ -606,7 +606,7 @@ emacsclient -e '(prd-dashboard-cli)'
 # prd-validate-hook.sh
 
 FILE="$1"
-RESULT=$(emacsclient -e "(prd-validate-file-cli \"$FILE\")" 2>/dev/null)
+RESULT=$(emacsclient -s sakya -e "(prd-validate-file-cli \"$FILE\")" 2>/dev/null)
 
 # Check if valid
 if echo "$RESULT" | jq -e '.valid == false' > /dev/null 2>&1; then
@@ -715,14 +715,14 @@ To add custom validation rules, advise =prd--validate-item=:
 
 ** emacsclient not responding
 
-Ensure Emacs server is running:
+Ensure the named Emacs daemon is running with the elisp loaded (from the project root):
 
 #+BEGIN_SRC bash
-# Start if not running
-emacs --daemon
+# Start named daemon with prd-tasks loaded
+emacs --daemon=sakya -l @tasks/elisp/prd-tasks.el
 
 # Check status
-emacsclient -e '(emacs-version)'
+emacsclient -s sakya -e '(emacs-version)'
 #+END_SRC
 
 ** Cannot find @tasks directory
@@ -739,7 +739,7 @@ The module tries to auto-detect the directory. If it fails:
 Validate JSON output:
 
 #+BEGIN_SRC bash
-emacsclient -e '(prd-validate-all-cli)' | jq .
+emacsclient -s sakya -e '(prd-validate-all-cli)' | jq .
 #+END_SRC
 
 If =jq= reports an error, check for Emacs messages mixed with output.

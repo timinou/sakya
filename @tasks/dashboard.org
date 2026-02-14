@@ -186,13 +186,13 @@ Use =M-x prd-burndown-chart= to generate updated chart
 
 #+BEGIN_SRC bash
 # Get dashboard as JSON
-emacsclient -e '(prd-dashboard-cli :format json)'
+emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
 
 # Get blocked items
-emacsclient -e '(prd-list-blocked :format json)'
+emacsclient -s sakya -e '(prd-list-blocked :format json)'
 
 # Get velocity metrics
-emacsclient -e '(prd-velocity-report :days 14 :format json)'
+emacsclient -s sakya -e '(prd-velocity-report :days 14 :format json)'
 #+END_SRC
 
 * Notes

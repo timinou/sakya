@@ -503,10 +503,10 @@ Git hook validates before allowing commits.
 *** Via emacsclient
 #+BEGIN_SRC bash
 # Plain text output
-emacsclient -e '(prd-validate-all-cli)'
+emacsclient -s sakya -e '(prd-validate-all-cli)'
 
 # JSON output for Claude Code
-emacsclient -e '(prd-validate-all-cli :format json)'
+emacsclient -s sakya -e '(prd-validate-all-cli :format json)'
 #+END_SRC
 
 ** Error Message Format
