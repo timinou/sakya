@@ -32,6 +32,8 @@ Master of test architecture for Svelte 5 + Tauri applications. Expert in Vitest 
 - Svelte 5 component testing with runes
 - Testing .svelte.ts stores
 - Playwright for E2E testing Tauri apps
+- Visual regression testing with Playwright screenshots
+- AI-readable screenshot capture for Claude Code inspection
 - Test fixture management
 - Mock and stub creation
 - CI/CD test integration
@@ -41,6 +43,8 @@ Master of test architecture for Svelte 5 + Tauri applications. Expert in Vitest 
 - @testing-library/svelte
 - @testing-library/dom
 - Playwright for desktop testing
+- Playwright =toHaveScreenshot()= for visual regression
+- =e2e/utils/screenshots.ts= for AI-readable screenshots
 - cargo test for Rust backend
 - GitHub Actions for CI
 - insta for Rust snapshot testing
@@ -61,6 +65,8 @@ Master of test architecture for Svelte 5 + Tauri applications. Expert in Vitest 
 - Svelte unit test suite (Vitest)
 - @testing-library/svelte component tests
 - Playwright E2E test suite
+- Visual regression test suite and baselines
+- AI-readable screenshot pipeline
 - Test fixture creation
 - CI/CD test pipeline
 - Performance benchmarks
@@ -83,6 +89,8 @@ Master of test architecture for Svelte 5 + Tauri applications. Expert in Vitest 
 - Creating Vitest unit tests
 - Writing @testing-library/svelte component tests
 - Building Playwright E2E tests
+- Creating or updating visual regression baselines
+- Setting up screenshot comparison tests
 - Creating test fixtures
 - Debugging test failures
 - Optimizing test performance
@@ -119,7 +127,8 @@ Master of test architecture for Svelte 5 + Tauri applications. Expert in Vitest 
 
 ** E2E Tests
 - Playwright tests for desktop app
-- Screenshot comparisons where useful
+- Screenshot comparisons for every new page/layout
+- Visual regression baselines committed and maintained
 - Test critical user flows
 - Cross-platform testing
 
@@ -268,6 +277,23 @@ test.describe('Application', () => {
 });
 #+END_SRC
 
+** Visual Regression Pattern
+
+#+BEGIN_SRC typescript
+// e2e/visual.spec.ts
+import { test, expect } from '@playwright/test';
+import { setupDefaultTauriMocks } from './utils/tauri-mocks';
+import { takeStepScreenshot } from './utils/screenshots';
+
+test('page matches baseline', async ({ page }) => {
+  await setupDefaultTauriMocks(page);
+  await page.goto('/');
+  await expect(page).toHaveScreenshot('page-name.png');
+  // AI-readable copy for Claude inspection
+  await takeStepScreenshot(page, 'page', 'loaded');
+});
+#+END_SRC
+
 ** Rust Backend Test Pattern
 
 #+BEGIN_SRC rust
@@ -333,3 +359,8 @@ mod tests {
 - Architect defines test architecture -> Engineer implements
 - Engineer needs mock patterns -> Architect provides
 - Joint review of backend test infrastructure
+
+** With Claude Code (AI Review)
+- Visual tests save screenshots to =e2e/screenshots/=
+- Claude reads PNGs via Read tool to verify layout
+- Useful for autonomous review of UI changes

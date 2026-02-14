@@ -355,6 +355,7 @@ Each ITEM should specify its =TEST_PLAN= from these layers:
 | =test-svelte= | =vitest= | Svelte unit tests, component tests |
 | =clippy= | =cargo clippy= | Rust linting, best practices |
 | =e2e= | Playwright | Full app integration tests |
+| =visual= | Playwright =toHaveScreenshot()= | Visual regression, layout integrity |
 
 ** Test Plan Examples
 
@@ -367,6 +368,11 @@ Each ITEM should specify its =TEST_PLAN= from these layers:
 ** TODO ITEM-020 Data list component
 :PROPERTIES:
 :TEST_PLAN: compile, test-svelte, e2e
+:END:
+
+** TODO ITEM-030 Welcome page redesign
+:PROPERTIES:
+:TEST_PLAN: compile, test-svelte, e2e, visual
 :END:
 #+END_SRC
 

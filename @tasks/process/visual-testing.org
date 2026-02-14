@@ -1,0 +1,78 @@
+#+TITLE: Visual Testing
+#+DESCRIPTION: When and how to use visual regression tests and AI-readable screenshots.
+#+STARTUP: overview
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: overview
+:END:
+
+Visual testing catches unintentional layout or style regressions that functional tests miss. It operates at two levels:
+
+1. *Visual regression baselines* — Playwright's =toHaveScreenshot()= compares against committed PNGs
+2. *AI-readable screenshots* — saved to =e2e/screenshots/= for Claude Code to inspect via the Read tool
+
+* Screenshot Types
+:PROPERTIES:
+:CUSTOM_ID: types
+:END:
+
+** Regression Baselines
+
+Committed in =e2e/__snapshots__/=. Playwright compares each test run pixel-by-pixel (with =maxDiffPixelRatio: 0.01= tolerance).
+
+- Generated with =bun run test:visual:update=
+- Verified with =bun run test:visual=
+- Must be updated after intentional visual changes
+
+** AI-Readable Screenshots
+
+Saved to =e2e/screenshots/= (gitignored, ephemeral). Regenerated on every test run.
+
+- Used by Claude Code: =Read e2e/screenshots/home--initial-load.png=
+- Produced by =takeAIScreenshot()= and =takeStepScreenshot()= from =e2e/utils/screenshots.ts=
+- Useful for autonomous review of UI changes without running the app
+
+* Workflow
+:PROPERTIES:
+:CUSTOM_ID: workflow
+:END:
+
+** Adding Visual Tests for a New Page
+
+1. Add test in =e2e/visual.spec.ts= using =toHaveScreenshot()=
+2. Optionally add =takeStepScreenshot()= for AI-readable copies
+3. Run =bun run test:visual:update= to generate baseline
+4. Commit the new baseline PNGs in =e2e/__snapshots__/=
+
+** After Intentional Visual Changes
+
+1. Run =bun run test:visual= — expect failures on changed pages
+2. Review the diff in =test-results/= to confirm changes are intentional
+3. Run =bun run test:visual:update= to regenerate baselines
+4. Commit updated baselines
+
+** CI Behavior
+
+- Visual tests run as part of =bun run test:e2e= (all Playwright tests)
+- Failure screenshots and AI-readable PNGs uploaded as CI artifacts
+- Baselines are committed, so CI compares against the same reference
+
+* When to Consult This
+:PROPERTIES:
+:CUSTOM_ID: triggers
+:END:
+
+Consult this process when:
+- Adding a new page or route
+- Changing layout or CSS significantly
+- Refactoring component structure that affects rendering
+- Reviewing visual QA for a feature
+
+* See Also
+:PROPERTIES:
+:CUSTOM_ID: see-also
+:END:
+
+- [[file:../agents/testing-engineer.org][Testing Engineer]] — owns visual regression suite
+- [[file:../reference.org::#verification][Verification and Testing]] — =visual= TEST_PLAN value

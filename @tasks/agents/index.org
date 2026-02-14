@@ -48,6 +48,7 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 | Vitest unit tests | testing-engineer | svelte-developer |
 | Playwright E2E tests | testing-engineer | svelte-developer |
 | Integration tests | testing-engineer | rust-architect |
+| Visual regression tests | testing-engineer | svelte-developer |
 | Lexical editor plugins | lexical-specialist | svelte-developer |
 | Custom Lexical nodes | lexical-specialist | - |
 | Markdown transformers | lexical-specialist | - |
