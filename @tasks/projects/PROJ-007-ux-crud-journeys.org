@@ -254,7 +254,7 @@ Wire Rename context menu item for entities using existing rename_entity command.
 - [ ] Enter confirms, calls rename_entity
 - [ ] Escape cancels
 
-*** DOING Rename note inline
+*** DONE Rename note inline
 :PROPERTIES:
 :CUSTOM_ID: ITEM-069
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -298,7 +298,7 @@ Write E2E tests for all rename operations: inline input appearance, confirm/canc
 :CUSTOM_ID: CHK-007-04
 :END:
 
-*** DOING Wire notes to editor tabs
+*** DONE Wire notes to editor tabs
 :PROPERTIES:
 :CUSTOM_ID: ITEM-071
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -341,7 +341,7 @@ Add E2E tests for note body editing in tabs.
 :CUSTOM_ID: CHK-007-05
 :END:
 
-*** DOING Create ChapterInspector component
+*** DONE Create ChapterInspector component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-073
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -361,7 +361,7 @@ Create ChapterInspector component with status dropdown (draft/revised/final), PO
 - [ ] Word count target + progress bar
 - [ ] Auto-saves changes
 
-*** DOING Wire Inspector to active tab context
+*** DONE Wire Inspector to active tab context
 :PROPERTIES:
 :CUSTOM_ID: ITEM-074
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

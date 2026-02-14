@@ -128,6 +128,24 @@ class NotesStore {
     };
   }
 
+  async renameNote(projectPath: string, slug: string, newTitle: string): Promise<void> {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      await invoke('rename_note', { projectPath, slug, newTitle });
+      delete this.noteContent[slug];
+      if (this.activeNoteSlug === slug) {
+        this.activeNoteSlug = null;
+      }
+      await this.loadConfig(projectPath);
+    } catch (e) {
+      this.error = String(e);
+      throw e;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   selectNote(slug: string): void {
     this.activeNoteSlug = slug;
   }

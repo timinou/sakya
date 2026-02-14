@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import type { Chapter, ChapterStatus } from '$lib/types';
   import { uiState, editorState, manuscriptStore, notesStore, projectState } from '$lib/stores';
   import { SearchPalette } from '$lib/components/common';
   import Toolbar from './Toolbar.svelte';
@@ -8,6 +9,7 @@
   import EditorArea from './EditorArea.svelte';
   import Binder from './Binder.svelte';
   import Inspector from './Inspector.svelte';
+  import ChapterInspector from '$lib/components/inspector/ChapterInspector.svelte';
   import Corkboard from '$lib/components/notes/Corkboard.svelte';
 
   interface Props {
@@ -64,6 +66,29 @@
         notesStore.selectNote(slug);
         break;
     }
+  }
+
+  // --- Chapter Inspector Handlers ---
+  let metadataSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function handleStatusChange(status: ChapterStatus) {
+    const path = projectState.projectPath;
+    const chapter = manuscriptStore.activeChapter;
+    if (!path || !chapter) return;
+    manuscriptStore.updateChapterMetadata(path, chapter.slug, { status });
+  }
+
+  function handleMetadataChange(updates: Partial<Chapter>) {
+    const path = projectState.projectPath;
+    const chapter = manuscriptStore.activeChapter;
+    if (!path || !chapter) return;
+
+    // Debounce metadata saves (1s)
+    if (metadataSaveTimer) clearTimeout(metadataSaveTimer);
+    metadataSaveTimer = setTimeout(() => {
+      manuscriptStore.updateChapterMetadata(path, chapter.slug, updates);
+      metadataSaveTimer = null;
+    }, 1000);
   }
 
   // --- UI State Persistence ---
@@ -199,7 +224,24 @@
       {#if inspectorContent}
         {@render inspectorContent()}
       {:else}
-        <Inspector />
+        <Inspector>
+          {#if editorState.activeTab?.documentType === 'chapter' && manuscriptStore.activeChapter}
+            <ChapterInspector
+              chapter={manuscriptStore.activeChapter}
+              wordCount={editorState.wordCount.words}
+              onStatusChange={handleStatusChange}
+              onMetadataChange={handleMetadataChange}
+            />
+          {:else if editorState.activeTab}
+            <div class="inspector-placeholder">
+              <p>No inspector available for this document type</p>
+            </div>
+          {:else}
+            <div class="inspector-placeholder">
+              <p>No document selected</p>
+            </div>
+          {/if}
+        </Inspector>
       {/if}
     </div>
   {/if}
@@ -260,5 +302,19 @@
     min-width: 0;
     overflow: hidden;
     border-left: 1px solid var(--border-secondary);
+  }
+
+  .inspector-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: var(--spacing-md);
+  }
+
+  .inspector-placeholder p {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    font-style: italic;
   }
 </style>

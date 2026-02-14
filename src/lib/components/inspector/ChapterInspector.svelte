@@ -1,123 +1,80 @@
 <script lang="ts">
   import type { Chapter, ChapterStatus, EntitySummary } from '$lib/types';
-  import { editorState, entityStore } from '$lib/stores';
+  import { entityStore } from '$lib/stores';
 
   interface Props {
     chapter: Chapter;
-    onSave?: (chapter: Chapter) => void;
+    wordCount?: number;
+    onStatusChange: (status: ChapterStatus) => void;
+    onMetadataChange: (updates: Partial<Chapter>) => void;
   }
 
-  let { chapter, onSave }: Props = $props();
-
-  // Deep clone chapter prop into local state for editing
-  let chapterSnapshot = $derived(JSON.stringify(chapter));
-
-  let localChapter = $state<Chapter>(undefined as unknown as Chapter);
-  let isDirty = $state(false);
-  let saveTimer = $state<ReturnType<typeof setTimeout> | null>(null);
-  let lastSyncedSnapshot = $state('');
+  let { chapter, wordCount = 0, onStatusChange, onMetadataChange }: Props = $props();
 
   // Derived: character entities for POV dropdown
   let characters = $derived<EntitySummary[]>(entityStore.entitiesByType['character'] ?? []);
 
-  // Derived: word count from editor
-  let currentWords = $derived(editorState.wordCount.words);
-
   // Derived: progress percentage
   let progressPercent = $derived.by(() => {
-    if (!localChapter?.targetWords || localChapter.targetWords <= 0) return 0;
-    return Math.min(100, Math.round((currentWords / localChapter.targetWords) * 100));
+    if (!chapter?.targetWords || chapter.targetWords <= 0) return 0;
+    return Math.min(100, Math.round((wordCount / chapter.targetWords) * 100));
   });
 
-  // Sync external chapter changes into local state (including initial mount)
-  $effect(() => {
-    if (chapterSnapshot !== lastSyncedSnapshot) {
-      localChapter = JSON.parse(chapterSnapshot);
-      lastSyncedSnapshot = chapterSnapshot;
-      isDirty = false;
-    }
-  });
+  // Status color mapping
+  const statusColors: Record<ChapterStatus, string> = {
+    draft: 'var(--text-tertiary, #888)',
+    revised: '#d4a017',
+    final: '#22c55e',
+  };
 
-  // Debounced auto-save
-  $effect(() => {
-    if (!isDirty || !onSave || !localChapter) return;
-
-    const snapshot = JSON.stringify(localChapter);
-    if (snapshot === lastSyncedSnapshot) {
-      isDirty = false;
-      return;
-    }
-
-    if (saveTimer) clearTimeout(saveTimer);
-
-    const chapterToSave = JSON.parse(snapshot) as Chapter;
-    saveTimer = setTimeout(() => {
-      onSave(chapterToSave);
-      lastSyncedSnapshot = snapshot;
-      isDirty = false;
-      saveTimer = null;
-    }, 1000);
-
-    return () => {
-      if (saveTimer) clearTimeout(saveTimer);
-    };
-  });
-
-  function markDirty() {
-    isDirty = true;
-  }
-
-  function handleTitleInput(e: Event) {
-    localChapter.title = (e.currentTarget as HTMLInputElement).value;
-    markDirty();
+  function handleStatusChange(e: Event) {
+    const status = (e.currentTarget as HTMLSelectElement).value as ChapterStatus;
+    onStatusChange(status);
   }
 
   function handlePovChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value;
-    localChapter.pov = value || undefined;
-    markDirty();
-  }
-
-  function handleStatusChange(e: Event) {
-    localChapter.status = (e.currentTarget as HTMLSelectElement).value as ChapterStatus;
-    markDirty();
+    onMetadataChange({ pov: value || undefined });
   }
 
   function handleSynopsisInput(e: Event) {
     const value = (e.currentTarget as HTMLTextAreaElement).value;
-    localChapter.synopsis = value || undefined;
-    markDirty();
+    onMetadataChange({ synopsis: value || undefined });
   }
 
   function handleTargetWordsInput(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value;
     if (raw === '') {
-      localChapter.targetWords = undefined;
+      onMetadataChange({ targetWords: undefined });
     } else {
       const parsed = parseInt(raw, 10);
       if (!isNaN(parsed) && parsed >= 0) {
-        localChapter.targetWords = parsed;
+        onMetadataChange({ targetWords: parsed });
       }
     }
-    markDirty();
   }
 </script>
 
-{#if localChapter}
 <div class="chapter-inspector">
-  <!-- Title -->
-  <div class="field-group title-group">
-    <input
-      class="title-input"
-      type="text"
-      value={localChapter.title}
-      placeholder="Chapter title..."
-      oninput={handleTitleInput}
-      aria-label="Chapter title"
-    />
-    {#if isDirty}
-      <span class="unsaved-indicator" aria-label="Unsaved changes">Unsaved</span>
-    {/if}
+  <!-- Status -->
+  <div class="field-group">
+    <label class="field-label" for="chapter-status">Status</label>
+    <div class="status-field">
+      <span
+        class="status-dot"
+        style:background-color={statusColors[chapter.status]}
+      ></span>
+      <select
+        id="chapter-status"
+        class="field-input field-select status-select"
+        value={chapter.status}
+        onchange={handleStatusChange}
+      >
+        <option value="draft">Draft</option>
+        <option value="revised">Revised</option>
+        <option value="final">Final</option>
+      </select>
+    </div>
   </div>
 
   <!-- POV Character -->
@@ -126,30 +83,15 @@
     <select
       id="chapter-pov"
       class="field-input field-select"
-      value={localChapter.pov ?? ''}
+      value={chapter.pov ?? ''}
       onchange={handlePovChange}
     >
       <option value="">None</option>
       {#each characters as character (character.slug)}
-        <option value={character.slug} selected={localChapter.pov === character.slug}>
+        <option value={character.slug} selected={chapter.pov === character.slug}>
           {character.title}
         </option>
       {/each}
-    </select>
-  </div>
-
-  <!-- Status -->
-  <div class="field-group">
-    <label class="field-label" for="chapter-status">Status</label>
-    <select
-      id="chapter-status"
-      class="field-input field-select"
-      value={localChapter.status}
-      onchange={handleStatusChange}
-    >
-      <option value="draft">Draft</option>
-      <option value="revised">Revised</option>
-      <option value="final">Final</option>
     </select>
   </div>
 
@@ -161,49 +103,43 @@
       class="field-input field-textarea"
       placeholder="Brief chapter synopsis..."
       oninput={handleSynopsisInput}
-    >{localChapter.synopsis ?? ''}</textarea>
+    >{chapter.synopsis ?? ''}</textarea>
   </div>
 
-  <!-- Word Count -->
-  <div class="field-group">
-    <span class="field-label">Word Count</span>
-    <div class="word-count-display">
-      <span class="word-count-current">{currentWords.toLocaleString()}</span>
-      {#if localChapter.targetWords && localChapter.targetWords > 0}
-        <span class="word-count-separator">/</span>
-        <span class="word-count-target">{localChapter.targetWords.toLocaleString()}</span>
-        <span class="word-count-unit">words</span>
-      {:else}
-        <span class="word-count-unit">words</span>
-      {/if}
-    </div>
-    {#if localChapter.targetWords && localChapter.targetWords > 0}
-      <div class="progress-bar" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
-        <div
-          class="progress-fill"
-          class:progress-complete={progressPercent >= 100}
-          style="width: {progressPercent}%"
-        ></div>
-      </div>
-      <span class="progress-label">{progressPercent}%</span>
-    {/if}
-  </div>
-
-  <!-- Target Words -->
+  <!-- Word Count Target -->
   <div class="field-group">
     <label class="field-label" for="chapter-target-words">Target Words</label>
     <input
       id="chapter-target-words"
       class="field-input"
       type="number"
-      value={localChapter.targetWords ?? ''}
+      value={chapter.targetWords ?? ''}
       placeholder="e.g. 3000"
       min="0"
       oninput={handleTargetWordsInput}
     />
+    <div class="word-count-display">
+      <span class="word-count-current">{wordCount.toLocaleString()}</span>
+      {#if chapter.targetWords && chapter.targetWords > 0}
+        <span class="word-count-separator">/</span>
+        <span class="word-count-target">{chapter.targetWords.toLocaleString()}</span>
+      {/if}
+      <span class="word-count-unit">words</span>
+    </div>
+    {#if chapter.targetWords && chapter.targetWords > 0}
+      <div class="progress-bar" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          class="progress-fill"
+          class:progress-low={progressPercent < 50}
+          class:progress-mid={progressPercent >= 50 && progressPercent < 90}
+          class:progress-high={progressPercent >= 90}
+          style="width: {progressPercent}%"
+        ></div>
+      </div>
+      <span class="progress-label">{progressPercent}%</span>
+    {/if}
   </div>
 </div>
-{/if}
 
 <style>
   .chapter-inspector {
@@ -213,57 +149,19 @@
     padding: var(--spacing-sm);
   }
 
-  /* -- Title ---------------------------------------------------------------- */
-
-  .title-group {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-  }
-
-  .title-input {
-    flex: 1;
-    padding: var(--spacing-xs) 0;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-tight);
-    transition: border-color var(--transition-fast);
-  }
-
-  .title-input:focus {
-    outline: none;
-    border-bottom-color: var(--accent-primary);
-    box-shadow: none;
-  }
-
-  .title-input::placeholder {
-    color: var(--text-tertiary);
-    font-weight: var(--font-weight-normal);
-  }
-
-  .unsaved-indicator {
-    flex-shrink: 0;
-    padding: 2px var(--spacing-sm);
-    border-radius: var(--radius-full);
-    background: var(--color-warning);
-    color: var(--text-inverse);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
   /* -- Field Groups --------------------------------------------------------- */
 
   .field-group {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .field-group:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
   }
 
   .field-label {
@@ -281,7 +179,7 @@
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
     color: var(--text-primary);
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
     transition:
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);
@@ -313,13 +211,32 @@
     cursor: pointer;
   }
 
+  /* -- Status --------------------------------------------------------------- */
+
+  .status-field {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .status-select {
+    flex: 1;
+  }
+
   /* -- Word Count ----------------------------------------------------------- */
 
   .word-count-display {
     display: flex;
     align-items: baseline;
     gap: var(--spacing-xs);
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
   }
 
   .word-count-current {
@@ -354,13 +271,20 @@
 
   .progress-fill {
     height: 100%;
-    background: var(--accent-primary);
     border-radius: var(--radius-full);
     transition: width var(--transition-normal);
   }
 
-  .progress-complete {
-    background: var(--color-success, var(--accent-primary));
+  .progress-low {
+    background: var(--accent-primary);
+  }
+
+  .progress-mid {
+    background: #d4a017;
+  }
+
+  .progress-high {
+    background: #22c55e;
   }
 
   .progress-label {

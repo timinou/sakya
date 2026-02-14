@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { manuscriptStore, editorState, projectState } from '$lib/stores';
+  import { manuscriptStore, notesStore, editorState, projectState } from '$lib/stores';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import EditorTabs from './EditorTabs.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
-  import type { ChapterContent } from '$lib/types';
+
+  // Cached content shape — only slug and body are needed for the editor
+  type CachedContent = { slug: string; body: string };
 
   // Track loaded content per tab
-  let contentCache = $state<Record<string, ChapterContent>>({});
+  let contentCache = $state<Record<string, CachedContent>>({});
   let isLoadingContent = $state(false);
 
   let activeContent = $derived(
@@ -38,13 +40,48 @@
     }
   });
 
+  // When activeNoteSlug changes, open a tab and load content
+  $effect(() => {
+    const slug = notesStore.activeNoteSlug;
+    const path = projectState.projectPath;
+    if (!slug || !path) return;
+
+    const tabId = `note:${slug}`;
+    const note = notesStore.activeNote;
+    if (!note) return;
+
+    editorState.openDocument({
+      id: tabId,
+      title: note.title,
+      documentType: 'note',
+      documentSlug: slug,
+      isDirty: false,
+    });
+
+    if (!contentCache[tabId]) {
+      loadNoteContent(path, slug, tabId);
+    }
+  });
+
   async function loadContent(projectPath: string, slug: string, tabId: string) {
     isLoadingContent = true;
     try {
       const content = await manuscriptStore.loadChapterContent(projectPath, slug);
-      contentCache[tabId] = content;
+      contentCache[tabId] = { slug: content.slug, body: content.body };
     } catch (e) {
       console.error('[EditorArea] Failed to load chapter content:', e);
+    } finally {
+      isLoadingContent = false;
+    }
+  }
+
+  async function loadNoteContent(projectPath: string, slug: string, tabId: string) {
+    isLoadingContent = true;
+    try {
+      const content = await notesStore.loadNoteContent(projectPath, slug);
+      contentCache[tabId] = { slug: content.slug, body: content.body };
+    } catch (e) {
+      console.error('[EditorArea] Failed to load note content:', e);
     } finally {
       isLoadingContent = false;
     }
@@ -53,13 +90,20 @@
   async function handleSave(markdown: string) {
     const tab = editorState.activeTab;
     const path = projectState.projectPath;
-    if (!tab || !path || tab.documentType !== 'chapter') return;
+    if (!tab || !path) return;
 
-    const slug = tab.documentSlug;
-    const chapter = manuscriptStore.chapters.find((c) => c.slug === slug);
-    if (!chapter) return;
+    if (tab.documentType === 'chapter') {
+      const slug = tab.documentSlug;
+      const chapter = manuscriptStore.chapters.find((c) => c.slug === slug);
+      if (!chapter) return;
+      await manuscriptStore.saveChapterContent(path, slug, chapter, markdown);
+    } else if (tab.documentType === 'note') {
+      const slug = tab.documentSlug;
+      const note = notesStore.notes.find((n) => n.slug === slug);
+      if (!note) return;
+      await notesStore.saveNoteContent(path, slug, note.title, markdown);
+    }
 
-    await manuscriptStore.saveChapterContent(path, slug, chapter, markdown);
     editorState.setDirty(tab.id, false);
 
     // Update cached content
@@ -89,7 +133,7 @@
   {#if isLoadingContent}
     <div class="editor-loading">
       <span class="loading-spinner"></span>
-      <span>Loading chapter...</span>
+      <span>Loading...</span>
     </div>
   {:else if activeContent}
     {#key activeContent.slug}
