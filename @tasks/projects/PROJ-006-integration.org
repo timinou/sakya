@@ -1,0 +1,162 @@
+#+TITLE: PROJ-006 Integration & Polish
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-006 Integration & Polish
+:PROPERTIES:
+:CUSTOM_ID: PROJ-006
+:GOAL: Wire cross-cutting features: global search, wiki-link resolution, backlinks, keyboard shortcuts, and UI state persistence.
+:DEPENDS_INIT: PROJ-002, PROJ-003, PROJ-004, PROJ-005
+:COMPLETION: All ITEMs complete, search works across all content, wiki-links resolve and show backlinks, keyboard shortcuts functional, UI state persists.
+:END:
+
+** ITEM Create Tauri search commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-039-search-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/search.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for full-text search, wiki-link resolution, and backlink discovery.
+
+*** Acceptance Criteria
+- [ ] =search_project=: Full-text search across all =.md= files, returns file path, title, matching line with context
+- [ ] =resolve_wiki_link=: Match =[[Title]]= to entity file path (case-insensitive title matching)
+- [ ] =find_backlinks=: Find all files containing =[[Entity Title]]= for a given entity
+- [ ] Search results include file type (chapter, entity, note) and path
+- [ ] Performance: search completes in <500ms for typical project size
+
+** ITEM Create SearchPalette component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-040-search-palette
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/common/SearchPalette.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a Cmd+K triggered search modal for finding content across the project.
+
+*** Acceptance Criteria
+- [ ] Cmd+K opens modal overlay with text input
+- [ ] Searches across entities, chapters, and notes via Tauri command
+- [ ] Results grouped by type with entity type icons
+- [ ] Enter navigates to selected result (opens in editor)
+- [ ] Arrow keys navigate results
+- [ ] Escape closes modal
+- [ ] Debounced search (300ms) as user types
+
+** ITEM Create backlinks inspector section
+:PROPERTIES:
+:CUSTOM_ID: ITEM-041-backlinks
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-039-search-commands
+:FILES: src/lib/components/inspector/BacklinksSection.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Add a "Referenced By" section to the inspector showing backlinks.
+
+*** Acceptance Criteria
+- [ ] When viewing any document, Inspector shows "Referenced By" section
+- [ ] Lists all documents containing =[[This Entity's Title]]= wiki-link
+- [ ] Each backlink shows: source document title, type icon, entity type color
+- [ ] Clickable: navigates to the referencing document
+- [ ] Loads on document selection (with loading spinner)
+
+** ITEM Implement wiki-link autocomplete
+:PROPERTIES:
+:CUSTOM_ID: ITEM-042-wiki-autocomplete
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: PROJ-002:ITEM-017-entity-stores, PROJ-003:ITEM-023-wiki-link-plugin
+:FILES: src/lib/editor/plugins/WikiLinkPlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Enhance WikiLinkPlugin with autocomplete dropdown when typing =[[=.
+
+*** Acceptance Criteria
+- [ ] When user types =[[=, show dropdown of all entity titles
+- [ ] Filter results as user continues typing after =[[=
+- [ ] Entity list loaded from entity store (all types)
+- [ ] Each result shows entity title, type icon, type color
+- [ ] Arrow keys navigate, Enter selects (inserts WikiLinkNode)
+- [ ] Escape closes dropdown without inserting
+- [ ] Dropdown positioned near cursor
+
+** ITEM Implement keyboard shortcuts
+:PROPERTIES:
+:CUSTOM_ID: ITEM-043-keyboard-shortcuts
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/layout/AppShell.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Implement global keyboard shortcuts for common actions.
+
+*** Acceptance Criteria
+- [ ] =Cmd+S=: Save current document
+- [ ] =Cmd+N=: Create new (context-aware: chapter if manuscript, entity if entity view, note if notes)
+- [ ] =Cmd+K=: Open search palette
+- [ ] =Cmd+W=: Close current tab
+- [ ] =Cmd+\=: Toggle binder visibility
+- [ ] =Cmd+Shift+\=: Toggle inspector visibility
+- [ ] Shortcuts don't conflict with editor formatting shortcuts
+- [ ] Shortcuts work on both macOS and Linux (Cmd/Ctrl)
+
+** ITEM Implement UI state persistence
+:PROPERTIES:
+:CUSTOM_ID: ITEM-044-ui-persistence
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #C
+:FILES: src/lib/stores/ui.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Persist UI state to disk and restore on project open.
+
+*** Acceptance Criteria
+- [ ] Save to =.sakya/ui-state.json= on change (debounced 1s)
+- [ ] Persisted state: pane sizes, binder/inspector visibility, open tabs, active tab, view mode, theme preference
+- [ ] Restore on project open
+- [ ] Graceful fallback if file is missing or corrupt (use defaults)
+
+** ITEM Create common UI components
+:PROPERTIES:
+:CUSTOM_ID: ITEM-045-common-ui
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: src/lib/components/common/Modal.svelte, src/lib/components/common/ContextMenu.svelte, src/lib/components/common/Toast.svelte, src/lib/components/common/Tooltip.svelte, src/lib/components/common/Icon.svelte, src/lib/components/common/ConfirmDialog.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create reusable common UI components used across the application.
+
+*** Acceptance Criteria
+- [ ] =Modal.svelte=: Overlay modal with backdrop, close on Escape, focus trap
+- [ ] =ContextMenu.svelte=: Right-click context menu with action items
+- [ ] =Toast.svelte=: Notification toasts (success, error, info) with auto-dismiss
+- [ ] =Tooltip.svelte=: Hover tooltips with configurable position
+- [ ] =Icon.svelte=: lucide-svelte wrapper with consistent sizing
+- [ ] =ConfirmDialog.svelte=: Confirmation dialog with customizable message and actions
+- [ ] All components use CSS custom properties for theming
+- [ ] All components accessible (ARIA, keyboard navigation)

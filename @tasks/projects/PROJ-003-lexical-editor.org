@@ -1,0 +1,226 @@
+#+TITLE: PROJ-003 Lexical Writing Editor
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-003 Lexical Writing Editor
+:PROPERTIES:
+:CUSTOM_ID: PROJ-003
+:GOAL: Build a writing-native rich text editor using Lexical via svelte-lexical, with Markdown shortcuts, wiki-link support, auto-save, and word count.
+:DEPENDS_INIT: PROJ-001
+:COMPLETION: All ITEMs complete, editor renders rich text from Markdown, supports formatting shortcuts, wiki-links, auto-save, and word count.
+:END:
+
+** ITEM Create Lexical theme and base configuration
+:PROPERTIES:
+:CUSTOM_ID: ITEM-019-editor-theme
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/editor/theme.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Define the Lexical theme object mapping node types to CSS classes, and create the editor-specific CSS stylesheet.
+
+*** Acceptance Criteria
+- [ ] Theme object maps all node types (paragraph, heading h1-h6, quote, list, code, link, wikiLink)
+- [ ] Theme object maps text formats (bold, italic, strikethrough, code, underline)
+- [ ] CSS classes reference CSS custom properties for light/dark theming
+- [ ] Editor-specific stylesheet with typography (serif font, centered column, generous line height)
+- [ ] Theme exported as =sakyaEditorTheme=
+
+*** Notes
+See [[file:../../docs/prd/lexical-editor.org::#theme][Lexical Editor Design - Theme Class Mapping]] for full specification.
+
+** ITEM Create SakyaEditor component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-020-sakya-editor
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-019-editor-theme
+:FILES: src/lib/editor/SakyaEditor.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the main editor component wrapping svelte-lexical Composer with all plugins.
+
+*** Acceptance Criteria
+- [ ] Wraps svelte-lexical Composer with RichTextPlugin
+- [ ] Configures initial editor state from Markdown content via =$convertFromMarkdownString=
+- [ ] Exports content as Markdown via =$convertToMarkdownString=
+- [ ] Clean serif typography (Lora font family)
+- [ ] Centered content column (max-width 720px)
+- [ ] Generous line height (1.8)
+- [ ] Registers all custom nodes (WikiLinkNode)
+- [ ] Accepts =content= prop (Markdown string) and =onSave= callback
+
+** ITEM Create Markdown transformers and shortcuts plugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-021-markdown-shortcuts
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/editor/transformers/index.ts, src/lib/editor/plugins/MarkdownShortcutsPlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Bundle standard + custom Markdown transformers and create the shortcuts plugin.
+
+*** Acceptance Criteria
+- [ ] =transformers/index.ts=: Exports =SAKYA_TRANSFORMERS= array (standard + custom)
+- [ ] =MarkdownShortcutsPlugin.svelte=: Registers markdown shortcuts via =registerMarkdownShortcuts=
+- [ ] Typing =# = creates heading, =**text**= bolds, =- = starts list
+- [ ] Typing => = creates blockquote, =```= creates code block
+- [ ] Typing =`code`= creates inline code
+- [ ] All standard Markdown shortcuts functional
+
+** ITEM Create WikiLinkNode
+:PROPERTIES:
+:CUSTOM_ID: ITEM-022-wiki-link-node
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/editor/nodes/WikiLinkNode.ts, src/lib/editor/transformers/wiki-link.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a custom Lexical node for =[[Entity Name]]= wiki-links with a corresponding Markdown transformer.
+
+*** Acceptance Criteria
+- [ ] =WikiLinkNode= extends ElementNode
+- [ ] Implements: =getType()=, =clone()=, =importJSON()=, =exportJSON()=, =createDOM()=, =updateDOM()=
+- [ ] Stores link target text as node property
+- [ ] =createDOM()= renders as styled =<span>= with =editor-wiki-link= class
+- [ ] =isInline()= returns true
+- [ ] Text-match transformer exports as =[[text]]= and imports via =\[\[([^\]]+)\]\]= pattern
+- [ ] Markdown round-trip preserves =[[Entity Name]]= syntax
+
+*** Notes
+See [[file:../../docs/prd/lexical-editor.org::#nodes][Lexical Editor Design - Node Type Catalog]] for specification.
+
+** ITEM Create WikiLinkPlugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-023-wiki-link-plugin
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-022-wiki-link-node
+:FILES: src/lib/editor/plugins/WikiLinkPlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a plugin that detects wiki-link patterns and manages WikiLinkNode styling and interaction.
+
+*** Acceptance Criteria
+- [ ] Detects =[[= typing and creates WikiLinkNodes
+- [ ] Resolved links styled with entity type color (colored, icon)
+- [ ] Unresolved links styled dimmed
+- [ ] Click handler navigates to entity (dispatches event/callback)
+- [ ] MVP: detection + styling only; autocomplete deferred to PROJ-006
+
+** ITEM Create AutoSavePlugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-024-autosave-plugin
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/AutoSavePlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a plugin that auto-saves editor content to disk via Tauri commands with debouncing.
+
+*** Acceptance Criteria
+- [ ] Registers update listener via =registerUpdateListener=
+- [ ] Debounces saves at 800ms (configurable via prop)
+- [ ] On trigger: converts editor state to Markdown via =SAKYA_TRANSFORMERS=
+- [ ] Calls save callback prop with Markdown string
+- [ ] Updates dirty indicator in editor store
+- [ ] Cleans up listener on component destroy
+
+** ITEM Create WordCountPlugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-025-wordcount-plugin
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/editor/plugins/WordCountPlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a plugin that tracks word and character count in real-time.
+
+*** Acceptance Criteria
+- [ ] Reads text content from editor state via =$getRoot().getTextContent()=
+- [ ] Counts words (split by whitespace, filter empty)
+- [ ] Counts characters (with and without spaces)
+- [ ] Exposes counts via callback prop (=onCountChange=)
+- [ ] StatusBar consumes these values
+
+** ITEM Create ToolbarPlugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-026-toolbar-plugin
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: src/lib/editor/plugins/ToolbarPlugin.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a formatting toolbar above the editor with active state indicators.
+
+*** Acceptance Criteria
+- [ ] Buttons: Bold, Italic, Strikethrough, H1-H3, Bullet List, Number List, Blockquote, Code, Link
+- [ ] Buttons dispatch appropriate Lexical commands
+- [ ] Active state reflects current selection formatting (e.g., Bold button highlighted when cursor is in bold text)
+- [ ] Uses =registerUpdateListener= to track selection state
+- [ ] Icons from lucide-svelte
+- [ ] Theme-aware styling
+
+** ITEM Create EditorTabs component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-027-editor-tabs
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/layout/EditorTabs.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a tab bar component for managing open documents.
+
+*** Acceptance Criteria
+- [ ] Tab bar showing open documents from editor store
+- [ ] Each tab shows document title + dirty indicator (dot)
+- [ ] Click switches active tab
+- [ ] Close button on each tab (with unsaved changes confirmation)
+- [ ] Svelte 5 runes for tab state from editor store
+
+** ITEM Create Markdown I/O utilities
+:PROPERTIES:
+:CUSTOM_ID: ITEM-028-markdown-io
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/editor/utils/markdown-io.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create wrapper functions for Markdown import/export with edge case handling.
+
+*** Acceptance Criteria
+- [ ] =markdownToEditorState(markdown, editor)=: Converts Markdown string to editor state using bundled transformers
+- [ ] =editorStateToMarkdown(editorState)=: Converts editor state to Markdown string
+- [ ] Handle edge cases: empty content (empty paragraph), null/undefined input
+- [ ] Frontmatter is NOT handled here (handled by Rust side)

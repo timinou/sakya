@@ -1,0 +1,196 @@
+#+TITLE: PROJ-002 Entity System
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-002 Entity System
+:PROPERTIES:
+:CUSTOM_ID: PROJ-002
+:GOAL: Implement the full entity lifecycle: schema definitions (YAML), entity instances (Markdown+frontmatter), dynamic form generation, and interactive spider charts.
+:DEPENDS_INIT: PROJ-001
+:COMPLETION: All ITEMs complete, entities can be created/edited/deleted via UI with schema-driven forms and spider charts.
+:END:
+
+** ITEM Create Tauri schema commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-011-schema-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/entity.rs, src-tauri/src/models/entity.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for reading and managing entity schema YAML files.
+
+*** Acceptance Criteria
+- [ ] =list_schemas=: Lists all YAML files in =schemas/= directory, returns schema summaries
+- [ ] =get_schema=: Reads and deserializes a single schema YAML file
+- [ ] =save_schema=: Writes/updates a schema YAML file
+- [ ] =delete_schema=: Removes a schema YAML file
+- [ ] Rust models: =EntitySchema= (name, slug, icon, color, description, fields, spider_chart)
+- [ ] Rust models: =EntityField= with type enum (ShortText, LongText, Number, Select, Date, Boolean)
+- [ ] Rust models: =SpiderAxis= (name, min, max, default, description)
+- [ ] All models derive Serialize/Deserialize with camelCase rename
+- [ ] Error handling for missing files, invalid YAML
+
+** ITEM Create default entity schemas
+:PROPERTIES:
+:CUSTOM_ID: ITEM-012-default-schemas
+:AGENT: [[file:../agents/writing-app-designer.org::#core][writing-app-designer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:END:
+
+*** Description
+Design 4 default YAML schemas that are bundled with new projects. Each schema defines fields, field types, and spider chart axes appropriate for its entity type.
+
+*** Acceptance Criteria
+- [ ] =character.yaml=: Fields for role, age, occupation, personality, backstory, arc. Spider axes: Empathy, Resilience, Ambition, Honesty, Confidence, Adaptability. Purple color.
+- [ ] =place.yaml=: Fields for type, era, atmosphere, significance, description. Spider axes: Familiarity, Safety, Beauty, Isolation, History, Emotional Weight. Green color.
+- [ ] =item.yaml=: Fields for type, owner, origin, significance, description. Spider axes: Sentimental Value, Rarity, Power, Age, Condition, Narrative Importance. Amber color.
+- [ ] =idea.yaml=: Fields for category, status, related_themes, description. Spider axes: Originality, Emotional Impact, Plot Relevance, Thematic Depth, Versatility, Clarity. Blue color.
+- [ ] Every spider axis has a meaningful description
+- [ ] Schemas are valid YAML parseable by serde_yaml
+
+** ITEM Create Tauri entity instance commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-013-entity-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-011-schema-commands, PROJ-001:ITEM-010-tauri-services
+:FILES: src-tauri/src/commands/entity.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for CRUD operations on entity instances (Markdown files with YAML frontmatter).
+
+*** Acceptance Criteria
+- [ ] =list_entities=: Returns summaries (title, slug, tags, entity type) for all entities of a given type
+- [ ] =get_entity=: Reads full entity content (parsed frontmatter + Markdown body)
+- [ ] =save_entity=: Writes entity with frontmatter + body to disk
+- [ ] =create_entity=: Generates skeleton file from schema definition, assigns slug
+- [ ] =delete_entity=: Removes entity file
+- [ ] =rename_entity=: Renames file (updates slug), preserves content
+- [ ] Frontmatter parsing via =services/frontmatter.rs=
+- [ ] Entity files stored in =entities/{type}/{slug}.md=
+
+** ITEM Create BinderTree component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-014-binder-tree
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: PROJ-001:ITEM-008-app-shell
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/components/binder/BinderItem.svelte, src/lib/components/binder/BinderSection.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the hierarchical tree component for the binder sidebar.
+
+*** Acceptance Criteria
+- [ ] =BinderTree.svelte=: Recursive tree populated from project state
+- [ ] =BinderItem.svelte=: Single tree node with icon, label, click handler
+- [ ] =BinderSection.svelte=: Collapsible section header ("Manuscript", "Characters", "Places", etc.)
+- [ ] Each section has a "+" button for creating new items of that type
+- [ ] Sections populated dynamically from loaded schemas + entity lists
+- [ ] Selected item highlighted
+- [ ] Icons from lucide-svelte, color-coded by entity type
+
+** ITEM Create EntityForm component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-015-entity-form
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-013-entity-commands
+:FILES: src/lib/components/entities/EntityForm.svelte, src/lib/components/entities/FieldRenderer.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a dynamic form component that generates input fields from an entity schema definition.
+
+*** Acceptance Criteria
+- [ ] =EntityForm.svelte=: Takes schema and entity data as props, renders form
+- [ ] =FieldRenderer.svelte=: Renders a single field based on its type:
+  - =short_text=: text input
+  - =long_text=: Markdown textarea (or mini-editor)
+  - =number=: number input with min/max
+  - =select=: dropdown from options list
+  - =date=: date picker input
+  - =boolean=: checkbox
+- [ ] Form state managed with $state runes
+- [ ] Auto-save on field change (debounced)
+- [ ] Dirty indicator for unsaved changes
+
+** ITEM Create interactive SpiderChart component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-016-spider-chart
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: src/lib/components/charts/SpiderChart.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a custom SVG radar/spider chart component for entity characteristics.
+
+*** Acceptance Criteria
+- [ ] Compute polygon vertices from polar coordinates for N axes
+- [ ] Render axis lines from center to edge
+- [ ] Render axis labels at edge positions
+- [ ] Render value polygon (filled, semi-transparent)
+- [ ] Interactive: click/drag points along axis lines to set values
+- [ ] Pointer events constrained to axis line
+- [ ] Tooltip on hover showing axis description from schema
+- [ ] Number input fallbacks alongside chart for accessibility
+- [ ] Responsive sizing (fills container)
+- [ ] Theme-aware: stroke/fill colors from CSS custom properties
+
+** ITEM Create entity stores
+:PROPERTIES:
+:CUSTOM_ID: ITEM-017-entity-stores
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/stores/entities.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a Svelte 5 store for managing entity data with Tauri command integration.
+
+*** Acceptance Criteria
+- [ ] EntityStore class with $state for entity lists per type
+- [ ] Methods: loadEntities, createEntity, updateEntity, deleteEntity
+- [ ] Caches entity summaries by type (avoids re-fetching)
+- [ ] Invalidation on create/update/delete
+- [ ] Singleton export
+
+** ITEM Create SchemaEditor component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-018-schema-editor
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #C
+:DEPENDS: ITEM-015-entity-form
+:FILES: src/lib/components/entities/SchemaEditor.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a UI for creating and editing entity schema YAML definitions.
+
+*** Acceptance Criteria
+- [ ] Add/remove/reorder fields with drag-and-drop or arrow buttons
+- [ ] Configure field type via dropdown (ShortText, LongText, Number, Select, Date, Boolean)
+- [ ] Configure field label, placeholder, description, options (for Select type)
+- [ ] Define spider chart axes with name, min, max, default, description
+- [ ] Preview of generated YAML output
+- [ ] Save schema via Tauri command
+- [ ] Shares =FieldRenderer.svelte= with EntityForm

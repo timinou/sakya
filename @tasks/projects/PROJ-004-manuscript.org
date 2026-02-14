@@ -1,0 +1,121 @@
+#+TITLE: PROJ-004 Manuscript System
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-004 Manuscript System
+:PROPERTIES:
+:CUSTOM_ID: PROJ-004
+:GOAL: Implement chapter management with ordering, metadata, and the full writing workflow using the Lexical editor.
+:DEPENDS_INIT: PROJ-001, PROJ-003
+:COMPLETION: All ITEMs complete, chapters can be created/edited/reordered, content editable in Lexical editor with auto-save.
+:END:
+
+** ITEM Create Tauri manuscript commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-029-manuscript-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/manuscript.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for chapter lifecycle and manuscript configuration management.
+
+*** Acceptance Criteria
+- [ ] =get_manuscript_config=: Reads =manuscript/manuscript.yaml= returning chapter ordering and metadata
+- [ ] =save_manuscript_config=: Writes updated manuscript.yaml
+- [ ] =get_chapter=: Reads =manuscript/{slug}.md=, parses frontmatter (title, pov, status, synopsis, target_words) + body
+- [ ] =save_chapter=: Writes chapter file with frontmatter + body
+- [ ] =create_chapter=: Generates next sequence number, creates file, updates manuscript.yaml
+- [ ] =delete_chapter=: Removes chapter file and entry from manuscript.yaml
+- [ ] =reorder_chapters=: Updates chapter ordering in manuscript.yaml
+- [ ] All commands return serializable Result types
+
+** ITEM Create manuscript store
+:PROPERTIES:
+:CUSTOM_ID: ITEM-030-manuscript-store
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/stores/manuscript.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a Svelte 5 store for manuscript state management.
+
+*** Acceptance Criteria
+- [ ] ManuscriptStore class with $state for chapter list, ordering, active chapter
+- [ ] Methods: loadConfig, createChapter, deleteChapter, reorderChapters
+- [ ] Methods: loadChapterContent, saveChapterContent
+- [ ] Tauri invoke calls for all backend operations
+- [ ] Singleton export
+
+** ITEM Create manuscript binder section
+:PROPERTIES:
+:CUSTOM_ID: ITEM-031-manuscript-binder
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: PROJ-002:ITEM-014-binder-tree, ITEM-030-manuscript-store
+:FILES: src/lib/components/binder/ManuscriptSection.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the manuscript section in the binder with ordered chapter list.
+
+*** Acceptance Criteria
+- [ ] Ordered chapter list in Binder
+- [ ] Drag-and-drop reordering of chapters
+- [ ] Each item shows chapter number, title, status indicator (color dot: draft/revised/final)
+- [ ] "+" button creates new chapter
+- [ ] Context menu for delete/rename
+- [ ] Click opens chapter in editor
+
+** ITEM Create chapter inspector panel
+:PROPERTIES:
+:CUSTOM_ID: ITEM-032-chapter-inspector
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: PROJ-001:ITEM-008-app-shell, ITEM-030-manuscript-store
+:FILES: src/lib/components/inspector/ChapterInspector.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the inspector panel content for when a chapter is selected.
+
+*** Acceptance Criteria
+- [ ] Title (editable text input)
+- [ ] POV character (dropdown populated from entity list)
+- [ ] Status select (draft / revised / final)
+- [ ] Synopsis (textarea)
+- [ ] Target word count (number input)
+- [ ] Current word count (from WordCountPlugin, read-only display)
+- [ ] Auto-save metadata changes
+
+** ITEM Wire editor to manuscript
+:PROPERTIES:
+:CUSTOM_ID: ITEM-033-wire-editor
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: PROJ-003:ITEM-020-sakya-editor, PROJ-003:ITEM-027-editor-tabs, ITEM-030-manuscript-store
+:FILES: src/lib/components/layout/EditorArea.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Wire the Lexical editor to the manuscript system for the full writing workflow.
+
+*** Acceptance Criteria
+- [ ] Click chapter in binder -> load content via Tauri -> pass body to Lexical editor
+- [ ] Frontmatter stripped before passing to editor (handled by Rust)
+- [ ] On save: get Markdown from editor, save via Tauri (prepends frontmatter on Rust side)
+- [ ] Tab management: opening a chapter creates or activates an editor tab
+- [ ] Switching tabs switches the active editor content
+- [ ] Dirty indicator in tab when content modified since last save

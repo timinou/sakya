@@ -1,0 +1,240 @@
+#+TITLE: PROJ-001 Foundation & Infrastructure
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-001 Foundation & Infrastructure
+:PROPERTIES:
+:CUSTOM_ID: PROJ-001
+:GOAL: Establish the core application shell with theming, layout, state management, Tauri backend scaffolding, and project create/open flow.
+:DEPENDS_INIT:
+:COMPLETION: All ITEMs complete, app shell renders with three-pane layout, projects can be created and opened.
+:END:
+
+** ITEM Install frontend dependencies
+:PROPERTIES:
+:CUSTOM_ID: ITEM-001-install-frontend-deps
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: package.json
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Install all required frontend npm packages via bun.
+
+*** Acceptance Criteria
+- [ ] =bun add lexical @lexical/rich-text @lexical/markdown @lexical/link @lexical/list @lexical/code @lexical/selection @lexical/utils=
+- [ ] =bun add svelte-lexical=
+- [ ] =bun add lucide-svelte=
+- [ ] =bun add yaml=
+- [ ] All packages resolve without conflicts
+- [ ] =bun run dev= still starts successfully
+
+** ITEM Install Rust dependencies
+:PROPERTIES:
+:CUSTOM_ID: ITEM-002-install-rust-deps
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: src-tauri/Cargo.toml
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Add required Rust crate dependencies to =src-tauri/Cargo.toml=.
+
+*** Acceptance Criteria
+- [ ] Add =tauri-plugin-dialog= for native file/folder dialogs
+- [ ] Add =tauri-plugin-fs= for filesystem access
+- [ ] Add =serde_yaml= for YAML parsing
+- [ ] Add =walkdir= for recursive directory traversal
+- [ ] Add =chrono= for date/time handling
+- [ ] Add =thiserror= for error type derivation
+- [ ] Add =slug= for title-to-slug conversion
+- [ ] =cargo build= succeeds without errors
+
+** ITEM Create global CSS theme architecture
+:PROPERTIES:
+:CUSTOM_ID: ITEM-003-css-theme
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/app.css
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create =src/app.css= with a comprehensive CSS custom properties system supporting light and dark themes.
+
+*** Acceptance Criteria
+- [ ] Surface colors: =--bg-primary= through =--bg-overlay=
+- [ ] Text colors: =--text-primary=, =--text-secondary=, =--text-tertiary=, =--text-inverse=, =--text-link=
+- [ ] Border colors: =--border-primary=, =--border-secondary=, =--border-accent=
+- [ ] Accent colors: =--accent-primary=, =--accent-secondary=
+- [ ] Semantic colors: =--color-success=, =--color-warning=, =--color-error=, =--color-info=
+- [ ] Entity type colors: =--color-entity-character= (purple), =--color-entity-place= (green), =--color-entity-item= (amber), =--color-entity-idea= (blue)
+- [ ] Spacing scale: =--spacing-xs= through =--spacing-2xl=
+- [ ] Typography: =--font-sans= (Inter), =--font-mono= (JetBrains Mono), =--font-serif= (Lora)
+- [ ] Editor-specific vars: =--editor-font-family=, =--editor-font-size=, =--editor-line-height=, =--editor-max-width=, =--editor-padding=
+- [ ] Layout vars: =--binder-width=, =--inspector-width=, =--toolbar-height=, =--statusbar-height=, =--tab-height=
+- [ ] Shadows, radii, transitions
+- [ ] Dark theme overrides via =[data-theme="dark"]=
+- [ ] Reset and base styles
+
+** ITEM Create TypeScript type definitions
+:PROPERTIES:
+:CUSTOM_ID: ITEM-004-type-definitions
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/types/project.ts, src/lib/types/entity.ts, src/lib/types/manuscript.ts, src/lib/types/note.ts, src/lib/types/editor.ts, src/lib/types/ui.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create TypeScript type definitions in =src/lib/types/= covering all data models.
+
+*** Acceptance Criteria
+- [ ] =project.ts=: ProjectManifest, RecentProject
+- [ ] =entity.ts=: EntitySchema, EntityField, SpiderAxis, EntityInstance, EntitySummary
+- [ ] =manuscript.ts=: ManuscriptConfig, Chapter, ChapterContent
+- [ ] =note.ts=: NotesConfig, NoteEntry, NoteContent, CorkboardPosition
+- [ ] =editor.ts=: EditorTab, DocumentContent
+- [ ] =ui.ts=: Theme, ViewMode, PaneConfig
+- [ ] All types exported from =src/lib/types/index.ts=
+- [ ] No TypeScript errors in strict mode
+
+** ITEM Create Rust module structure and error types
+:PROPERTIES:
+:CUSTOM_ID: ITEM-005-rust-modules
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/lib.rs, src-tauri/src/error.rs, src-tauri/src/commands/mod.rs, src-tauri/src/models/mod.rs, src-tauri/src/services/mod.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Restructure =src-tauri/src/= into a clean module hierarchy with shared error types.
+
+*** Acceptance Criteria
+- [ ] =lib.rs=: command registration via =generate_handler!=, plugin setup, managed state
+- [ ] =error.rs=: AppError enum with thiserror, serializable for TypeScript consumption
+- [ ] AppError variants: Io, Yaml, NotFound, InvalidOperation, Validation
+- [ ] =commands/mod.rs=: module declarations for command groups
+- [ ] =models/mod.rs=: shared data model structs
+- [ ] =services/mod.rs=: shared service modules
+- [ ] =cargo build= and =cargo test= pass
+
+** ITEM Create Tauri project commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-006-tauri-project-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-005-rust-modules
+:FILES: src-tauri/src/commands/project.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for project lifecycle management.
+
+*** Acceptance Criteria
+- [ ] =create_project=: Generates folder structure (sakya.yaml, schemas/, entities/, manuscript/, notes/, .sakya/)
+- [ ] =create_project=: Writes default entity schemas (character, place, item, idea)
+- [ ] =create_project=: Creates empty manuscript.yaml and notes.yaml
+- [ ] =open_project=: Reads and validates sakya.yaml manifest
+- [ ] =save_project_manifest=: Writes updated sakya.yaml
+- [ ] =pick_project_folder=: Opens native folder dialog via tauri-plugin-dialog
+- [ ] All commands return serializable Result types
+- [ ] Error cases handled (folder exists, invalid path, corrupt manifest)
+
+** ITEM Create Svelte 5 reactive state stores
+:PROPERTIES:
+:CUSTOM_ID: ITEM-007-state-stores
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/project.svelte.ts, src/lib/stores/editor.svelte.ts, src/lib/stores/ui.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create class-based Svelte 5 stores using runes for global state management.
+
+*** Acceptance Criteria
+- [ ] =project.svelte.ts=: ProjectState class with $state/$derived for manifest, projectPath, schemas, isLoading, isDirty; methods: open, close, save
+- [ ] =editor.svelte.ts=: EditorState class with tabs, activeTab, content, dirty; methods: openDocument, closeTab, updateContent
+- [ ] =ui.svelte.ts=: UIState class with theme, viewMode, pane sizes, visibility; methods: toggleBinder, toggleInspector, setTheme
+- [ ] All stores export singleton instances
+- [ ] Tauri invoke calls in store methods
+- [ ] No TypeScript errors
+
+** ITEM Create AppShell three-pane layout
+:PROPERTIES:
+:CUSTOM_ID: ITEM-008-app-shell
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-003-css-theme, ITEM-007-state-stores
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/components/layout/PaneResizer.svelte, src/lib/components/layout/Toolbar.svelte, src/lib/components/layout/StatusBar.svelte, src/lib/components/layout/Binder.svelte, src/lib/components/layout/Inspector.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the three-pane layout shell with resizable panels.
+
+*** Acceptance Criteria
+- [ ] =AppShell.svelte=: CSS Grid with three columns (binder | editor | inspector)
+- [ ] =PaneResizer.svelte=: Draggable divider with pointer events for resizing
+- [ ] =Toolbar.svelte=: Project name display, view toggles, theme switcher
+- [ ] =StatusBar.svelte=: Word count display, save status indicator
+- [ ] =Binder.svelte=: Left sidebar shell (collapsible)
+- [ ] =Inspector.svelte=: Right panel shell (collapsible)
+- [ ] Binder and Inspector toggle via keyboard shortcuts and UI buttons
+- [ ] Pane sizes persisted in UI store
+
+** ITEM Create project launcher page
+:PROPERTIES:
+:CUSTOM_ID: ITEM-009-launcher
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-006-tauri-project-commands, ITEM-007-state-stores
+:FILES: src/routes/+page.svelte, src/routes/+layout.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Replace the default SvelteKit page with a project launcher.
+
+*** Acceptance Criteria
+- [ ] "Create Project" button opens name/path dialog
+- [ ] "Open Project" button opens native folder picker via Tauri
+- [ ] Recent projects list (stored in app data)
+- [ ] =+layout.svelte=: Theme provider ($effect sets data-theme attribute)
+- [ ] =+layout.svelte=: Global CSS import
+- [ ] Successful create/open navigates to AppShell view
+- [ ] Error states for invalid project paths
+
+** ITEM Create Tauri service utilities
+:PROPERTIES:
+:CUSTOM_ID: ITEM-010-tauri-services
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src-tauri/src/services/frontmatter.rs, src-tauri/src/services/yaml_service.rs, src-tauri/src/services/slug_service.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Create shared service utilities for Tauri commands.
+
+*** Acceptance Criteria
+- [ ] =frontmatter.rs=: Parse Markdown with YAML frontmatter (=---= delimited), serialize back to string
+- [ ] =yaml_service.rs=: Generic read/write YAML files with serde
+- [ ] =slug_service.rs=: Convert title string to kebab-case slug (e.g., "My Character" -> "my-character")
+- [ ] Unit tests for frontmatter parsing (with and without frontmatter, edge cases)
+- [ ] Unit tests for slug generation

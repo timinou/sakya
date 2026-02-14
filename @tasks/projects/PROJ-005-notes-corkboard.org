@@ -1,0 +1,114 @@
+#+TITLE: PROJ-005 Notes & Corkboard
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-005 Notes & Corkboard
+:PROPERTIES:
+:CUSTOM_ID: PROJ-005
+:GOAL: Implement notes as Markdown files with a visual corkboard arrangement for spatial organization.
+:DEPENDS_INIT: PROJ-001, PROJ-003
+:COMPLETION: All ITEMs complete, notes can be created/edited, corkboard displays draggable cards with persistent positions and colors.
+:END:
+
+** ITEM Create Tauri notes commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-034-notes-commands
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src-tauri/src/commands/notes.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+*** Description
+Implement Tauri commands for notes CRUD and corkboard metadata.
+
+*** Acceptance Criteria
+- [ ] =get_notes_config=: Reads =notes/notes.yaml= with positions, colors, labels for each note
+- [ ] =save_notes_config=: Writes updated notes.yaml
+- [ ] =get_note=: Reads a single note Markdown file
+- [ ] =save_note=: Writes a note Markdown file
+- [ ] =create_note=: Creates new note file and adds entry to notes.yaml
+- [ ] =delete_note=: Removes note file and entry from notes.yaml
+
+** ITEM Create notes store
+:PROPERTIES:
+:CUSTOM_ID: ITEM-035-notes-store
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/stores/notes.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a Svelte 5 store for notes and corkboard state management.
+
+*** Acceptance Criteria
+- [ ] NotesStore class with $state for note list, corkboard positions, colors, labels
+- [ ] Methods: loadConfig, createNote, deleteNote, updateNote
+- [ ] Methods: updateCardPosition, updateCardColor, updateCardLabel
+- [ ] Tauri invoke calls for all backend operations
+- [ ] Singleton export
+
+** ITEM Create notes binder section
+:PROPERTIES:
+:CUSTOM_ID: ITEM-036-notes-binder
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: PROJ-002:ITEM-014-binder-tree
+:FILES: src/lib/components/binder/NotesSection.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the notes section in the binder sidebar.
+
+*** Acceptance Criteria
+- [ ] Note list in Binder with title for each note
+- [ ] "+" button for creating new notes
+- [ ] Click opens note in editor (via editor store)
+- [ ] Visual indicator for notes with corkboard positions
+
+** ITEM Create Corkboard view
+:PROPERTIES:
+:CUSTOM_ID: ITEM-037-corkboard
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: src/lib/components/notes/Corkboard.svelte, src/lib/components/notes/NoteCard.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create the corkboard visual canvas with draggable note cards.
+
+*** Acceptance Criteria
+- [ ] =Corkboard.svelte=: Container with positioned cards, switchable view mode
+- [ ] =NoteCard.svelte=: Draggable card showing title + excerpt (first ~50 words)
+- [ ] Pointer events for free-form drag (not HTML5 DnD)
+- [ ] Color strip on left edge of each card (configurable per card)
+- [ ] Label badge on each card
+- [ ] Cards positioned absolutely by percentage coordinates (responsive)
+- [ ] Empty state with "Create your first note" prompt
+
+** ITEM Create corkboard persistence
+:PROPERTIES:
+:CUSTOM_ID: ITEM-038-corkboard-persistence
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-037-corkboard, ITEM-035-notes-store
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Wire corkboard interactions to persistent storage via notes store and Tauri.
+
+*** Acceptance Criteria
+- [ ] On card drag end: update position in notes store, debounce save to notes.yaml via Tauri
+- [ ] On card color change: save immediately
+- [ ] On card label change: save immediately
+- [ ] Load positions from notes.yaml on corkboard mount
+- [ ] Newly created notes get default position (center of visible area)
