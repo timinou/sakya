@@ -4,6 +4,7 @@
   import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore } from '$lib/stores';
   import { SearchPalette, ToastContainer } from '$lib/components/common';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+  import CompileDialog from '$lib/components/compile/CompileDialog.svelte';
   import SprintOverlay from '$lib/components/sprint/SprintOverlay.svelte';
   import SprintTimer from '$lib/components/sprint/SprintTimer.svelte';
   import Toolbar from './Toolbar.svelte';
@@ -29,6 +30,9 @@
   // Sprint stop confirmation state
   let sprintStopConfirmOpen = $state(false);
 
+  // Compile dialog state
+  let compileDialogOpen = $state(false);
+
   // Sprint panel (pre-start timer) visibility
   let sprintPanelOpen = $state(false);
 
@@ -37,6 +41,19 @@
     if (sprintStore.isActive) {
       sprintPanelOpen = false;
     }
+  });
+
+  // Register the word count getter and onComplete callback on the sprint store
+  // so that auto-complete (timer expiry) can read the live word count and trigger save
+  $effect(() => {
+    sprintStore.getWordCount = () => editorState.wordCount.words;
+    sprintStore.onComplete = () => {
+      window.dispatchEvent(new CustomEvent('sakya:save'));
+    };
+    return () => {
+      sprintStore.getWordCount = null;
+      sprintStore.onComplete = null;
+    };
   });
 
   function handleSprintEnd(): void {
@@ -324,6 +341,13 @@
       uiState.toggleFocusMode();
       return;
     }
+
+    // Ctrl+Shift+E: Open compile dialog
+    if (mod && e.shiftKey && e.key === 'E') {
+      e.preventDefault();
+      compileDialogOpen = true;
+      return;
+    }
   }
 
   async function confirmStopSprint(): Promise<void> {
@@ -349,6 +373,18 @@
     window.addEventListener('sakya:toggle-sprint', handler);
     return () => window.removeEventListener('sakya:toggle-sprint', handler);
   });
+
+  // Listen for toolbar compile event
+  $effect(() => {
+    const handler = () => { compileDialogOpen = true; };
+    window.addEventListener('sakya:open-compile', handler);
+    return () => window.removeEventListener('sakya:open-compile', handler);
+  });
+
+  function handleCompileResult(_config: import('$lib/types').CompileConfig, _output: import('$lib/types').CompileOutput) {
+    // For now, just close the dialog. ITEM-104 will add the save-to-file flow.
+    compileDialogOpen = false;
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
@@ -463,6 +499,12 @@
   destructive={true}
   onConfirm={confirmStopSprint}
   onCancel={cancelStopSprint}
+/>
+
+<CompileDialog
+  isOpen={compileDialogOpen}
+  onClose={() => { compileDialogOpen = false; }}
+  onCompile={handleCompileResult}
 />
 
 <style>

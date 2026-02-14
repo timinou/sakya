@@ -57,13 +57,6 @@
     await sprintStore.stop(currentWordCount, projectPath);
     onSprintEnd?.();
   }
-
-  // Watch for auto-complete (remaining hits 0 while active)
-  $effect(() => {
-    if (sprintStore.remainingSeconds === 0 && !sprintStore.isActive && onSprintEnd) {
-      onSprintEnd();
-    }
-  });
 </script>
 
 <div class="sprint-timer" class:active={sprintStore.isActive}>

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { toastManager } from '$lib/components/common/Toast.svelte';
 
 class SprintStore {
   isActive = $state(false);
@@ -9,6 +10,7 @@ class SprintStore {
   startWordCount = $state(0);
   sprintGoal = $state<number | undefined>(undefined);
   chapterSlug = $state<string | null>(null);
+  projectPath = $state<string>('');
 
   /** Fraction of time elapsed, from 0 to 1. */
   elapsed = $derived(
@@ -18,6 +20,19 @@ class SprintStore {
   );
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Callback to get the current editor word count.
+   * Set by the integrating component (e.g. AppShell) so that
+   * auto-complete can calculate the correct word delta.
+   */
+  getWordCount: (() => number) | null = null;
+
+  /**
+   * Callback fired when the timer auto-completes (countdown reaches zero).
+   * The integrating component should use this to trigger auto-save, etc.
+   */
+  onComplete: (() => void) | null = null;
 
   selectDuration(minutes: number): void {
     if (this.isActive) return;
@@ -38,6 +53,7 @@ class SprintStore {
     this.startWordCount = currentWordCount;
     this.sprintGoal = sprintGoal;
     this.chapterSlug = chapterSlug;
+    this.projectPath = projectPath;
     this.isPaused = false;
     this.isActive = true;
 
@@ -50,6 +66,7 @@ class SprintStore {
       this.sessionId = id;
     } catch (err) {
       console.error('Failed to start session on backend:', err);
+      toastManager.show('Failed to start session on backend', 'error');
       // Sprint continues locally even if backend call fails
     }
 
@@ -84,6 +101,7 @@ class SprintStore {
         });
       } catch (err) {
         console.error('Failed to end session on backend:', err);
+        toastManager.show('Failed to end session on backend', 'error');
       }
     }
 
@@ -112,27 +130,32 @@ class SprintStore {
   /**
    * Called when the countdown reaches zero.
    * Auto-stops the sprint and calls end_session on the backend.
+   * Uses the stored projectPath and getWordCount callback to get
+   * the correct values at the time of completion.
    */
   private async onTimerComplete(): Promise<void> {
     this.clearTimer();
 
+    const currentWordCount = this.getWordCount?.() ?? 0;
+    const wordsWritten = Math.max(0, currentWordCount - this.startWordCount);
+
     if (this.sessionId) {
       try {
-        // Word count delta is unknown here — the component that
-        // integrates this store should provide the current word count
-        // via the `stop()` method. For auto-complete, we pass 0 delta
-        // and rely on ITEM-089 to wire the actual word count.
         await invoke('end_session', {
-          projectPath: '',
+          projectPath: this.projectPath,
           sessionId: this.sessionId,
-          wordsWritten: 0,
+          wordsWritten,
         });
       } catch (err) {
         console.error('Failed to end session on timer complete:', err);
+        toastManager.show('Failed to end session on backend', 'error');
       }
     }
 
     this.reset();
+
+    // Notify the integrating component (e.g. to trigger auto-save)
+    this.onComplete?.();
   }
 
   private reset(): void {
@@ -142,6 +165,7 @@ class SprintStore {
     this.startWordCount = 0;
     this.sprintGoal = undefined;
     this.chapterSlug = null;
+    this.projectPath = '';
     // Keep durationMinutes so the user's last selection is remembered
   }
 }
