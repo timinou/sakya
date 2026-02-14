@@ -10,7 +10,7 @@
 :COMPLETION: All ITEMs complete, entities can be created/edited/deleted via UI with schema-driven forms and spider charts.
 :END:
 
-** ITEM Create Tauri schema commands
+** DONE Create Tauri schema commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-011-schema-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -34,7 +34,7 @@ Implement Tauri commands for reading and managing entity schema YAML files.
 - [ ] All models derive Serialize/Deserialize with camelCase rename
 - [ ] Error handling for missing files, invalid YAML
 
-** ITEM Create default entity schemas
+** DONE Create default entity schemas
 :PROPERTIES:
 :CUSTOM_ID: ITEM-012-default-schemas
 :AGENT: [[file:../agents/writing-app-designer.org::#core][writing-app-designer:core]]
@@ -127,7 +127,7 @@ Create a dynamic form component that generates input fields from an entity schem
 - [ ] Auto-save on field change (debounced)
 - [ ] Dirty indicator for unsaved changes
 
-** ITEM Create interactive SpiderChart component
+** DONE Create interactive SpiderChart component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-016-spider-chart
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -152,7 +152,7 @@ Create a custom SVG radar/spider chart component for entity characteristics.
 - [ ] Responsive sizing (fills container)
 - [ ] Theme-aware: stroke/fill colors from CSS custom properties
 
-** ITEM Create entity stores
+** DONE Create entity stores
 :PROPERTIES:
 :CUSTOM_ID: ITEM-017-entity-stores
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
