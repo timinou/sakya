@@ -1562,6 +1562,583 @@ mod tests {
         assert!(result.content.contains("word99999"));
     }
 
+    // ================================================================
+    // Plain text rendering tests
+    // ================================================================
+
+    #[test]
+    fn test_render_plain_text_strips_bold() {
+        let md = "This is **bold** text.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "This is bold text.");
+    }
+
+    #[test]
+    fn test_render_plain_text_strips_italic() {
+        let md = "This is *italic* text.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "This is italic text.");
+    }
+
+    #[test]
+    fn test_render_plain_text_strips_bold_and_italic() {
+        let md = "Mix of **bold** and *italic* and ***both***.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "Mix of bold and italic and both.");
+    }
+
+    #[test]
+    fn test_render_plain_text_h1_uppercase_with_equals() {
+        let md = "# My Great Novel";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "MY GREAT NOVEL\n==============");
+    }
+
+    #[test]
+    fn test_render_plain_text_h2_uppercase_with_dashes() {
+        let md = "## Chapter 1: The Beginning";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(
+            result,
+            "CHAPTER 1: THE BEGINNING\n------------------------"
+        );
+    }
+
+    #[test]
+    fn test_render_plain_text_h3_uppercase_with_dashes() {
+        let md = "### Subsection";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "SUBSECTION\n----------");
+    }
+
+    #[test]
+    fn test_render_plain_text_separator_three_stars() {
+        let md = "Before\n\n* * *\n\nAfter";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert!(result.contains("* * *"));
+        assert!(result.starts_with("Before"));
+        assert!(result.ends_with("After"));
+    }
+
+    #[test]
+    fn test_render_plain_text_separator_page_break() {
+        let md = "Before\n\n---\n\nAfter";
+        let result = render_plain_text(md, &ChapterSeparator::PageBreak);
+        assert!(result.contains(&"=".repeat(40)));
+        assert!(!result.contains("---"));
+    }
+
+    #[test]
+    fn test_render_plain_text_separator_horizontal_rule() {
+        let md = "Before\n\n---\n\nAfter";
+        let result = render_plain_text(md, &ChapterSeparator::HorizontalRule);
+        assert!(result.contains(&"-".repeat(40)));
+    }
+
+    #[test]
+    fn test_render_plain_text_separator_blank_lines() {
+        let md = "Before\n\n---\n\nAfter";
+        let result = render_plain_text(md, &ChapterSeparator::BlankLines);
+        // Should not have dashes or equals, just whitespace between
+        assert!(!result.contains(&"-".repeat(40)));
+        assert!(!result.contains(&"=".repeat(40)));
+        assert!(result.contains("Before"));
+        assert!(result.contains("After"));
+    }
+
+    #[test]
+    fn test_render_plain_text_strips_links() {
+        let md = "Click [here](https://example.com) for more.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "Click here for more.");
+    }
+
+    #[test]
+    fn test_render_plain_text_strips_strikethrough() {
+        let md = "This is ~~deleted~~ text.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "This is deleted text.");
+    }
+
+    #[test]
+    fn test_render_plain_text_preserves_list_items() {
+        let md = "Shopping list:\n\n- Apples\n- Bananas\n- Cherries";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert!(result.contains("- Apples"));
+        assert!(result.contains("- Bananas"));
+        assert!(result.contains("- Cherries"));
+    }
+
+    #[test]
+    fn test_render_plain_text_preserves_code() {
+        let md = "Use the `println!` macro.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert!(result.contains("println!"));
+    }
+
+    #[test]
+    fn test_render_plain_text_preserves_paragraphs() {
+        let md = "First paragraph.\n\nSecond paragraph.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert!(result.contains("First paragraph."));
+        assert!(result.contains("Second paragraph."));
+        // Should have blank line between paragraphs
+        assert!(result.contains("First paragraph.\n\nSecond paragraph."));
+    }
+
+    #[test]
+    fn test_render_plain_text_empty_input() {
+        let result = render_plain_text("", &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_render_plain_text_plain_text_passthrough() {
+        let md = "Just plain text with no formatting.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert_eq!(result, "Just plain text with no formatting.");
+    }
+
+    #[test]
+    fn test_render_plain_text_blockquote_stripped() {
+        let md = "> This is a quote.";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        assert!(result.contains("This is a quote."));
+        assert!(!result.contains(">"));
+    }
+
+    // ================================================================
+    // Plain text full compilation integration tests
+    // ================================================================
+
+    #[test]
+    fn plaintext_single_chapter_with_header() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "The Beginning", None, "It was a dark and stormy night.");
+
+        let config = CompileConfig {
+            title: "My Novel".to_string(),
+            author: "Jane Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert_eq!(result.format, OutputFormat::PlainText);
+        assert!(result.content.contains("THE BEGINNING"));
+        assert!(result.content.contains("-------------"));
+        assert!(result.content.contains("It was a dark and stormy night."));
+        // Should NOT contain markdown syntax
+        assert!(!result.content.contains("## "));
+    }
+
+    #[test]
+    fn plaintext_title_page_h1_with_equals_underline() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "One", None, "Body text.");
+
+        let config = CompileConfig {
+            title: "Epic Tale".to_string(),
+            author: "A. Writer".to_string(),
+            include_title_page: true,
+            chapter_header_style: ChapterHeaderStyle::None,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        // Title should be uppercase H1 with = underline
+        assert!(result.content.contains("EPIC TALE"));
+        assert!(result.content.contains("========="));
+        // Author should be present (bold stripped)
+        assert!(result.content.contains("A. Writer"));
+        // Should NOT contain markdown bold markers
+        assert!(!result.content.contains("**"));
+    }
+
+    #[test]
+    fn plaintext_chapter_header_numbered() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "The Journey", None, "Off we go.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Numbered,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert!(result.content.contains("CHAPTER 1"));
+        assert!(result.content.contains("---------"));
+    }
+
+    #[test]
+    fn plaintext_chapter_header_numbered_and_titled() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "The Beginning", None, "Content here.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::NumberedAndTitled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert!(result.content.contains("CHAPTER 1: THE BEGINNING"));
+        assert!(result.content.contains("------------------------"));
+    }
+
+    #[test]
+    fn plaintext_two_chapters_three_stars_separator() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1", "ch-2"]);
+        write_chapter(&pp, "ch-1", "One", None, "First chapter.");
+        write_chapter(&pp, "ch-2", "Two", None, "Second chapter.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert!(result.content.contains("* * *"));
+        assert!(result.content.contains("ONE"));
+        assert!(result.content.contains("TWO"));
+    }
+
+    #[test]
+    fn plaintext_two_chapters_page_break_separator() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1", "ch-2"]);
+        write_chapter(&pp, "ch-1", "One", None, "First.");
+        write_chapter(&pp, "ch-2", "Two", None, "Second.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::PageBreak,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        // Page break should be rendered as equals signs
+        assert!(result.content.contains(&"=".repeat(40)));
+    }
+
+    #[test]
+    fn plaintext_two_chapters_horizontal_rule_separator() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1", "ch-2"]);
+        write_chapter(&pp, "ch-1", "One", None, "First.");
+        write_chapter(&pp, "ch-2", "Two", None, "Second.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::HorizontalRule,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        // Horizontal rule should be rendered as dashes
+        assert!(result.content.contains(&"-".repeat(40)));
+    }
+
+    #[test]
+    fn plaintext_synopsis_stripped_of_italic_markers() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(
+            &pp,
+            "ch-1",
+            "One",
+            Some("The hero begins the journey"),
+            "Content.",
+        );
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: true,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        // Synopsis text present but without italic markers
+        assert!(result.content.contains("The hero begins the journey"));
+        assert!(!result.content.contains("*The hero begins the journey*"));
+    }
+
+    #[test]
+    fn plaintext_front_matter_included() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "One", None, "Body.");
+
+        let config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: "For those who dream.".to_string(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert!(result.content.starts_with("For those who dream."));
+    }
+
+    #[test]
+    fn plaintext_word_count_computed_from_markdown_before_conversion() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(
+            &pp,
+            "ch-1",
+            "The Title",
+            None,
+            "One two three four five.",
+        );
+
+        // Compare word count between Markdown and PlainText output
+        let md_config = CompileConfig {
+            title: "Novel".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::Markdown,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let pt_config = CompileConfig {
+            output_format: OutputFormat::PlainText,
+            ..md_config.clone()
+        };
+
+        let md_result = compile_manuscript(pp.clone(), md_config).unwrap();
+        let pt_result = compile_manuscript(pp, pt_config).unwrap();
+
+        // Word counts should be identical since both are computed from markdown
+        assert_eq!(md_result.word_count, pt_result.word_count);
+    }
+
+    #[test]
+    fn plaintext_no_markdown_hash_in_headers() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "Hello World", None, "Body.");
+
+        let config = CompileConfig {
+            title: "My Title".to_string(),
+            author: "Author".to_string(),
+            include_title_page: true,
+            chapter_header_style: ChapterHeaderStyle::NumberedAndTitled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        // No markdown header syntax should remain
+        assert!(!result.content.contains("# "));
+        assert!(!result.content.contains("## "));
+    }
+
+    #[test]
+    fn plaintext_no_bold_markers_anywhere() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["ch-1"]);
+        write_chapter(&pp, "ch-1", "One", None, "This has **bold** text.");
+
+        let config = CompileConfig {
+            title: "Title".to_string(),
+            author: "Author Name".to_string(),
+            include_title_page: true,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert!(!result.content.contains("**"));
+    }
+
+    #[test]
+    fn plaintext_full_compilation_with_all_features() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        write_config(&pp, &["prologue", "ch-1", "ch-2"]);
+        write_chapter(
+            &pp,
+            "prologue",
+            "Prologue",
+            Some("The world before"),
+            "In the beginning...",
+        );
+        write_chapter(
+            &pp,
+            "ch-1",
+            "The Journey",
+            Some("Our hero departs"),
+            "The hero set out at dawn.",
+        );
+        write_chapter(&pp, "ch-2", "The Return", None, "And so it ended.");
+
+        let config = CompileConfig {
+            title: "Epic Tale".to_string(),
+            author: "A. Writer".to_string(),
+            include_title_page: true,
+            chapter_header_style: ChapterHeaderStyle::NumberedAndTitled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: true,
+            front_matter: "For those who dream.".to_string(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+
+        // Front matter
+        assert!(result.content.contains("For those who dream."));
+        // Title page (H1 with = underline, no markdown syntax)
+        assert!(result.content.contains("EPIC TALE"));
+        assert!(result.content.contains("========="));
+        assert!(result.content.contains("A. Writer"));
+        assert!(!result.content.contains("**"));
+        assert!(!result.content.contains("# "));
+        // Chapter headers (H2 with - underline)
+        assert!(result.content.contains("CHAPTER 1: PROLOGUE"));
+        assert!(result.content.contains("CHAPTER 2: THE JOURNEY"));
+        assert!(result.content.contains("CHAPTER 3: THE RETURN"));
+        // Synopses (no italic markers)
+        assert!(result.content.contains("The world before"));
+        assert!(result.content.contains("Our hero departs"));
+        assert!(!result.content.contains("*The world before*"));
+        // Bodies
+        assert!(result.content.contains("In the beginning..."));
+        assert!(result.content.contains("The hero set out at dawn."));
+        assert!(result.content.contains("And so it ended."));
+        // Separators (three stars)
+        assert!(result.content.contains("* * *"));
+        // Metadata
+        assert_eq!(result.chapter_count, 3);
+        assert_eq!(result.format, OutputFormat::PlainText);
+        assert!(result.word_count > 0);
+    }
+
+    #[test]
+    fn plaintext_empty_manuscript() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+        write_config(&pp, &[]);
+
+        let config = CompileConfig {
+            title: "Empty".to_string(),
+            author: "Author".to_string(),
+            include_title_page: false,
+            chapter_header_style: ChapterHeaderStyle::Titled,
+            chapter_separator: ChapterSeparator::ThreeStars,
+            output_format: OutputFormat::PlainText,
+            include_synopsis: false,
+            front_matter: String::new(),
+        };
+
+        let result = compile_manuscript(pp, config).unwrap();
+        assert_eq!(result.content, "");
+        assert_eq!(result.chapter_count, 0);
+        assert_eq!(result.word_count, 0);
+    }
+
+    #[test]
+    fn plaintext_underline_width_matches_header_text() {
+        let md = "## Short";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "SHORT");
+        assert_eq!(lines[1], "-----");
+        assert_eq!(lines[0].len(), lines[1].len());
+    }
+
+    #[test]
+    fn plaintext_h1_underline_width_matches_header_text() {
+        let md = "# A Longer Title Here";
+        let result = render_plain_text(md, &ChapterSeparator::ThreeStars);
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines[0], "A LONGER TITLE HERE");
+        assert_eq!(lines[1], "===================");
+        assert_eq!(lines[0].len(), lines[1].len());
+    }
+
     // ── Word count accuracy across multiple chapters ──────────────
 
     #[test]
