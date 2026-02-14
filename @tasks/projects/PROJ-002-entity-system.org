@@ -77,7 +77,7 @@ Implement Tauri commands for CRUD operations on entity instances (Markdown files
 - [ ] Frontmatter parsing via =services/frontmatter.rs=
 - [ ] Entity files stored in =entities/{type}/{slug}.md=
 
-** ITEM Create BinderTree component
+** DONE Create BinderTree component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-014-binder-tree
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
