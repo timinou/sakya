@@ -124,7 +124,7 @@ Write comprehensive Rust unit and integration tests for the compilation engine. 
 :VERIFY: bun run build, bun run test:e2e -- manuscript-compilation
 :END:
 
-*** ITEM Compile dialog UI
+*** DONE Compile dialog UI
 :PROPERTIES:
 :CUSTOM_ID: ITEM-103
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -139,19 +139,19 @@ Write comprehensive Rust unit and integration tests for the compilation engine. 
 Create a modal compile dialog accessible from the toolbar or Cmd+Shift+E. The dialog presents all compilation options in an organized layout with a live preview pane showing the first page of compiled output. Uses Svelte 5 runes for reactive state.
 
 **** Acceptance Criteria
-- [ ] Modal dialog component with overlay backdrop
-- [ ] Format selector: Markdown, HTML, Plain Text (radio group or segmented control)
-- [ ] Title page toggle (checkbox) with title and author text inputs
-- [ ] Chapter header style selector (dropdown: Numbered, Titled, Both, None)
-- [ ] Separator style selector (dropdown: Page Break, Three Stars, Horizontal Rule, Blank Lines)
-- [ ] Include synopsis toggle (checkbox)
-- [ ] Custom front matter textarea (collapsible section)
-- [ ] Preview pane showing first ~500 chars of compiled output, updating reactively on config changes
-- [ ] "Compile & Save" primary action button
-- [ ] "Cancel" secondary action button
-- [ ] Keyboard shortcut Cmd+Shift+E opens dialog from editor view
-- [ ] Escape closes dialog
-- [ ] Dialog styled consistently with existing Sakya modals (ConfirmDialog pattern)
+- [X] Modal dialog component with overlay backdrop
+- [X] Format selector: Markdown, HTML, Plain Text (radio group or segmented control)
+- [X] Title page toggle (checkbox) with title and author text inputs
+- [X] Chapter header style selector (dropdown: Numbered, Titled, Both, None)
+- [X] Separator style selector (dropdown: Page Break, Three Stars, Horizontal Rule, Blank Lines)
+- [X] Include synopsis toggle (checkbox)
+- [X] Custom front matter textarea (collapsible section)
+- [X] Preview pane showing first ~500 chars of compiled output, updating reactively on config changes
+- [X] "Compile & Save" primary action button
+- [X] "Cancel" secondary action button
+- [X] Keyboard shortcut Cmd+Shift+E opens dialog from editor view
+- [X] Escape closes dialog
+- [X] Dialog styled consistently with existing Sakya modals (ConfirmDialog pattern)
 
 *** ITEM Download/save compiled output
 :PROPERTIES:

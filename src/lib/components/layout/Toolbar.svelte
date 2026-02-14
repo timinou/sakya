@@ -1,6 +1,6 @@
 <script lang="ts">
   import { uiState, projectState, sprintStore, editorState } from '$lib/stores';
-  import { PanelLeft, PanelRight, Sun, Moon, Monitor, Eye, Check, Timer, BarChart3 } from 'lucide-svelte';
+  import { PanelLeft, PanelRight, Sun, Moon, Monitor, Eye, Check, Timer, BarChart3, FileOutput } from 'lucide-svelte';
   import type { Theme, ViewMode } from '$lib/types';
 
   const themes: Theme[] = ['light', 'dark', 'system'];
@@ -39,6 +39,10 @@
 
   function toggleSprintPanel() {
     window.dispatchEvent(new CustomEvent('sakya:toggle-sprint'));
+  }
+
+  function openCompile() {
+    window.dispatchEvent(new CustomEvent('sakya:open-compile'));
   }
 
   function openStats() {
@@ -102,6 +106,16 @@
   </div>
 
   <div class="toolbar-right">
+    <!-- Compile manuscript -->
+    <button
+      class="toolbar-btn"
+      onclick={openCompile}
+      title="Compile Manuscript (Ctrl+Shift+E)"
+      aria-label="Compile manuscript"
+    >
+      <FileOutput size={16} />
+    </button>
+
     <!-- Sprint timer toggle -->
     <button
       class="toolbar-btn"
