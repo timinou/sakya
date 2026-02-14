@@ -1,0 +1,156 @@
+#+TITLE: IMP-001 Foolproof PRD Hooks for Claude Code
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-001 Foolproof PRD Hooks for Claude Code
+:PROPERTIES:
+:CUSTOM_ID: IMP-001
+:GOAL: Enforce @tasks workflow compliance deterministically via Claude Code hooks, eliminating voluntary-only adherence.
+:COMPLETION: All 6 hooks installed and verified: session context injection, commit gating, edit validation, test tracking, compaction recovery, and stop auditing.
+:END:
+
+** DOING Create project-level hook configuration
+:PROPERTIES:
+:CUSTOM_ID: ITEM-050-hook-config
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: .claude/settings.json, .gitignore
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Create =.claude/settings.json= with 6 hook definitions covering SessionStart, PreToolUse(Bash), PostToolUse(Write|Edit), PostToolUse(Bash), PreCompact, and Stop events. Update =.gitignore= to exclude hook state files.
+
+*** Acceptance Criteria
+- [ ] =.claude/settings.json= contains all 6 hook configurations
+- [ ] =.gitignore= excludes =.claude/hooks/.working-state.json= and =.claude/hooks/.last-test-status=
+- [ ] Hook commands use =$CLAUDE_PROJECT_DIR= for absolute paths
+
+** DOING Create session-start hook (Hook 1)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-051-session-start
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:DEPENDS: ITEM-050-hook-config
+:FILES: .claude/hooks/session-start.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that fires on SessionStart to inject PRD dashboard, git status, DOING items, and compact recovery state into Claude's context.
+
+*** Acceptance Criteria
+- [ ] Auto-starts emacs daemon if not running
+- [ ] Injects PRD dashboard and quick status
+- [ ] Shows uncommitted changes
+- [ ] Recovers working state after compaction
+- [ ] Degrades gracefully if emacs unavailable
+
+** DOING Create pre-commit gate hook (Hook 2)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-052-pre-commit-gate
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-050-hook-config
+:FILES: .claude/hooks/pre-commit-gate.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that gates git commits with three checks: commit message format validation, @tasks co-location enforcement, and PRD validation. Blocks commits that violate any rule.
+
+*** Acceptance Criteria
+- [ ] Fast path: non-commit Bash commands exit in <50ms
+- [ ] Validates commit message format: =<emoji> [category.subcategory] title=
+- [ ] Blocks commits with code changes but no @tasks/ files
+- [ ] Exempts config-only commits
+- [ ] Runs PRD validation when @tasks/ files are staged
+- [ ] Handles heredoc commit messages
+- [ ] Allows --amend commits through
+
+** DOING Create validate-tasks-post-edit hook (Hook 3)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-053-validate-tasks
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-050-hook-config
+:FILES: .claude/hooks/validate-tasks-post-edit.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that validates @tasks/*.org files after Write/Edit operations and provides feedback with error details and hints.
+
+*** Acceptance Criteria
+- [ ] Only fires for @tasks/*.org files
+- [ ] Shows errors with rule, message, hint, and context
+- [ ] Shows warnings separately
+- [ ] Silent on valid files
+- [ ] Degrades gracefully without emacs daemon
+
+** DOING Create test-failure-tracker hook (Hook 4)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-054-test-tracker
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-050-hook-config
+:FILES: .claude/hooks/test-failure-tracker.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that detects test commands (cargo test, bun test, vitest, playwright) and records PASSED/FAILED to =.last-test-status= for the stop-audit hook.
+
+*** Acceptance Criteria
+- [ ] Detects cargo test, bun test, vitest, playwright commands
+- [ ] Parses response for failure indicators
+- [ ] Writes PASSED or FAILED to =.last-test-status=
+- [ ] Outputs TDD warning on failure
+- [ ] Silent on passing tests
+
+** DOING Create pre-compact hook (Hook 5)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-055-pre-compact
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-050-hook-config
+:FILES: .claude/hooks/pre-compact.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that captures DOING items, uncommitted changes, recent commits, and test status to =.working-state.json= before context compaction.
+
+*** Acceptance Criteria
+- [ ] Saves DOING items from PRD system
+- [ ] Saves uncommitted changes and recent commits
+- [ ] Saves current branch and test status
+- [ ] JSON output is valid and parseable
+- [ ] Session-start hook can read the saved state
+
+** DOING Create stop-audit hook (Hook 6)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-056-stop-audit
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:DEPENDS: ITEM-054-test-tracker
+:FILES: .claude/hooks/stop-audit.fish
+:TEST_PLAN: manual-verify
+:END:
+
+*** Description
+Fish script that blocks Claude from stopping if there are uncommitted code changes or failing tests. Guards against infinite loops via =stop_hook_active= check.
+
+*** Acceptance Criteria
+- [ ] Blocks if uncommitted code in src/, src-tauri/, or e2e/
+- [ ] Blocks if =.last-test-status= is FAILED
+- [ ] Skips if =stop_hook_active= is true (prevents infinite loops)
+- [ ] Only checks tracked files, not untracked
+- [ ] Combines multiple block reasons

@@ -1,0 +1,73 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.fish\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-commit-gate.fish\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-tasks-post-edit.fish\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-failure-tracker.fish\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-compact.fish\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fish \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-audit.fish\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

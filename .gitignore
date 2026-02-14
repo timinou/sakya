@@ -14,3 +14,7 @@ vite.config.ts.timestamp-*
 /playwright-report/
 /playwright/.cache/
 /e2e/screenshots/
+
+# Claude Code hook state files
+.claude/hooks/.working-state.json
+.claude/hooks/.last-test-status
