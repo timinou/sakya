@@ -10,6 +10,8 @@
 :COMPLETION: All ITEMs complete, editor renders rich text from Markdown, supports formatting shortcuts, wiki-links, auto-save, and word count.
 :END:
 
+*IMPORTANT*: [[file:../design/lexical-editor.org]] for design reference
+
 ** ITEM Create Lexical theme and base configuration
 :PROPERTIES:
 :CUSTOM_ID: ITEM-019-editor-theme
