@@ -88,7 +88,7 @@ Add HTML export to the compilation pipeline. When =output_format= is =Html=, con
 - [ ] Title page styled distinctly (centered, larger font)
 - [ ] Output is valid, well-formed HTML
 
-*** ITEM Rust tests for compilation
+*** DONE Rust tests for compilation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-102
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
