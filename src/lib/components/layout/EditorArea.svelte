@@ -2,7 +2,7 @@
   import { manuscriptStore, editorState, projectState } from '$lib/stores';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import EditorTabs from './EditorTabs.svelte';
-  import { BookOpen } from 'lucide-svelte';
+  import WelcomeCard from './WelcomeCard.svelte';
   import type { ChapterContent } from '$lib/types';
 
   // Track loaded content per tab
@@ -102,10 +102,17 @@
       </div>
     {/key}
   {:else if !editorState.activeTab}
-    <div class="editor-empty">
-      <BookOpen size={48} strokeWidth={1} />
-      <p class="empty-message">Select a chapter to begin writing</p>
-    </div>
+    <WelcomeCard
+      onCreateChapter={() => {
+        window.dispatchEvent(new CustomEvent('sakya:create-chapter'));
+      }}
+      onCreateNote={() => {
+        window.dispatchEvent(new CustomEvent('sakya:create-note'));
+      }}
+      onCreateEntity={(entityType) => {
+        window.dispatchEvent(new CustomEvent('sakya:create-entity', { detail: { entityType } }));
+      }}
+    />
   {/if}
 </div>
 
@@ -121,25 +128,6 @@
     flex: 1;
     overflow: hidden;
     min-height: 0;
-  }
-
-  .editor-empty {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    color: var(--text-tertiary);
-  }
-
-  .editor-empty :global(svg) {
-    opacity: 0.5;
-  }
-
-  .empty-message {
-    font-size: var(--font-size-md);
-    font-weight: var(--font-weight-normal);
   }
 
   .editor-loading {

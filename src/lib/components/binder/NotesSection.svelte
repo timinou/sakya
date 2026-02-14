@@ -59,6 +59,17 @@
     onSelectNote?.(slug);
   }
 
+  // Listen for sakya:create-note custom events from WelcomeCard
+  $effect(() => {
+    function handleCreateNoteEvent() {
+      handleAdd();
+    }
+    window.addEventListener('sakya:create-note', handleCreateNoteEvent);
+    return () => {
+      window.removeEventListener('sakya:create-note', handleCreateNoteEvent);
+    };
+  });
+
   // Auto-load config once on mount (track path to avoid infinite loop with empty notes)
   let loadedPath: string | null = null;
 

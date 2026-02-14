@@ -70,6 +70,17 @@
     onSelectChapter?.(slug);
   }
 
+  // Listen for sakya:create-chapter custom events from WelcomeCard
+  $effect(() => {
+    function handleCreateChapterEvent() {
+      handleAdd();
+    }
+    window.addEventListener('sakya:create-chapter', handleCreateChapterEvent);
+    return () => {
+      window.removeEventListener('sakya:create-chapter', handleCreateChapterEvent);
+    };
+  });
+
   // Load chapters once when mounted (track path to avoid infinite loop with empty chapters)
   let loadedPath: string | null = null;
 

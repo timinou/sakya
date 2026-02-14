@@ -243,6 +243,7 @@ test.describe("WelcomeCard empty state", () => {
     const hints = page.locator(".welcome-hints");
     await expect(hints).toBeVisible();
     await expect(hints).toContainText("K");
+    await expect(hints).toContainText("sidebar");
   });
 });
 
