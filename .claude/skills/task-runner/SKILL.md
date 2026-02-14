@@ -1,7 +1,124 @@
-<!-- auto-generated from @tasks/process/task-runner.org — do not edit -->
 ---
+auto-generated: true
 name: task-runner
 description: "Pick and start the next task from @tasks. Queries status, presents available work, sets up context, and transitions to DOING."
 ---
 
-# Overview  The Task Runner skill helps you pick the next task to work on. It queries the @tasks PRD system, presents available work grouped by category and priority, helps you choose, sets up context, and transitions the task to DOING.  Invoke with `/task`.  # Step 1: Query Current Status  Run the emacsclient dashboard and blocked-items queries to understand the current state:  ``` bash # Get overall dashboard metrics emacsclient -s sakya -e '(prd-dashboard-cli)'  # Get blocked items specifically emacsclient -s sakya -e '(prd-list-blocked)' ```  ## Error Handling  If emacsclient is unavailable (server not running, not installed), fall back to direct file reads:  1.  Scan `@tasks/{projects,bugfixes,improvements}/*.org` files directly 2.  Parse TODO keywords (`ITEM`, `DOING`, `REVIEW`, `DONE`, `BLOCKED`) from headings 3.  Parse `:PROPERTIES:` drawers for `DEPENDS`, `AGENT`, `EFFORT`, `PRIORITY` 4.  Build the status picture manually from parsed data  # Step 2: Scan Task Files  Read task files from all three categories:  - `@tasks/projects/PROJ-*.org` - Feature projects - `@tasks/bugfixes/BUG-*.org` - Bug fixes - `@tasks/improvements/IMP-*.org` - Improvements and refactors  For each file, identify `ITEM` entries (pending, unblocked tasks). An ITEM is unblocked if:  - It has no `DEPENDS` property, OR - All items listed in `DEPENDS` have status `DONE`  # Step 3: Present Available Tasks  Group available tasks and present them clearly:  ## Grouping  1.  **By Category** - Projects / Bugfixes / Improvements 2.  **Within category** - sorted by priority (#A \> \#B \> \#C), then by dependency order  ## Display Format  For each available task, show:  | Field        | Source                                   | |--------------|------------------------------------------| | ID           | `CUSTOM_ID` property (e.g. ITEM-042)     | | Title        | Heading text                             | | Category     | Parent file (PROJ/BUG/IMP)               | | Priority     | `PRIORITY` property                      | | Agent        | `AGENT` property (linked agent name)     | | Effort       | `EFFORT` property                        | | Dependencies | `DEPENDS` property (show status of each) | | Files        | `FILES` property (what will be touched)  |  ## Summary Line  Start the presentation with a summary: "N tasks available: X projects, Y bugfixes, Z improvements"  # Step 4: Help User Pick  Offer selection guidance based on different strategies:  - **By priority** - Highest priority unblocked items first - **By dependency order** - Items that unblock the most downstream work - **By domain preference** - Frontend (svelte-developer) vs backend (rust-architect) vs testing - **By effort** - Quick wins (30m-1h) vs deep work (2h+) - **By project continuity** - Tasks in the same PROJ file as recent DONE items  Ask the user which task they want to work on. Accept task ID (e.g. "ITEM-042") or description keywords.  # Step 5: Set Up Context  Once a task is selected, prepare the working context:  1.  **Read the full task** - Read the selected ITEM's Description and Acceptance Criteria sections 2.  **Read the agent definition** - Load the assigned agent from `@tasks/agents/<agent>.org` 3.  **Check dependency outputs** - If the task depends on completed items, read those items to understand what was delivered 4.  **Read relevant source files** - If `FILES` or `COMPONENT_REF` properties exist, read those source files to understand current state 5.  **Check the process guides** - If the task touches 3+ files, remind about [Multi-File Changes](multi-file-changes.org) process  Present a brief summary of the context gathered.  # Step 6: Transition to DOING  After the user confirms they want to start:  1.  **Change the status keyword** from `ITEM` to `DOING` in the org file 2.  **Validate the change**:  ``` bash emacsclient -s sakya -e '(prd-validate-file-cli "@tasks/path/to/file.org")' ```  1.  **Summarize the work plan** - Restate what will be done, which files will change, and what the acceptance criteria are  If validation fails, show the errors and fix them before proceeding.  # Quick Mode  If the user invokes `/task` with an argument (e.g. `/task ITEM-042`), skip steps 3-4 and jump directly to setting up context for that specific task.  # See Also  - [Process Registry](index.org) - [Dashboard](dashboard.org) - For orientation and project overview - [Multi-File Changes](multi-file-changes.org) - For complex cross-file work - [Agent Registry](../agents/index.org) - All available agents - [Reference Guide](../reference.org) - Full PRD system documentation
+# Overview
+
+The Task Runner skill helps you pick the next task to work on. It queries the @tasks PRD system, presents available work grouped by category and priority, helps you choose, sets up context, and transitions the task to DOING.
+
+Invoke with `/task`.
+
+# Step 1: Query Current Status
+
+Run the emacsclient dashboard and blocked-items queries to understand the current state:
+
+``` bash
+# Get overall dashboard metrics
+emacsclient -s sakya -e '(prd-dashboard-cli)'
+
+# Get blocked items specifically
+emacsclient -s sakya -e '(prd-list-blocked)'
+```
+
+## Error Handling
+
+If emacsclient is unavailable (server not running, not installed), fall back to direct file reads:
+
+1.  Scan `@tasks/{projects,bugfixes,improvements}/*.org` files directly
+2.  Parse TODO keywords (`ITEM`, `DOING`, `REVIEW`, `DONE`, `BLOCKED`) from headings
+3.  Parse `:PROPERTIES:` drawers for `DEPENDS`, `AGENT`, `EFFORT`, `PRIORITY`
+4.  Build the status picture manually from parsed data
+
+# Step 2: Scan Task Files
+
+Read task files from all three categories:
+
+- `@tasks/projects/PROJ-*.org` - Feature projects
+- `@tasks/bugfixes/BUG-*.org` - Bug fixes
+- `@tasks/improvements/IMP-*.org` - Improvements and refactors
+
+For each file, identify `ITEM` entries (pending, unblocked tasks). An ITEM is unblocked if:
+
+- It has no `DEPENDS` property, OR
+- All items listed in `DEPENDS` have status `DONE`
+
+# Step 3: Present Available Tasks
+
+Group available tasks and present them clearly:
+
+## Grouping
+
+1.  **By Category** - Projects / Bugfixes / Improvements
+2.  **Within category** - sorted by priority (#A \> \#B \> \#C), then by dependency order
+
+## Display Format
+
+For each available task, show:
+
+| Field        | Source                                   |
+|--------------|------------------------------------------|
+| ID           | `CUSTOM_ID` property (e.g. ITEM-042)     |
+| Title        | Heading text                             |
+| Category     | Parent file (PROJ/BUG/IMP)               |
+| Priority     | `PRIORITY` property                      |
+| Agent        | `AGENT` property (linked agent name)     |
+| Effort       | `EFFORT` property                        |
+| Dependencies | `DEPENDS` property (show status of each) |
+| Files        | `FILES` property (what will be touched)  |
+
+## Summary Line
+
+Start the presentation with a summary: "N tasks available: X projects, Y bugfixes, Z improvements"
+
+# Step 4: Help User Pick
+
+Offer selection guidance based on different strategies:
+
+- **By priority** - Highest priority unblocked items first
+- **By dependency order** - Items that unblock the most downstream work
+- **By domain preference** - Frontend (svelte-developer) vs backend (rust-architect) vs testing
+- **By effort** - Quick wins (30m-1h) vs deep work (2h+)
+- **By project continuity** - Tasks in the same PROJ file as recent DONE items
+
+Ask the user which task they want to work on. Accept task ID (e.g. "ITEM-042") or description keywords.
+
+# Step 5: Set Up Context
+
+Once a task is selected, prepare the working context:
+
+1.  **Read the full task** - Read the selected ITEM's Description and Acceptance Criteria sections
+2.  **Read the agent definition** - Load the assigned agent from `@tasks/agents/<agent>.org`
+3.  **Check dependency outputs** - If the task depends on completed items, read those items to understand what was delivered
+4.  **Read relevant source files** - If `FILES` or `COMPONENT_REF` properties exist, read those source files to understand current state
+5.  **Check the process guides** - If the task touches 3+ files, remind about [Multi-File Changes](multi-file-changes.org) process
+
+Present a brief summary of the context gathered.
+
+# Step 6: Transition to DOING
+
+After the user confirms they want to start:
+
+1.  **Change the status keyword** from `ITEM` to `DOING` in the org file
+2.  **Validate the change**:
+
+``` bash
+emacsclient -s sakya -e '(prd-validate-file-cli "@tasks/path/to/file.org")'
+```
+
+1.  **Summarize the work plan** - Restate what will be done, which files will change, and what the acceptance criteria are
+
+If validation fails, show the errors and fix them before proceeding.
+
+# Quick Mode
+
+If the user invokes `/task` with an argument (e.g. `/task ITEM-042`), skip steps 3-4 and jump directly to setting up context for that specific task.
+
+# See Also
+
+- [Process Registry](index.org)
+- [Dashboard](dashboard.org) - For orientation and project overview
+- [Multi-File Changes](multi-file-changes.org) - For complex cross-file work
+- [Agent Registry](../agents/index.org) - All available agents
+- [Reference Guide](../reference.org) - Full PRD system documentation

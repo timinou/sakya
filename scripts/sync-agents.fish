@@ -28,7 +28,7 @@ mkdir -p "$AGENTS_OUT"
 
 for md_file in $AGENTS_OUT/*.md
     test -f "$md_file"; or continue
-    grep -q '^<!-- auto-generated ' "$md_file"; or continue
+    grep -q '^auto-generated: true' "$md_file"; or continue
     set name (basename "$md_file" .md)
     if not test -f "$AGENTS_SRC/$name.org"
         rm -f "$md_file"
@@ -48,14 +48,14 @@ for org_file in $AGENTS_SRC/*.org
 
     # Timestamp skip: if output exists, is auto-generated, and org is older → skip
     if test -f "$out_file"
-        and grep -q '^<!-- auto-generated ' "$out_file"
+        and grep -q '^auto-generated: true' "$out_file"
         and test "$org_file" -ot "$out_file"
         continue
     end
 
     # Safety: if output exists but is NOT auto-generated, don't clobber
     if test -f "$out_file"
-        and not grep -q '^<!-- auto-generated ' "$out_file"
+        and not grep -q '^auto-generated: true' "$out_file"
         echo "Warning: $out_file exists without auto-generated marker — skipping (hand-crafted?)"
         continue
     end
@@ -78,21 +78,18 @@ for org_file in $AGENTS_SRC/*.org
     set apex_first_sentence (string trim --right --chars='.' -- "$apex_first_sentence")
     set description "$title agent. $apex_first_sentence."
 
-    # Convert org → GitHub-flavored markdown via pandoc
-    set body (pandoc -f org -t gfm --wrap=none "$org_file")
-
-    # Write agent .md with marker comment and YAML frontmatter
+    # Write YAML frontmatter, then append pandoc body (preserving newlines)
     printf '%s\n' \
-        "<!-- auto-generated from @tasks/agents/$name.org — do not edit -->" \
         "---" \
+        "auto-generated: true" \
         "name: $name" \
         "description: \"$description\"" \
         "tools: $tools" \
         "model: $model" \
         "---" \
         "" \
-        "$body" \
         > "$out_file"
+    pandoc -f org -t gfm --wrap=none "$org_file" >> "$out_file"
 
     echo "Synced agent: $name"
 end
@@ -104,7 +101,7 @@ for skill_dir in $SKILLS_OUT/*/
     test -d "$skill_dir"; or continue
     set skill_file "$skill_dir/SKILL.md"
     test -f "$skill_file"; or continue
-    grep -q '^<!-- auto-generated ' "$skill_file"; or continue
+    grep -q '^auto-generated: true' "$skill_file"; or continue
     set name (basename "$skill_dir")
     if not test -f "$SKILLS_SRC/$name.org"
         rm -rf "$skill_dir"
@@ -125,14 +122,14 @@ for org_file in $SKILLS_SRC/*.org
 
     # Timestamp skip: if output exists, is auto-generated, and org is older → skip
     if test -f "$out_file"
-        and grep -q '^<!-- auto-generated ' "$out_file"
+        and grep -q '^auto-generated: true' "$out_file"
         and test "$org_file" -ot "$out_file"
         continue
     end
 
     # Safety: if output exists but is NOT auto-generated, don't clobber
     if test -f "$out_file"
-        and not grep -q '^<!-- auto-generated ' "$out_file"
+        and not grep -q '^auto-generated: true' "$out_file"
         echo "Warning: $out_file exists without auto-generated marker — skipping (hand-crafted?)"
         continue
     end
@@ -148,16 +145,13 @@ for org_file in $SKILLS_SRC/*.org
         continue
     end
 
-    # Convert org → GitHub-flavored markdown via pandoc
-    set body (pandoc -f org -t gfm --wrap=none "$org_file")
-
     # Build SKILL.md
     mkdir -p "$out_dir"
 
-    # Write with marker comment and YAML frontmatter
+    # Write YAML frontmatter, then append pandoc body (preserving newlines)
     set -l lines \
-        "<!-- auto-generated from @tasks/process/$name.org — do not edit -->" \
         "---" \
+        "auto-generated: true" \
         "name: $name" \
         "description: \"$description\""
     if test -n "$allowed_tools"
@@ -165,10 +159,10 @@ for org_file in $SKILLS_SRC/*.org
     end
     set -a lines \
         "---" \
-        "" \
-        "$body"
+        ""
 
     printf '%s\n' $lines > "$out_file"
+    pandoc -f org -t gfm --wrap=none "$org_file" >> "$out_file"
 
     echo "Synced skill: $name"
 end
