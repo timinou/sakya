@@ -23,14 +23,44 @@
   // Search palette state
   let searchOpen = $state(false);
 
+  // --- Distraction-free mode state ---
+  let peekBinder = $state(false);
+  let peekInspector = $state(false);
+  let peekBinderTimer: ReturnType<typeof setTimeout> | null = null;
+  let peekInspectorTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const EDGE_THRESHOLD = 20; // pixels from screen edge to trigger peek
+  const PEEK_HIDE_DELAY = 300; // ms delay before hiding peeked chrome
+
+  // Determine whether binder/inspector should be shown in the DOM
+  // In normal mode: only when visible. In distraction-free: always (for peek transitions).
+  let showBinderInDom = $derived(
+    uiState.panes.binderVisible || uiState.distractionFreeMode
+  );
+  let showInspectorInDom = $derived(
+    uiState.panes.inspectorVisible || uiState.distractionFreeMode
+  );
+
   let binderCol = $derived(
-    uiState.panes.binderVisible ? `${uiState.panes.binderWidth}px` : '0px'
+    uiState.distractionFreeMode
+      ? '0px'
+      : uiState.panes.binderVisible ? `${uiState.panes.binderWidth}px` : '0px'
   );
   let inspectorCol = $derived(
-    uiState.panes.inspectorVisible ? `${uiState.panes.inspectorWidth}px` : '0px'
+    uiState.distractionFreeMode
+      ? '0px'
+      : uiState.panes.inspectorVisible ? `${uiState.panes.inspectorWidth}px` : '0px'
   );
-  let binderResizerCol = $derived(uiState.panes.binderVisible ? '4px' : '0px');
-  let inspectorResizerCol = $derived(uiState.panes.inspectorVisible ? '4px' : '0px');
+  let binderResizerCol = $derived(
+    uiState.distractionFreeMode
+      ? '0px'
+      : uiState.panes.binderVisible ? '4px' : '0px'
+  );
+  let inspectorResizerCol = $derived(
+    uiState.distractionFreeMode
+      ? '0px'
+      : uiState.panes.inspectorVisible ? '4px' : '0px'
+  );
 
   let gridTemplateColumns = $derived(
     `${binderCol} ${binderResizerCol} 1fr ${inspectorResizerCol} ${inspectorCol}`
@@ -120,6 +150,7 @@
     const _inspectorWidth = uiState.panes.inspectorWidth;
     const _binderVisible = uiState.panes.binderVisible;
     const _inspectorVisible = uiState.panes.inspectorVisible;
+    const _distractionFree = uiState.distractionFreeMode;
 
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
@@ -131,8 +162,71 @@
     };
   });
 
+  // --- Distraction-free mouse edge detection ---
+  function handleMouseMove(e: MouseEvent) {
+    if (!uiState.distractionFreeMode) return;
+
+    const x = e.clientX;
+    const windowWidth = window.innerWidth;
+
+    // Left edge: peek binder
+    if (x <= EDGE_THRESHOLD) {
+      if (peekBinderTimer) {
+        clearTimeout(peekBinderTimer);
+        peekBinderTimer = null;
+      }
+      peekBinder = true;
+    } else if (peekBinder) {
+      if (!peekBinderTimer) {
+        peekBinderTimer = setTimeout(() => {
+          peekBinder = false;
+          peekBinderTimer = null;
+        }, PEEK_HIDE_DELAY);
+      }
+    }
+
+    // Right edge: peek inspector
+    if (x >= windowWidth - EDGE_THRESHOLD) {
+      if (peekInspectorTimer) {
+        clearTimeout(peekInspectorTimer);
+        peekInspectorTimer = null;
+      }
+      peekInspector = true;
+    } else if (peekInspector) {
+      if (!peekInspectorTimer) {
+        peekInspectorTimer = setTimeout(() => {
+          peekInspector = false;
+          peekInspectorTimer = null;
+        }, PEEK_HIDE_DELAY);
+      }
+    }
+  }
+
+  // Clean up peek state when distraction-free mode is toggled off
+  $effect(() => {
+    if (!uiState.distractionFreeMode) {
+      peekBinder = false;
+      peekInspector = false;
+      if (peekBinderTimer) {
+        clearTimeout(peekBinderTimer);
+        peekBinderTimer = null;
+      }
+      if (peekInspectorTimer) {
+        clearTimeout(peekInspectorTimer);
+        peekInspectorTimer = null;
+      }
+    }
+  });
+
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
+
+    // Escape: Exit distraction-free mode
+    if (e.key === 'Escape' && uiState.distractionFreeMode) {
+      e.preventDefault();
+      uiState.distractionFreeMode = false;
+      return;
+    }
 
     // Cmd+K: Toggle search palette
     if (mod && e.key === 'k') {
@@ -179,16 +273,19 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
 <div
   class="app-shell"
+  class:distraction-free={uiState.distractionFreeMode}
+  class:peek-binder={peekBinder}
+  class:peek-inspector={peekInspector}
   style:grid-template-columns={gridTemplateColumns}
   data-theme={uiState.effectiveTheme}
 >
   <Toolbar />
 
-  {#if uiState.panes.binderVisible}
+  {#if showBinderInDom}
     <div class="pane binder-pane">
       {#if binderContent}
         {@render binderContent()}
@@ -218,7 +315,7 @@
     {/if}
   </main>
 
-  {#if uiState.panes.inspectorVisible}
+  {#if showInspectorInDom}
     <PaneResizer onResize={handleInspectorResize} />
     <div class="pane inspector-pane">
       {#if inspectorContent}
@@ -263,6 +360,7 @@
     overflow: hidden;
     background: var(--bg-primary);
     color: var(--text-primary);
+    transition: grid-template-rows 200ms ease, grid-template-columns 200ms ease;
   }
 
   .pane {
@@ -274,15 +372,18 @@
   .binder-pane {
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-secondary);
+    transition: opacity 200ms ease, transform 200ms ease;
   }
 
   .editor-pane {
     background: var(--bg-primary);
+    transition: max-width 200ms ease, margin 200ms ease;
   }
 
   .inspector-pane {
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-secondary);
+    transition: opacity 200ms ease, transform 200ms ease;
   }
 
   .split-view {
@@ -316,5 +417,90 @@
     font-size: var(--font-size-sm);
     color: var(--text-tertiary);
     font-style: italic;
+  }
+
+  /* ==========================================================================
+     Distraction-free mode
+     ========================================================================== */
+
+  /* Hide toolbar — slide up */
+  .app-shell.distraction-free {
+    grid-template-rows: 0px 1fr 0px;
+  }
+
+  .app-shell.distraction-free :global(.toolbar) {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    overflow: hidden;
+  }
+
+  /* Hide status bar — slide down */
+  .app-shell.distraction-free :global(.status-bar) {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    overflow: hidden;
+  }
+
+  /* Hide binder — fade out */
+  .app-shell.distraction-free .binder-pane {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 100;
+    border-right: 1px solid var(--border-secondary);
+    transform: translateX(-100%);
+  }
+
+  /* Hide inspector — fade out */
+  .app-shell.distraction-free .inspector-pane {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 300px;
+    z-index: 100;
+    border-left: 1px solid var(--border-secondary);
+    transform: translateX(100%);
+  }
+
+  /* Hide resizers in distraction-free mode */
+  .app-shell.distraction-free :global(.pane-resizer) {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    overflow: hidden;
+  }
+
+  /* Editor area: expand and center content for comfortable reading */
+  .app-shell.distraction-free .editor-pane {
+    max-width: 720px;
+    margin: 0 auto;
+    grid-column: 1 / -1;
+  }
+
+  /* --- Peek binder (left edge hover) --- */
+  .app-shell.distraction-free.peek-binder .binder-pane {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+
+  /* --- Peek inspector (right edge hover) --- */
+  .app-shell.distraction-free.peek-inspector .inspector-pane {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
   }
 </style>

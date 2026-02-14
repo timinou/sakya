@@ -63,7 +63,7 @@ Create a Lexical editor plugin that highlights the paragraph containing the curr
 - [ ] Plugin reads enabled state from =uiStore.focusMode=
 - [ ] Cleanup: classes removed and listeners deregistered on component destroy
 
-*** DOING Distraction-free chrome fade
+*** DONE Distraction-free chrome fade
 :PROPERTIES:
 :CUSTOM_ID: ITEM-096
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
