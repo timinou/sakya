@@ -2,12 +2,12 @@
 # Maps @tasks TEST_PLAN values to test commands.
 # Usage: ./scripts/run-test-plan.fish <test-plan-value>
 #
-# Valid values: compile, test-rust, test-svelte, clippy, e2e, all
+# Valid values: compile, test-rust, test-svelte, clippy, e2e, visual, all
 
 set -l plan $argv[1]
 
 if test -z "$plan"
-    echo "Usage: run-test-plan.fish <compile|test-rust|test-svelte|clippy|e2e|all>"
+    echo "Usage: run-test-plan.fish <compile|test-rust|test-svelte|clippy|e2e|visual|all>"
     exit 1
 end
 
@@ -38,12 +38,18 @@ function run_e2e
     bun run test:e2e
 end
 
+function run_visual
+    echo "==> Running visual regression tests..."
+    bun run test:visual
+end
+
 function run_all
     run_compile
     and run_clippy
     and run_test_rust
     and run_test_svelte
     and run_e2e
+    and run_visual
 end
 
 switch $plan
@@ -57,10 +63,12 @@ switch $plan
         run_clippy
     case e2e
         run_e2e
+    case visual
+        run_visual
     case all
         run_all
     case '*'
         echo "Unknown test plan: $plan"
-        echo "Valid values: compile, test-rust, test-svelte, clippy, e2e, all"
+        echo "Valid values: compile, test-rust, test-svelte, clippy, e2e, visual, all"
         exit 1
 end
