@@ -105,7 +105,7 @@ Create a custom Lexical node for =[[Entity Name]]= wiki-links with a correspondi
 *** Notes
 See [[file:../../docs/prd/lexical-editor.org::#nodes][Lexical Editor Design - Node Type Catalog]] for specification.
 
-** ITEM Create WikiLinkPlugin
+** DONE Create WikiLinkPlugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-023-wiki-link-plugin
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
