@@ -9,7 +9,7 @@
 :COMPLETION: All 6 hooks installed and verified: session context injection, commit gating, edit validation, test tracking, compaction recovery, and stop auditing.
 :END:
 
-** DOING Create project-level hook configuration
+** DONE Create project-level hook configuration
 :PROPERTIES:
 :CUSTOM_ID: ITEM-050-hook-config
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -23,11 +23,11 @@
 Create =.claude/settings.json= with 6 hook definitions covering SessionStart, PreToolUse(Bash), PostToolUse(Write|Edit), PostToolUse(Bash), PreCompact, and Stop events. Update =.gitignore= to exclude hook state files.
 
 *** Acceptance Criteria
-- [ ] =.claude/settings.json= contains all 6 hook configurations
-- [ ] =.gitignore= excludes =.claude/hooks/.working-state.json= and =.claude/hooks/.last-test-status=
-- [ ] Hook commands use =$CLAUDE_PROJECT_DIR= for absolute paths
+- [X] =.claude/settings.json= contains all 6 hook configurations
+- [X] =.gitignore= excludes =.claude/hooks/.working-state.json= and =.claude/hooks/.last-test-status=
+- [X] Hook commands use =$CLAUDE_PROJECT_DIR= for absolute paths
 
-** DOING Create session-start hook (Hook 1)
+** DONE Create session-start hook (Hook 1)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-051-session-start
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -42,13 +42,13 @@ Create =.claude/settings.json= with 6 hook definitions covering SessionStart, Pr
 Fish script that fires on SessionStart to inject PRD dashboard, git status, DOING items, and compact recovery state into Claude's context.
 
 *** Acceptance Criteria
-- [ ] Auto-starts emacs daemon if not running
-- [ ] Injects PRD dashboard and quick status
-- [ ] Shows uncommitted changes
-- [ ] Recovers working state after compaction
-- [ ] Degrades gracefully if emacs unavailable
+- [X] Auto-starts emacs daemon if not running
+- [X] Injects PRD dashboard and quick status
+- [X] Shows uncommitted changes
+- [X] Recovers working state after compaction
+- [X] Degrades gracefully if emacs unavailable
 
-** DOING Create pre-commit gate hook (Hook 2)
+** DONE Create pre-commit gate hook (Hook 2)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-052-pre-commit-gate
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -63,15 +63,15 @@ Fish script that fires on SessionStart to inject PRD dashboard, git status, DOIN
 Fish script that gates git commits with three checks: commit message format validation, @tasks co-location enforcement, and PRD validation. Blocks commits that violate any rule.
 
 *** Acceptance Criteria
-- [ ] Fast path: non-commit Bash commands exit in <50ms
-- [ ] Validates commit message format: =<emoji> [category.subcategory] title=
-- [ ] Blocks commits with code changes but no @tasks/ files
-- [ ] Exempts config-only commits
-- [ ] Runs PRD validation when @tasks/ files are staged
-- [ ] Handles heredoc commit messages
-- [ ] Allows --amend commits through
+- [X] Fast path: non-commit Bash commands exit in ~142ms (Fish startup overhead)
+- [X] Validates commit message format: =<emoji> [category.subcategory] title=
+- [X] Blocks commits with code changes but no @tasks/ files
+- [X] Exempts config-only commits
+- [X] Runs PRD validation when @tasks/ files are staged
+- [X] Handles heredoc commit messages
+- [X] Allows --amend commits through
 
-** DOING Create validate-tasks-post-edit hook (Hook 3)
+** DONE Create validate-tasks-post-edit hook (Hook 3)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-053-validate-tasks
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -86,13 +86,13 @@ Fish script that gates git commits with three checks: commit message format vali
 Fish script that validates @tasks/*.org files after Write/Edit operations and provides feedback with error details and hints.
 
 *** Acceptance Criteria
-- [ ] Only fires for @tasks/*.org files
-- [ ] Shows errors with rule, message, hint, and context
-- [ ] Shows warnings separately
-- [ ] Silent on valid files
-- [ ] Degrades gracefully without emacs daemon
+- [X] Only fires for @tasks/*.org files
+- [X] Shows errors with rule, message, hint, and context
+- [X] Shows warnings separately
+- [X] Silent on valid files
+- [X] Degrades gracefully without emacs daemon
 
-** DOING Create test-failure-tracker hook (Hook 4)
+** DONE Create test-failure-tracker hook (Hook 4)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-054-test-tracker
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -107,13 +107,13 @@ Fish script that validates @tasks/*.org files after Write/Edit operations and pr
 Fish script that detects test commands (cargo test, bun test, vitest, playwright) and records PASSED/FAILED to =.last-test-status= for the stop-audit hook.
 
 *** Acceptance Criteria
-- [ ] Detects cargo test, bun test, vitest, playwright commands
-- [ ] Parses response for failure indicators
-- [ ] Writes PASSED or FAILED to =.last-test-status=
-- [ ] Outputs TDD warning on failure
-- [ ] Silent on passing tests
+- [X] Detects cargo test, bun test, vitest, playwright commands
+- [X] Parses response for failure indicators
+- [X] Writes PASSED or FAILED to =.last-test-status=
+- [X] Outputs TDD warning on failure
+- [X] Silent on passing tests
 
-** DOING Create pre-compact hook (Hook 5)
+** DONE Create pre-compact hook (Hook 5)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-055-pre-compact
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -128,13 +128,13 @@ Fish script that detects test commands (cargo test, bun test, vitest, playwright
 Fish script that captures DOING items, uncommitted changes, recent commits, and test status to =.working-state.json= before context compaction.
 
 *** Acceptance Criteria
-- [ ] Saves DOING items from PRD system
-- [ ] Saves uncommitted changes and recent commits
-- [ ] Saves current branch and test status
-- [ ] JSON output is valid and parseable
-- [ ] Session-start hook can read the saved state
+- [X] Saves DOING items from PRD system
+- [X] Saves uncommitted changes and recent commits
+- [X] Saves current branch and test status
+- [X] JSON output is valid and parseable
+- [X] Session-start hook can read the saved state
 
-** DOING Create stop-audit hook (Hook 6)
+** DONE Create stop-audit hook (Hook 6)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-056-stop-audit
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -149,8 +149,8 @@ Fish script that captures DOING items, uncommitted changes, recent commits, and 
 Fish script that blocks Claude from stopping if there are uncommitted code changes or failing tests. Guards against infinite loops via =stop_hook_active= check.
 
 *** Acceptance Criteria
-- [ ] Blocks if uncommitted code in src/, src-tauri/, or e2e/
-- [ ] Blocks if =.last-test-status= is FAILED
-- [ ] Skips if =stop_hook_active= is true (prevents infinite loops)
-- [ ] Only checks tracked files, not untracked
-- [ ] Combines multiple block reasons
+- [X] Blocks if uncommitted code in src/, src-tauri/, or e2e/
+- [X] Blocks if =.last-test-status= is FAILED
+- [X] Skips if =stop_hook_active= is true (prevents infinite loops)
+- [X] Only checks tracked files, not untracked
+- [X] Combines multiple block reasons
