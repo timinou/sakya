@@ -4,6 +4,9 @@ import type { Theme, ViewMode, PaneConfig } from '$lib/types';
 class UIState {
   theme = $state<Theme>('system');
   viewMode = $state<ViewMode>('editor');
+  typewriterMode = $state(false);
+  distractionFreeMode = $state(false);
+  focusMode = $state(false);
   panes = $state<PaneConfig>({
     binderWidth: 260,
     inspectorWidth: 300,
@@ -19,6 +22,18 @@ class UIState {
           : 'light')
       : this.theme
   );
+
+  toggleTypewriterMode(): void {
+    this.typewriterMode = !this.typewriterMode;
+  }
+
+  toggleDistractionFreeMode(): void {
+    this.distractionFreeMode = !this.distractionFreeMode;
+  }
+
+  toggleFocusMode(): void {
+    this.focusMode = !this.focusMode;
+  }
 
   toggleBinder(): void {
     this.panes.binderVisible = !this.panes.binderVisible;
@@ -49,6 +64,9 @@ class UIState {
       theme: this.theme,
       viewMode: this.viewMode,
       panes: { ...this.panes },
+      typewriterMode: this.typewriterMode,
+      distractionFreeMode: this.distractionFreeMode,
+      focusMode: this.focusMode,
     };
     const dir = `${projectPath}/.sakya`;
     try {
@@ -65,6 +83,9 @@ class UIState {
       const state = JSON.parse(content);
       if (state.theme) this.theme = state.theme;
       if (state.viewMode) this.viewMode = state.viewMode;
+      if (state.typewriterMode !== undefined) this.typewriterMode = state.typewriterMode;
+      if (state.distractionFreeMode !== undefined) this.distractionFreeMode = state.distractionFreeMode;
+      if (state.focusMode !== undefined) this.focusMode = state.focusMode;
       if (state.panes) {
         if (state.panes.binderWidth) this.panes.binderWidth = state.panes.binderWidth;
         if (state.panes.inspectorWidth) this.panes.inspectorWidth = state.panes.inspectorWidth;

@@ -15,7 +15,7 @@
 :CUSTOM_ID: CHK-009-01
 :END:
 
-*** ITEM Typewriter scrolling Lexical plugin
+*** DONE Typewriter scrolling Lexical plugin
 :PROPERTIES:
 :CUSTOM_ID: ITEM-094
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -38,7 +38,7 @@ Create a Lexical editor plugin that keeps the active line (caret position) verti
 - [ ] Works correctly with long documents that exceed viewport height
 - [ ] Cleanup: all listeners deregistered on component destroy
 
-*** ITEM Focus mode (dim non-current paragraph)
+*** DOING Focus mode (dim non-current paragraph)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-095
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -63,7 +63,7 @@ Create a Lexical editor plugin that highlights the paragraph containing the curr
 - [ ] Plugin reads enabled state from =uiStore.focusMode=
 - [ ] Cleanup: classes removed and listeners deregistered on component destroy
 
-*** ITEM Distraction-free chrome fade
+*** DOING Distraction-free chrome fade
 :PROPERTIES:
 :CUSTOM_ID: ITEM-096
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

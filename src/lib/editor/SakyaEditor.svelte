@@ -20,6 +20,7 @@
   import AutoSavePlugin from './plugins/AutoSavePlugin.svelte';
   import WordCountPlugin from './plugins/WordCountPlugin.svelte';
   import WikiLinkPlugin from './plugins/WikiLinkPlugin.svelte';
+  import TypewriterPlugin from './plugins/TypewriterPlugin.svelte';
   import '$lib/editor/editor.css';
 
   interface Props {
@@ -83,6 +84,9 @@
     {/if}
     {#if onCountChange}
       <WordCountPlugin {onCountChange} />
+    {/if}
+    {#if !readonly}
+      <TypewriterPlugin />
     {/if}
   </Composer>
 </div>
