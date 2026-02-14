@@ -12,6 +12,7 @@ Sakya is a writing application built with Tauri 2.x (Rust backend) and SvelteKit
 ## IMPORTANT instructions
 - Commit as you go. Like this:
   <emoji> [<category>.<subcategory>] <title>
+- Add specific files & commit in the same command with `&&`
 - Use the [[@tasks/]] system diligently. When in plan mode, write the `BUG-*`, `IMP-*`, and `PROJ-*` and `ITEM-*` in the relevant files, and detail the plan in relation to completing the tasks and subtasks in the org-mode files. Update them as you go.
 - Colocate any update to @tasks/* with the commit where the update happened. Try to be granular about it.
 - Include your orchestration plan, mentioning the agents within each phase and the testing logic. Include, in the orchestration, the parallelisation framework you'll use.
