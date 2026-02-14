@@ -15,6 +15,9 @@ pub enum AppError {
     #[error("Not found: {0}")]
     NotFound(String),
 
+    #[error("Already exists: {0}")]
+    AlreadyExists(String),
+
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 

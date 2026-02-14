@@ -1,7 +1,13 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::error::AppError;
-use crate::models::entity::{EntityField, EntitySchema, FieldType, SchemaSummary, SpiderAxis};
+use crate::models::entity::{
+    EntityField, EntityFrontmatter, EntityInstance, EntitySchema, EntitySummary, FieldType,
+    SchemaSummary, SpiderAxis,
+};
+use crate::services::frontmatter;
+use crate::services::slug_service::slugify;
 use crate::services::yaml_service::{read_yaml, write_yaml};
 
 /// List all entity schemas in the project's schemas/ directory.
@@ -78,6 +84,198 @@ pub fn delete_schema(project_path: String, schema_type: String) -> Result<(), Ap
 
     std::fs::remove_file(&schema_path)?;
     Ok(())
+}
+
+// ── Entity Instance Commands ────────────────────────────────────
+
+/// List all entity instances of a given schema type.
+#[tauri::command]
+pub fn list_entities(
+    project_path: String,
+    schema_type: String,
+) -> Result<Vec<EntitySummary>, AppError> {
+    let entities_dir = PathBuf::from(&project_path)
+        .join("entities")
+        .join(&schema_type);
+
+    if !entities_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut summaries = Vec::new();
+    let entries = std::fs::read_dir(&entities_dir)?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            let content = std::fs::read_to_string(&path)?;
+            let doc: frontmatter::ParsedDocument<EntityFrontmatter> = frontmatter::parse(&content)?;
+            summaries.push(EntitySummary {
+                title: doc.frontmatter.title,
+                slug: doc.frontmatter.slug,
+                schema_type: doc.frontmatter.schema_type,
+                tags: doc.frontmatter.tags,
+            });
+        }
+    }
+
+    summaries.sort_by(|a, b| a.title.cmp(&b.title));
+    Ok(summaries)
+}
+
+/// Read a single entity instance by schema type and slug.
+#[tauri::command]
+pub fn get_entity(
+    project_path: String,
+    schema_type: String,
+    slug: String,
+) -> Result<EntityInstance, AppError> {
+    let entity_path = PathBuf::from(&project_path)
+        .join("entities")
+        .join(&schema_type)
+        .join(format!("{}.md", slug));
+
+    if !entity_path.exists() {
+        return Err(AppError::NotFound(format!(
+            "Entity not found: {}/{}",
+            schema_type, slug
+        )));
+    }
+
+    let content = std::fs::read_to_string(&entity_path)?;
+    let doc: frontmatter::ParsedDocument<EntityFrontmatter> = frontmatter::parse(&content)?;
+
+    Ok(EntityInstance {
+        title: doc.frontmatter.title,
+        slug: doc.frontmatter.slug,
+        schema_slug: doc.frontmatter.schema_type,
+        tags: doc.frontmatter.tags,
+        spider_values: doc.frontmatter.spider_values,
+        fields: doc.frontmatter.fields,
+        body: doc.body,
+    })
+}
+
+/// Create a new entity instance with a generated slug.
+#[tauri::command]
+pub fn create_entity(
+    project_path: String,
+    schema_type: String,
+    title: String,
+) -> Result<EntityInstance, AppError> {
+    let slug = slugify(&title);
+    let entities_dir = PathBuf::from(&project_path)
+        .join("entities")
+        .join(&schema_type);
+
+    std::fs::create_dir_all(&entities_dir)?;
+
+    let entity_path = entities_dir.join(format!("{}.md", slug));
+    if entity_path.exists() {
+        return Err(AppError::AlreadyExists(format!(
+            "Entity already exists: {}/{}",
+            schema_type, slug
+        )));
+    }
+
+    let fm = EntityFrontmatter {
+        title: title.clone(),
+        slug: slug.clone(),
+        schema_type: schema_type.clone(),
+        tags: vec![],
+        spider_values: HashMap::new(),
+        fields: HashMap::new(),
+    };
+
+    let content = frontmatter::serialize(&fm, "")?;
+    std::fs::write(&entity_path, content)?;
+
+    Ok(EntityInstance {
+        title,
+        slug,
+        schema_slug: schema_type,
+        tags: vec![],
+        spider_values: HashMap::new(),
+        fields: HashMap::new(),
+        body: String::new(),
+    })
+}
+
+/// Save (update) an existing entity instance.
+#[tauri::command]
+pub fn save_entity(project_path: String, entity: EntityInstance) -> Result<(), AppError> {
+    let entities_dir = PathBuf::from(&project_path)
+        .join("entities")
+        .join(&entity.schema_slug);
+
+    std::fs::create_dir_all(&entities_dir)?;
+
+    let entity_path = entities_dir.join(format!("{}.md", entity.slug));
+
+    let fm = EntityFrontmatter {
+        title: entity.title,
+        slug: entity.slug,
+        schema_type: entity.schema_slug,
+        tags: entity.tags,
+        spider_values: entity.spider_values,
+        fields: entity.fields,
+    };
+
+    let content = frontmatter::serialize(&fm, &entity.body)?;
+    std::fs::write(&entity_path, content)?;
+    Ok(())
+}
+
+/// Delete an entity instance by schema type and slug.
+#[tauri::command]
+pub fn delete_entity(
+    project_path: String,
+    schema_type: String,
+    slug: String,
+) -> Result<(), AppError> {
+    let entity_path = PathBuf::from(&project_path)
+        .join("entities")
+        .join(&schema_type)
+        .join(format!("{}.md", slug));
+
+    if !entity_path.exists() {
+        return Err(AppError::NotFound(format!(
+            "Entity not found: {}/{}",
+            schema_type, slug
+        )));
+    }
+
+    std::fs::remove_file(&entity_path)?;
+    Ok(())
+}
+
+/// Rename an entity instance (update title and potentially slug/filename).
+#[tauri::command]
+pub fn rename_entity(
+    project_path: String,
+    schema_type: String,
+    old_slug: String,
+    new_title: String,
+) -> Result<EntityInstance, AppError> {
+    let mut entity = get_entity(project_path.clone(), schema_type.clone(), old_slug.clone())?;
+    let new_slug = slugify(&new_title);
+
+    entity.title = new_title;
+
+    if new_slug == old_slug {
+        // Same slug — just update the title in place
+        entity.slug = new_slug;
+        save_entity(project_path, entity.clone())?;
+        return Ok(entity);
+    }
+
+    // Different slug — write new file, delete old
+    entity.slug = new_slug;
+    save_entity(project_path.clone(), entity.clone())?;
+    delete_entity(project_path, schema_type, old_slug)?;
+    Ok(entity)
 }
 
 // ── Default Schemas ─────────────────────────────────────────────
@@ -1054,5 +1252,336 @@ mod tests {
             assert_eq!(loaded.fields.len(), schema.fields.len());
             assert_eq!(loaded.spider_axes.len(), schema.spider_axes.len());
         }
+    }
+
+    // ── create_entity ───────────────────────────────────────────────
+
+    #[test]
+    fn create_entity_creates_file_and_returns_instance() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = create_entity(
+            pp.clone(),
+            "character".to_string(),
+            "Frodo Baggins".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(result.title, "Frodo Baggins");
+        assert_eq!(result.slug, "frodo-baggins");
+        assert_eq!(result.schema_slug, "character");
+        assert!(result.tags.is_empty());
+        assert!(result.spider_values.is_empty());
+        assert!(result.fields.is_empty());
+        assert!(result.body.is_empty());
+
+        // Verify file exists on disk
+        let entity_path = dir.path().join("entities/character/frodo-baggins.md");
+        assert!(entity_path.exists());
+    }
+
+    #[test]
+    fn create_entity_directory_created() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        // entities/character/ does not exist yet
+        assert!(!dir.path().join("entities/character").exists());
+
+        create_entity(pp, "character".to_string(), "Gandalf".to_string()).unwrap();
+
+        assert!(dir.path().join("entities/character").exists());
+    }
+
+    #[test]
+    fn create_entity_duplicate_slug_returns_already_exists() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(
+            pp.clone(),
+            "character".to_string(),
+            "Frodo Baggins".to_string(),
+        )
+        .unwrap();
+        let result = create_entity(pp, "character".to_string(), "Frodo Baggins".to_string());
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Already exists"),
+            "Expected 'Already exists' error, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn create_entity_special_characters_in_title_get_slugified() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = create_entity(
+            pp,
+            "character".to_string(),
+            "O'Brien & Friends!".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(result.slug, "o-brien-friends");
+        assert_eq!(result.title, "O'Brien & Friends!");
+        assert!(dir
+            .path()
+            .join("entities/character/o-brien-friends.md")
+            .exists());
+    }
+
+    // ── list_entities ───────────────────────────────────────────────
+
+    #[test]
+    fn list_entities_empty_when_no_entities() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = list_entities(pp, "character".to_string()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn list_entities_returns_all_entities_of_type() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(pp.clone(), "character".to_string(), "Frodo".to_string()).unwrap();
+        create_entity(pp.clone(), "character".to_string(), "Gandalf".to_string()).unwrap();
+        create_entity(pp.clone(), "character".to_string(), "Aragorn".to_string()).unwrap();
+
+        let result = list_entities(pp, "character".to_string()).unwrap();
+        assert_eq!(result.len(), 3);
+
+        // Sorted by title
+        assert_eq!(result[0].title, "Aragorn");
+        assert_eq!(result[1].title, "Frodo");
+        assert_eq!(result[2].title, "Gandalf");
+    }
+
+    #[test]
+    fn list_entities_doesnt_return_other_types() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(pp.clone(), "character".to_string(), "Frodo".to_string()).unwrap();
+        create_entity(pp.clone(), "place".to_string(), "The Shire".to_string()).unwrap();
+
+        let characters = list_entities(pp.clone(), "character".to_string()).unwrap();
+        assert_eq!(characters.len(), 1);
+        assert_eq!(characters[0].title, "Frodo");
+
+        let places = list_entities(pp, "place".to_string()).unwrap();
+        assert_eq!(places.len(), 1);
+        assert_eq!(places[0].title, "The Shire");
+    }
+
+    // ── get_entity ──────────────────────────────────────────────────
+
+    #[test]
+    fn get_entity_reads_created_entity_correctly() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(
+            pp.clone(),
+            "character".to_string(),
+            "Frodo Baggins".to_string(),
+        )
+        .unwrap();
+
+        let entity = get_entity(pp, "character".to_string(), "frodo-baggins".to_string()).unwrap();
+
+        assert_eq!(entity.title, "Frodo Baggins");
+        assert_eq!(entity.slug, "frodo-baggins");
+        assert_eq!(entity.schema_slug, "character");
+        assert!(entity.tags.is_empty());
+        assert!(entity.body.is_empty());
+    }
+
+    #[test]
+    fn get_entity_nonexistent_returns_not_found() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = get_entity(pp, "character".to_string(), "nonexistent".to_string());
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Not found") || err_msg.contains("not found"),
+            "Expected 'not found' error, got: {}",
+            err_msg
+        );
+    }
+
+    // ── save_entity ─────────────────────────────────────────────────
+
+    #[test]
+    fn save_entity_updates_fields_and_body() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let mut entity =
+            create_entity(pp.clone(), "character".to_string(), "Frodo".to_string()).unwrap();
+
+        entity.tags = vec!["hobbit".to_string(), "ringbearer".to_string()];
+        entity.body = "A brave hobbit from the Shire.\n".to_string();
+        entity.fields.insert(
+            "role".to_string(),
+            serde_json::Value::String("Protagonist".to_string()),
+        );
+        entity.spider_values.insert("Courage".to_string(), 8.5);
+
+        save_entity(pp.clone(), entity).unwrap();
+
+        let loaded = get_entity(pp, "character".to_string(), "frodo".to_string()).unwrap();
+        assert_eq!(loaded.tags, vec!["hobbit", "ringbearer"]);
+        assert_eq!(loaded.body, "A brave hobbit from the Shire.\n");
+        assert_eq!(
+            loaded.fields.get("role"),
+            Some(&serde_json::Value::String("Protagonist".to_string()))
+        );
+        assert_eq!(loaded.spider_values.get("Courage"), Some(&8.5));
+    }
+
+    #[test]
+    fn save_entity_round_trips_frontmatter_correctly() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let mut entity =
+            create_entity(pp.clone(), "item".to_string(), "Sting".to_string()).unwrap();
+
+        entity.tags = vec!["weapon".to_string(), "elvish".to_string()];
+        entity.body = "An elvish short sword that glows blue.\n".to_string();
+        entity.fields.insert(
+            "type".to_string(),
+            serde_json::Value::String("weapon".to_string()),
+        );
+        entity.fields.insert(
+            "owner".to_string(),
+            serde_json::Value::String("Bilbo".to_string()),
+        );
+        entity.spider_values.insert("Power".to_string(), 7.0);
+        entity.spider_values.insert("Rarity".to_string(), 9.0);
+
+        save_entity(pp.clone(), entity.clone()).unwrap();
+
+        let loaded = get_entity(pp, "item".to_string(), "sting".to_string()).unwrap();
+
+        assert_eq!(loaded.title, "Sting");
+        assert_eq!(loaded.slug, "sting");
+        assert_eq!(loaded.schema_slug, "item");
+        assert_eq!(loaded.tags, vec!["weapon", "elvish"]);
+        assert_eq!(loaded.body, "An elvish short sword that glows blue.\n");
+        assert_eq!(loaded.fields.len(), 2);
+        assert_eq!(loaded.spider_values.len(), 2);
+        assert_eq!(loaded.spider_values.get("Power"), Some(&7.0));
+        assert_eq!(loaded.spider_values.get("Rarity"), Some(&9.0));
+    }
+
+    // ── delete_entity ───────────────────────────────────────────────
+
+    #[test]
+    fn delete_entity_removes_file() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(pp.clone(), "character".to_string(), "Boromir".to_string()).unwrap();
+        let entity_path = dir.path().join("entities/character/boromir.md");
+        assert!(entity_path.exists());
+
+        delete_entity(pp, "character".to_string(), "boromir".to_string()).unwrap();
+        assert!(!entity_path.exists());
+    }
+
+    #[test]
+    fn delete_entity_nonexistent_returns_not_found() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        let result = delete_entity(pp, "character".to_string(), "nonexistent".to_string());
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Not found") || err_msg.contains("not found"),
+            "Expected 'not found' error, got: {}",
+            err_msg
+        );
+    }
+
+    // ── rename_entity ───────────────────────────────────────────────
+
+    #[test]
+    fn rename_entity_updates_title_and_slug() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        create_entity(pp.clone(), "character".to_string(), "Strider".to_string()).unwrap();
+
+        let renamed = rename_entity(
+            pp.clone(),
+            "character".to_string(),
+            "strider".to_string(),
+            "Aragorn Son of Arathorn".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.title, "Aragorn Son of Arathorn");
+        assert_eq!(renamed.slug, "aragorn-son-of-arathorn");
+        assert_eq!(renamed.schema_slug, "character");
+
+        // Old file should be gone
+        assert!(!dir.path().join("entities/character/strider.md").exists());
+        // New file should exist
+        assert!(dir
+            .path()
+            .join("entities/character/aragorn-son-of-arathorn.md")
+            .exists());
+
+        // Should be retrievable by new slug
+        let loaded = get_entity(
+            pp,
+            "character".to_string(),
+            "aragorn-son-of-arathorn".to_string(),
+        )
+        .unwrap();
+        assert_eq!(loaded.title, "Aragorn Son of Arathorn");
+    }
+
+    #[test]
+    fn rename_entity_same_slug_just_updates_title() {
+        let dir = setup_test_dir();
+        let pp = dir.path().to_str().unwrap().to_string();
+
+        // "Frodo" slugifies to "frodo"
+        create_entity(pp.clone(), "character".to_string(), "Frodo".to_string()).unwrap();
+
+        // "FRODO" also slugifies to "frodo" — same slug
+        let renamed = rename_entity(
+            pp.clone(),
+            "character".to_string(),
+            "frodo".to_string(),
+            "FRODO".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(renamed.title, "FRODO");
+        assert_eq!(renamed.slug, "frodo");
+
+        // File still exists at same path
+        assert!(dir.path().join("entities/character/frodo.md").exists());
+
+        // Title updated in file
+        let loaded = get_entity(pp, "character".to_string(), "frodo".to_string()).unwrap();
+        assert_eq!(loaded.title, "FRODO");
     }
 }

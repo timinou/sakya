@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -63,4 +65,44 @@ pub struct SchemaSummary {
     pub entity_type: String,
     pub field_count: usize,
     pub axis_count: usize,
+}
+
+// ── Entity Instance Models ──────────────────────────────────────
+
+/// Frontmatter stored in entity Markdown files.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityFrontmatter {
+    pub title: String,
+    pub slug: String,
+    pub schema_type: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub spider_values: HashMap<String, f64>,
+    #[serde(default)]
+    pub fields: HashMap<String, serde_json::Value>,
+}
+
+/// Lightweight summary of an entity instance (for listing).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntitySummary {
+    pub title: String,
+    pub slug: String,
+    pub schema_type: String,
+    pub tags: Vec<String>,
+}
+
+/// Full entity instance with body content.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityInstance {
+    pub title: String,
+    pub slug: String,
+    pub schema_slug: String,
+    pub tags: Vec<String>,
+    pub spider_values: HashMap<String, f64>,
+    pub fields: HashMap<String, serde_json::Value>,
+    pub body: String,
 }
