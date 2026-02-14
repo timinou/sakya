@@ -4,3 +4,4 @@ export type { ChapterStatus, ManuscriptConfig, Chapter, ChapterContent } from '.
 export type { CorkboardPosition, NoteEntry, NotesConfig, NoteContent } from './note';
 export type { EditorTab, DocumentContent, WordCount } from './editor';
 export type { Theme, ViewMode, PaneConfig, UIState } from './ui';
+export type { WritingSession } from './session';
