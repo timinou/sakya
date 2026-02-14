@@ -64,6 +64,29 @@ If nil, automatically detected from current file."
   :type 'regexp
   :group 'prd-tasks)
 
+(defcustom prd-checkpoint-id-regexp
+  "^CHK-[0-9]\\{3,\\}-[0-9]\\{2,\\}\\(-[a-z0-9-]*\\)?$"
+  "Regular expression for valid CHK identifiers.
+Format: CHK-NNN-MM or CHK-NNN-MM-slug where NNN is the parent
+category number (3+ digits) and MM is the sequential checkpoint
+number (2+ digits)."
+  :type 'regexp
+  :group 'prd-tasks)
+
+(defcustom prd-checkpoint-heading-regexp
+  "^\\(?:CHK-[0-9]+-[0-9]+\\(?:-[a-z0-9-]*\\)?\\|CHECKPOINT\\) "
+  "Regular expression matching CHK heading titles.
+Matches `CHK-NNN-MM description', `CHK-NNN-MM-slug description',
+and `CHECKPOINT description' formats."
+  :type 'regexp
+  :group 'prd-tasks)
+
+(defcustom prd-required-checkpoint-properties
+  '("CUSTOM_ID" "CRITERIA" "VERIFY")
+  "Properties required for every CHECKPOINT heading."
+  :type '(repeat string)
+  :group 'prd-tasks)
+
 (defcustom prd-category-prefixes
   '("PROJ" "BUG" "IMP")
   "Prefixes for category identifiers (e.g., PROJ-001, BUG-001, IMP-001)."
@@ -96,12 +119,17 @@ If nil, automatically detected from current file."
 (cl-defstruct (prd-item
                (:constructor prd-make-item))
   "An ITEM extracted from an org file."
-  id file line title status agent effort priority depends blocks properties closed-time)
+  id file line title status agent effort priority depends blocks properties closed-time level)
 
 (cl-defstruct (prd-category
                (:constructor prd-make-category))
   "A category (PROJ/BUG/IMP) extracted from an org file."
   id file line title status goal depends-category items)
+
+(cl-defstruct (prd-checkpoint
+               (:constructor prd-make-checkpoint))
+  "A checkpoint (CHK) grouping within a category."
+  id file line title parent-category criteria verify review-by items level)
 
 (cl-defstruct (prd-metrics
                (:constructor prd-make-metrics))
@@ -204,6 +232,7 @@ Handles both direct properties and those in property drawers."
             (let* ((title (org-element-property :raw-value hl))
                    (begin (org-element-property :begin hl))
                    (line (line-number-at-pos begin))
+                   (heading-level (org-element-property :level hl))
                    (custom-id (prd--extract-property hl "CUSTOM_ID"))
                    (agent (prd--extract-property hl "AGENT"))
                    (effort (prd--extract-property hl "EFFORT"))
@@ -224,7 +253,8 @@ Handles both direct properties and those in property drawers."
                      :blocks (prd--parse-depends blocks)
                      :properties (prd--extract-all-properties hl)
                      :closed-time (when closed
-                                    (org-timestamp-to-time closed)))
+                                    (org-timestamp-to-time closed))
+                     :level heading-level)
                     items))))))
     (nreverse items)))
 
@@ -253,6 +283,93 @@ Handles both direct properties and those in property drawers."
                      :items '())
                     categories))))))
     (nreverse categories)))
+
+(defun prd--parse-buffer-checkpoints ()
+  "Parse current buffer and return list of `prd-checkpoint' structs.
+Finds headings whose title matches `prd-checkpoint-heading-regexp' and
+extracts their properties.  Also identifies the parent category for each
+checkpoint and collects child items."
+  (let ((ast (org-element-parse-buffer))
+        (checkpoints '())
+        (chk-re prd-checkpoint-heading-regexp))
+    (org-element-map ast 'headline
+      (lambda (hl)
+        (let ((title (org-element-property :raw-value hl)))
+          (when (let ((case-fold-search nil))
+                  (string-match chk-re title))
+            (let* ((begin (org-element-property :begin hl))
+                   (level (org-element-property :level hl))
+                   (line (line-number-at-pos begin))
+                   (custom-id (prd--extract-property hl "CUSTOM_ID"))
+                   (criteria (prd--extract-property hl "CRITERIA"))
+                   (verify (prd--extract-property hl "VERIFY"))
+                   (review-by (prd--extract-property hl "REVIEW_BY"))
+                   ;; Derive parent category from CHK ID: CHK-NNN-MM -> NNN
+                   (parent-cat (when (and custom-id
+                                          (string-match "^CHK-\\([0-9]+\\)" custom-id))
+                                 (match-string 1 custom-id))))
+              (push (prd-make-checkpoint
+                     :id custom-id
+                     :file (buffer-file-name)
+                     :line line
+                     :title title
+                     :parent-category parent-cat
+                     :criteria criteria
+                     :verify verify
+                     :review-by review-by
+                     :items '()
+                     :level level)
+                    checkpoints))))))
+    (nreverse checkpoints)))
+
+(defun prd--find-parent-checkpoint (file line)
+  "Find the checkpoint (CHK-*) that contains LINE in FILE.
+Returns the CUSTOM_ID of the checkpoint, or nil if the item is not
+nested under a checkpoint."
+  (let ((chk-re (concat "^\\*\\* \\(?:CHK-[0-9]+-[0-9]+\\|CHECKPOINT\\) "))
+        (cat-re (concat "^\\* \\(?:"
+                        (mapconcat #'regexp-quote prd-category-prefixes "\\|")
+                        "\\)-[0-9]+")))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (let ((found-chk nil))
+        ;; Walk through lines, tracking the most recent CHK heading before LINE
+        (while (and (not (eobp)) (<= (line-number-at-pos) line))
+          (cond
+           ;; A new category heading resets any active checkpoint
+           ((looking-at cat-re)
+            (setq found-chk nil))
+           ;; A checkpoint heading captures its CUSTOM_ID
+           ((looking-at chk-re)
+            ;; Extract CUSTOM_ID from property drawer below
+            (save-excursion
+              (when (re-search-forward ":CUSTOM_ID:\\s-+\\(CHK-[^ \t\n]+\\)" nil t)
+                (when (<= (line-number-at-pos) line)
+                  (setq found-chk (match-string 1))))))
+           ;; A level-2 heading that isn't a checkpoint breaks the checkpoint scope
+           ((looking-at "^\\*\\* [^*]")
+            (unless (looking-at chk-re)
+              (setq found-chk nil))))
+          (forward-line 1))
+        found-chk))))
+
+(defun prd--item-checkpoint-from-boundaries (item boundaries)
+  "Find which checkpoint ITEM belongs to using BOUNDARIES.
+ITEM is a `prd-item' struct.  BOUNDARIES is a list of (LINE . CHK-ID) pairs.
+An item belongs to the most recent checkpoint whose line is before the item's line,
+but only if the item is at a deeper heading level (level 3+), since checkpoints
+are at level 2.  Items at level 2 are siblings of checkpoints, not children.
+Returns the CHK-ID or nil."
+  (let ((item-line (prd-item-line item))
+        (item-level (or (prd-item-level item) 2))
+        (result nil))
+    ;; Only items at level 3+ can be children of level-2 checkpoints
+    (when (> item-level 2)
+      (dolist (boundary boundaries)
+        (when (> item-line (car boundary))
+          (setq result (cdr boundary)))))
+    result))
 
 (defun prd--parse-depends (depends-str)
   "Parse DEPENDS-STR into list of dependency IDs."
@@ -547,6 +664,61 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
 
     (nreverse errors)))
 
+(defun prd--validate-checkpoint (checkpoint)
+  "Validate a single CHECKPOINT, returning list of errors."
+  (let ((errors '())
+        (file (prd-checkpoint-file checkpoint))
+        (line (prd-checkpoint-line checkpoint)))
+
+    ;; Check required properties
+    (dolist (prop prd-required-checkpoint-properties)
+      (let ((has-value
+             (pcase prop
+               ("CUSTOM_ID" (prd-checkpoint-id checkpoint))
+               ("CRITERIA" (prd-checkpoint-criteria checkpoint))
+               ("VERIFY" (prd-checkpoint-verify checkpoint))
+               (_ nil))))
+        (unless (and has-value (not (string-empty-p has-value)))
+          (push (prd-make-error
+                 :file file
+                 :line line
+                 :rule "checkpoint-required-properties"
+                 :severity 'warning
+                 :message (format "Checkpoint missing required property: %s" prop)
+                 :hint (format "Add :%s: property to checkpoint heading" prop)
+                 :context (prd-checkpoint-title checkpoint))
+                errors))))
+
+    ;; Check CUSTOM_ID format
+    (when-let ((id (prd-checkpoint-id checkpoint)))
+      (unless (let ((case-fold-search nil))
+                (string-match prd-checkpoint-id-regexp id))
+        (push (prd-make-error
+               :file file
+               :line line
+               :rule "checkpoint-id-format"
+               :severity 'warning
+               :message (format "Invalid checkpoint CUSTOM_ID format: %s" id)
+               :hint "Use format CHK-NNN-MM or CHK-NNN-MM-slug (e.g., CHK-007-01 or CHK-007-01-backend-ready)"
+               :context (prd-checkpoint-title checkpoint))
+              errors)))
+
+    ;; Check heading level (should be at level 2 within a category)
+    (when (and (prd-checkpoint-level checkpoint)
+               (/= (prd-checkpoint-level checkpoint) 2))
+      (push (prd-make-error
+             :file file
+             :line line
+             :rule "checkpoint-heading-level"
+             :severity 'warning
+             :message (format "Checkpoint heading should be at level 2 (** ), found level %d"
+                              (prd-checkpoint-level checkpoint))
+             :hint "Use ** for checkpoint headings within a category (* )"
+             :context (prd-checkpoint-title checkpoint))
+            errors))
+
+    (nreverse errors)))
+
 (defun prd--validate-file-impl (file)
   "Validate FILE and return list of errors."
   ;; Ensure item index is built for dependency validation
@@ -558,9 +730,12 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
       (org-mode)
       (prd--setup-org-keywords)
       (let ((items (prd--parse-buffer-items))
+            (checkpoints (prd--parse-buffer-checkpoints))
             (errors '()))
         (dolist (item items)
           (setq errors (append errors (prd--validate-item item))))
+        (dolist (chk checkpoints)
+          (setq errors (append errors (prd--validate-checkpoint chk))))
         errors))))
 
 ;;;###autoload
@@ -748,12 +923,17 @@ FILE is optional context."
 
 (defun prd--calculate-category-progress ()
   "Calculate progress for each category.
-Returns list of alists with id, title, total, complete, and progress."
+Returns list of alists with id, title, total, complete, progress,
+and optionally checkpoints (list of checkpoint progress alists)."
   (unless prd--item-index
     (prd--build-item-index))
   (let ((progress '())
-        (cat-items (make-hash-table :test 'equal)))
-    ;; Group items by their parent category
+        (cat-items (make-hash-table :test 'equal))
+        ;; Map: chk-id -> (title . items-list)
+        (chk-items (make-hash-table :test 'equal))
+        ;; Map: cat-id -> list of chk-ids
+        (cat-chks (make-hash-table :test 'equal)))
+    ;; Group items by their parent category and checkpoint
     (dolist (file (prd--task-org-files))
       (with-temp-buffer
         (insert-file-contents file)
@@ -761,6 +941,7 @@ Returns list of alists with id, title, total, complete, and progress."
           (org-mode)
           (prd--setup-org-keywords)
           (let ((categories (prd--parse-buffer-categories))
+                (checkpoints (prd--parse-buffer-checkpoints))
                 (items (prd--parse-buffer-items)))
             ;; Initialize category entries
             (dolist (cat categories)
@@ -769,24 +950,68 @@ Returns list of alists with id, title, total, complete, and progress."
                          `((title . ,(prd-category-title cat))
                            (items . ()))
                          cat-items)))
-            ;; Associate items with their category
-            (dolist (item items)
-              (let ((cat-id (prd--find-parent-category file (prd-item-line item))))
-                (when (and cat-id (gethash cat-id cat-items))
-                  (let ((cat-data (gethash cat-id cat-items)))
-                    (push item (cdr (assoc 'items cat-data)))))))))))
+            ;; Initialize checkpoint entries and link to categories
+            (dolist (chk checkpoints)
+              (when-let ((chk-id (prd-checkpoint-id chk)))
+                (puthash chk-id
+                         `((title . ,(prd-checkpoint-title chk))
+                           (items . ()))
+                         chk-items)
+                ;; Link checkpoint to parent category
+                (let ((cat-id (prd--find-parent-category file (prd-checkpoint-line chk))))
+                  (when cat-id
+                    (puthash cat-id
+                             (append (gethash cat-id cat-chks '()) (list chk-id))
+                             cat-chks)))))
+            ;; Associate items with their category and checkpoint
+            ;; Build checkpoint line boundaries from parsed checkpoints
+            ;; to avoid re-reading the file for each item
+            (let ((chk-boundaries
+                   (mapcar (lambda (chk)
+                             (cons (prd-checkpoint-line chk) (prd-checkpoint-id chk)))
+                           checkpoints)))
+              (dolist (item items)
+                (let ((cat-id (prd--find-parent-category file (prd-item-line item)))
+                      (chk-id (prd--item-checkpoint-from-boundaries
+                               item chk-boundaries)))
+                  (when (and cat-id (gethash cat-id cat-items))
+                    (let ((cat-data (gethash cat-id cat-items)))
+                      (push item (cdr (assoc 'items cat-data)))))
+                  (when (and chk-id (gethash chk-id chk-items))
+                    (let ((chk-data (gethash chk-id chk-items)))
+                      (push item (cdr (assoc 'items chk-data))))))))))))
     ;; Calculate progress for each category
     (maphash
      (lambda (cat-id cat-data)
        (let* ((items (cdr (assoc 'items cat-data)))
               (title (cdr (assoc 'title cat-data)))
               (total (length items))
-              (done (seq-count (lambda (i) (string= (prd-item-status i) "DONE")) items)))
+              (done (seq-count (lambda (i) (string= (prd-item-status i) "DONE")) items))
+              ;; Build checkpoint progress list
+              (chk-ids (gethash cat-id cat-chks))
+              (chk-progress
+               (when chk-ids
+                 (mapcar
+                  (lambda (chk-id)
+                    (let* ((chk-data (gethash chk-id chk-items))
+                           (chk-title (cdr (assoc 'title chk-data)))
+                           (chk-item-list (cdr (assoc 'items chk-data)))
+                           (chk-total (length chk-item-list))
+                           (chk-done (seq-count (lambda (i) (string= (prd-item-status i) "DONE"))
+                                                chk-item-list)))
+                      `((id . ,chk-id)
+                        (title . ,chk-title)
+                        (total . ,chk-total)
+                        (complete . ,chk-done)
+                        (progress . ,(if (> chk-total 0) (/ (float chk-done) chk-total) 0.0)))))
+                  chk-ids))))
          (push `((id . ,cat-id)
                  (title . ,title)
                  (total . ,total)
                  (complete . ,done)
-                 (progress . ,(if (> total 0) (/ (float done) total) 0.0)))
+                 (progress . ,(if (> total 0) (/ (float done) total) 0.0))
+                 ,@(when chk-progress
+                     `((checkpoints . ,(vconcat chk-progress)))))
                progress)))
      cat-items)
     (nreverse progress)))
@@ -1267,16 +1492,59 @@ Always returns at least 1.  Never reuses old numbers (no gap-filling)."
                 (setq max-num num)))))))
     (1+ max-num)))
 
+(defun prd-next-checkpoint-number (category-number)
+  "Return the next available checkpoint number for CATEGORY-NUMBER.
+CATEGORY-NUMBER is the numeric part of the parent category (e.g., 7 for PROJ-007).
+Scans all files for CHK-NNN-MM IDs where NNN matches CATEGORY-NUMBER.
+Always returns at least 1.  Never reuses old numbers."
+  (let ((max-num 0)
+        (prefix (format "CHK-%03d" category-number)))
+    (dolist (file (prd--task-org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (dolist (chk (prd--parse-buffer-checkpoints))
+            (when-let ((id (prd-checkpoint-id chk)))
+              (when (string-prefix-p prefix id)
+                ;; Extract MM from CHK-NNN-MM or CHK-NNN-MM-slug
+                (when (string-match (concat "^" (regexp-quote prefix) "-\\([0-9]+\\)") id)
+                  (let ((num (string-to-number (match-string 1 id))))
+                    (when (> num max-num)
+                      (setq max-num num))))))))))
+    (1+ max-num)))
+
 ;;;###autoload
 (defun prd-next-ids-cli (&optional format)
   "Return the next available IDs for all prefixes.
 FORMAT defaults to `json'.  When FORMAT is `plain', returns human-readable text.
-Designed for use via emacsclient."
+Designed for use via emacsclient.  Includes next CHK numbers per category."
   (let* ((format (or format 'json))
          (next-item (prd-next-item-number))
          (next-proj (prd-next-category-number "PROJ"))
          (next-bug  (prd-next-category-number "BUG"))
-         (next-imp  (prd-next-category-number "IMP")))
+         (next-imp  (prd-next-category-number "IMP"))
+         ;; Calculate next CHK numbers for existing categories
+         (chk-nexts '()))
+    ;; Scan for existing category numbers to provide next CHK IDs
+    (dolist (file (prd--task-org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (dolist (cat (prd--parse-buffer-categories))
+            (when-let ((cat-id (prd-category-id cat)))
+              (dolist (prefix prd-category-prefixes)
+                (when-let ((cat-num (prd--extract-id-number cat-id prefix)))
+                  (unless (assoc cat-num chk-nexts)
+                    (let ((next-chk (prd-next-checkpoint-number cat-num)))
+                      (push (cons cat-num
+                                  `((category . ,cat-id)
+                                    (next_chk . ,next-chk)
+                                    (next_chk_formatted . ,(format "CHK-%03d-%02d" cat-num next-chk))))
+                            chk-nexts))))))))))
     (pcase format
       ('json
        (json-encode
@@ -1287,11 +1555,24 @@ Designed for use via emacsclient."
           (next_bug . ,next-bug)
           (next_bug_formatted . ,(format "BUG-%03d" next-bug))
           (next_imp . ,next-imp)
-          (next_imp_formatted . ,(format "IMP-%03d" next-imp)))))
+          (next_imp_formatted . ,(format "IMP-%03d" next-imp))
+          (next_chk . ,(mapcar (lambda (entry)
+                                 (cdr entry))
+                               (nreverse chk-nexts))))))
       ('plain
-       (format "Next ITEM: %d (ITEM-%03d)\nNext PROJ: %d (PROJ-%03d)\nNext BUG:  %d (BUG-%03d)\nNext IMP:  %d (IMP-%03d)\n"
-               next-item next-item next-proj next-proj
-               next-bug next-bug next-imp next-imp)))))
+       (let ((chk-lines (mapconcat
+                          (lambda (entry)
+                            (let ((data (cdr entry)))
+                              (format "Next CHK for %s: %s"
+                                      (cdr (assoc 'category data))
+                                      (cdr (assoc 'next_chk_formatted data)))))
+                          (nreverse chk-nexts)
+                          "\n")))
+         (concat (format "Next ITEM: %d (ITEM-%03d)\nNext PROJ: %d (PROJ-%03d)\nNext BUG:  %d (BUG-%03d)\nNext IMP:  %d (IMP-%03d)\n"
+                         next-item next-item next-proj next-proj
+                         next-bug next-bug next-imp next-imp)
+                 (when (> (length chk-lines) 0)
+                   (concat chk-lines "\n"))))))))
 
 ;;; Hooks for Doom Emacs Integration
 

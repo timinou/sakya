@@ -43,7 +43,7 @@ if test (count $dirty_code) -gt 0
     if test (count $dirty_code) -gt 3
         set block_reasons[-1] "$block_reasons[-1] (and "(math (count $dirty_code) - 3)" more)"
     end
-    set block_reasons[-1] "$block_reasons[-1]. Commit or stash before stopping."
+    set block_reasons[-1] "$block_reasons[-1]. If they are part of your work, commit them before stopping."
 end
 
 # ============================================================

@@ -1,0 +1,77 @@
+#+TITLE: PROJ-099 Test Project with Checkpoints
+#+TODO: ITEM(i) DOING(d) REVIEW(r) | DONE(D) BLOCKED(b)
+
+* PROJ-099 Test Project with Checkpoints
+:PROPERTIES:
+:CUSTOM_ID: PROJ-099
+:GOAL: Test that CHK headings are parsed and validated correctly
+:END:
+
+** CHK-099-01 Backend Foundation
+:PROPERTIES:
+:CUSTOM_ID: CHK-099-01
+:CRITERIA: All backend modules compile and pass tests
+:VERIFY: cargo test
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] Modules compile
+- [ ] Tests pass
+
+*** ITEM Create backend module
+:PROPERTIES:
+:CUSTOM_ID: ITEM-901
+:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Create the backend module for testing.
+
+*** DONE Backend tests passing
+:PROPERTIES:
+:CUSTOM_ID: ITEM-902
+:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:TEST_PLAN: test-rust
+:END:
+
+** CHK-099-02 Frontend Integration
+:PROPERTIES:
+:CUSTOM_ID: CHK-099-02
+:CRITERIA: Frontend components render and connect to backend
+:VERIFY: bun run test
+:END:
+
+*** ITEM Create frontend component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-903
+:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-901
+:TEST_PLAN: compile, test-svelte
+:END:
+
+*** DOING Wire frontend to backend
+:PROPERTIES:
+:CUSTOM_ID: ITEM-904
+:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-902
+:TEST_PLAN: compile, e2e
+:END:
+
+** ITEM Standalone task outside checkpoints
+:PROPERTIES:
+:CUSTOM_ID: ITEM-905
+:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]
+:EFFORT: 30m
+:PRIORITY: #C
+:TEST_PLAN: compile
+:END:

@@ -458,14 +458,17 @@ For detailed planning methodology including when and how to place checkpoints, s
 
 Each ITEM should specify its =TEST_PLAN= from these layers:
 
-| Layer | Tool/Method | What It Verifies |
-|-------+------------+------------------|
-| =compile= | =cargo build=, =svelte-check= | Type safety, no errors |
-| =test-rust= | =cargo test= | Rust backend unit/integration tests |
-| =test-svelte= | =vitest= | Svelte unit tests, component tests |
-| =clippy= | =cargo clippy= | Rust linting, best practices |
-| =e2e= | Playwright | Full app integration tests |
-| =visual= | Playwright =toHaveScreenshot()= | Visual regression, layout integrity |
+| Layer       | Tool/Method                   | What It Verifies                    |
+|-------------+-------------------------------+-------------------------------------|
+| =compile=     | =cargo build=, =svelte-check=     | Type safety, no errors              |
+| =test-rust=   | =cargo test=                    | Rust backend unit/integration tests |
+| =test-svelte= | =vitest=                        | Svelte unit tests, component tests  |
+| =clippy=      | =cargo clippy=                  | Rust linting, best practices        |
+| =e2e=         | Playwright                    | Full app integration tests          |
+| =visual=      | Playwright =toHaveScreenshot()= | Visual regression, layout integrity |
+|             |                               |                                     |
+
+IMPORTANT: Each ITEM MUST test its work independently to consider itself passing. This is also the case for visual tests; they MUST be passing as part of your implementation of the ITEM. If you are thinking of tests that span across several ITEMs (you should), those are e2e or integration tests that need to be done ON TOP of in-ITEM tests.
 
 ** Test Plan Examples
 

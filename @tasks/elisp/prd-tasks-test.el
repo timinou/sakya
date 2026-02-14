@@ -1004,5 +1004,439 @@ This verifies the fix where earlier period no longer includes recent period."
       (should (= 1 (alist-get 'next_imp parsed)))
       (should (equal "IMP-001" (alist-get 'next_imp_formatted parsed))))))
 
+;;; Checkpoint (CHK) Tests
+
+(ert-deftest prd-test-checkpoint-id-regexp-valid ()
+  "Test valid CHK ID formats."
+  (let ((case-fold-search nil))
+    (should (string-match prd-checkpoint-id-regexp "CHK-007-01"))
+    (should (string-match prd-checkpoint-id-regexp "CHK-007-02"))
+    (should (string-match prd-checkpoint-id-regexp "CHK-099-01"))
+    (should (string-match prd-checkpoint-id-regexp "CHK-001-99"))
+    ;; With slug
+    (should (string-match prd-checkpoint-id-regexp "CHK-007-01-backend-ready"))
+    (should (string-match prd-checkpoint-id-regexp "CHK-007-02-feature-complete"))))
+
+(ert-deftest prd-test-checkpoint-id-regexp-invalid ()
+  "Test invalid CHK ID formats."
+  (let ((case-fold-search nil))
+    (should-not (string-match prd-checkpoint-id-regexp "CHK-07-01"))  ; NNN must be 3+ digits
+    (should-not (string-match prd-checkpoint-id-regexp "ITEM-001"))
+    (should-not (string-match prd-checkpoint-id-regexp "PROJ-007"))
+    (should-not (string-match prd-checkpoint-id-regexp "chk-007-01"))  ; lowercase
+    (should-not (string-match prd-checkpoint-id-regexp "CHK007-01"))))  ; missing dash
+
+(ert-deftest prd-test-checkpoint-heading-regexp ()
+  "Test checkpoint heading regexp matches expected formats."
+  (let ((case-fold-search nil))
+    (should (string-match prd-checkpoint-heading-regexp "CHK-007-01 Backend Ready"))
+    (should (string-match prd-checkpoint-heading-regexp "CHECKPOINT Backend Ready"))
+    (should-not (string-match prd-checkpoint-heading-regexp "ITEM Task name"))
+    (should-not (string-match prd-checkpoint-heading-regexp "PROJ-001 Project"))))
+
+(ert-deftest prd-test-parse-buffer-checkpoints-basic ()
+  "Test parsing checkpoints from a buffer."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-test.org"
+                 "* PROJ-099 Test Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Backend Foundation\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: All backend modules compile\n:VERIFY: cargo test\n:REVIEW_BY: rust-architect\n:END:\n\n*** ITEM Create backend module\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 2h\n:PRIORITY: #A\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (let ((chks (prd--parse-buffer-checkpoints)))
+            (should (= 1 (length chks)))
+            (let ((chk (car chks)))
+              (should (equal "CHK-099-01" (prd-checkpoint-id chk)))
+              (should (string-match "Backend Foundation" (prd-checkpoint-title chk)))
+              (should (equal "All backend modules compile" (prd-checkpoint-criteria chk)))
+              (should (equal "cargo test" (prd-checkpoint-verify chk)))
+              (should (equal "rust-architect" (prd-checkpoint-review-by chk)))
+              (should (equal 2 (prd-checkpoint-level chk)))
+              (should (equal "099" (prd-checkpoint-parent-category chk))))))))))
+
+(ert-deftest prd-test-parse-buffer-checkpoints-multiple ()
+  "Test parsing multiple checkpoints from a buffer."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "multi-chk.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1 done\n:VERIFY: test1\n:END:\n\n*** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** CHK-099-02 Phase 2\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-02\n:CRITERIA: Phase 2 done\n:VERIFY: test2\n:END:\n\n*** ITEM Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (let ((chks (prd--parse-buffer-checkpoints)))
+            (should (= 2 (length chks)))
+            (should (equal "CHK-099-01" (prd-checkpoint-id (nth 0 chks))))
+            (should (equal "CHK-099-02" (prd-checkpoint-id (nth 1 chks))))))))))
+
+(ert-deftest prd-test-parse-buffer-checkpoints-checkpoint-keyword ()
+  "Test parsing checkpoints using CHECKPOINT keyword format."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "checkpoint-kw.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHECKPOINT Backend ready\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01-backend-ready\n:CRITERIA: Backend compiles\n:VERIFY: cargo test\n:END:\n\n*** ITEM Backend task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (let ((chks (prd--parse-buffer-checkpoints)))
+            (should (= 1 (length chks)))
+            (let ((chk (car chks)))
+              (should (equal "CHK-099-01-backend-ready" (prd-checkpoint-id chk)))
+              (should (string-match "CHECKPOINT Backend ready" (prd-checkpoint-title chk))))))))))
+
+(ert-deftest prd-test-items-under-checkpoints-are-indexed ()
+  "Test that items nested under CHK headings are found in the item index."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "chk-items.org"
+     "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1 done\n:VERIFY: test\n:END:\n\n*** ITEM Task under checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** ITEM Task outside checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (prd--build-item-index)
+    ;; Both items should be in the index
+    (should (gethash "ITEM-901" prd--item-index))
+    (should (gethash "ITEM-902" prd--item-index))
+    ;; Metrics should count both
+    (let ((metrics (prd--calculate-metrics)))
+      (should (= 2 (prd-metrics-total-items metrics))))))
+
+(ert-deftest prd-test-validate-checkpoint-valid ()
+  "Test validation passes for valid checkpoint."
+  (prd-test--with-fixture
+    (let ((chk (prd-make-checkpoint
+                :id "CHK-099-01"
+                :file "test.org"
+                :line 10
+                :title "CHK-099-01 Backend Foundation"
+                :parent-category "099"
+                :criteria "All modules compile"
+                :verify "cargo test"
+                :review-by "rust-architect"
+                :items '()
+                :level 2)))
+      (let ((errors (prd--validate-checkpoint chk)))
+        (should (= 0 (length errors)))))))
+
+(ert-deftest prd-test-validate-checkpoint-missing-criteria ()
+  "Test validation detects missing CRITERIA property."
+  (prd-test--with-fixture
+    (let ((chk (prd-make-checkpoint
+                :id "CHK-099-01"
+                :file "test.org"
+                :line 10
+                :title "CHK-099-01 Test"
+                :parent-category "099"
+                :criteria nil
+                :verify "cargo test"
+                :review-by nil
+                :items '()
+                :level 2)))
+      (let ((errors (prd--validate-checkpoint chk)))
+        (should (seq-find (lambda (e)
+                            (and (string= "checkpoint-required-properties"
+                                          (prd-validation-error-rule e))
+                                 (string-match "CRITERIA" (prd-validation-error-message e))))
+                          errors))))))
+
+(ert-deftest prd-test-validate-checkpoint-missing-verify ()
+  "Test validation detects missing VERIFY property."
+  (prd-test--with-fixture
+    (let ((chk (prd-make-checkpoint
+                :id "CHK-099-01"
+                :file "test.org"
+                :line 10
+                :title "CHK-099-01 Test"
+                :parent-category "099"
+                :criteria "Done when compile"
+                :verify nil
+                :review-by nil
+                :items '()
+                :level 2)))
+      (let ((errors (prd--validate-checkpoint chk)))
+        (should (seq-find (lambda (e)
+                            (and (string= "checkpoint-required-properties"
+                                          (prd-validation-error-rule e))
+                                 (string-match "VERIFY" (prd-validation-error-message e))))
+                          errors))))))
+
+(ert-deftest prd-test-validate-checkpoint-invalid-id-format ()
+  "Test validation detects invalid CHK ID format."
+  (prd-test--with-fixture
+    (let ((chk (prd-make-checkpoint
+                :id "CHK-7-1"
+                :file "test.org"
+                :line 10
+                :title "CHK-7-1 Bad format"
+                :parent-category "7"
+                :criteria "Done"
+                :verify "test"
+                :review-by nil
+                :items '()
+                :level 2)))
+      (let ((errors (prd--validate-checkpoint chk)))
+        (should (seq-find (lambda (e)
+                            (string= "checkpoint-id-format"
+                                     (prd-validation-error-rule e)))
+                          errors))))))
+
+(ert-deftest prd-test-validate-checkpoint-wrong-level ()
+  "Test validation detects checkpoint at wrong heading level."
+  (prd-test--with-fixture
+    (let ((chk (prd-make-checkpoint
+                :id "CHK-099-01"
+                :file "test.org"
+                :line 10
+                :title "CHK-099-01 Wrong level"
+                :parent-category "099"
+                :criteria "Done"
+                :verify "test"
+                :review-by nil
+                :items '()
+                :level 3)))  ; Should be level 2
+      (let ((errors (prd--validate-checkpoint chk)))
+        (should (seq-find (lambda (e)
+                            (string= "checkpoint-heading-level"
+                                     (prd-validation-error-rule e)))
+                          errors))))))
+
+(ert-deftest prd-test-validate-file-with-checkpoints ()
+  "Test full file validation includes checkpoint validation."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-valid.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1 done\n:VERIFY: cargo test\n:END:\n\n*** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #A\n:TEST_PLAN: compile\n:COMPONENT_REF: [[file:../../src/mod.rs][Mod]]\n:END:\n")))
+      (prd--build-item-index)
+      (let ((errors (prd--validate-file-impl file)))
+        ;; Should have no errors (checkpoint and item both valid)
+        (should-not (seq-find (lambda (e)
+                                (eq 'error (prd-validation-error-severity e)))
+                              errors))))))
+
+(ert-deftest prd-test-validate-file-with-invalid-checkpoint ()
+  "Test that file validation catches checkpoint issues."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-invalid.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Missing props\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:END:\n\n*** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #A\n:TEST_PLAN: compile\n:COMPONENT_REF: [[file:../../src/mod.rs][Mod]]\n:END:\n")))
+      (prd--build-item-index)
+      (let ((errors (prd--validate-file-impl file)))
+        ;; Should have warnings for missing CRITERIA and VERIFY
+        (should (seq-find (lambda (e)
+                            (and (string= "checkpoint-required-properties"
+                                          (prd-validation-error-rule e))
+                                 (string-match "CRITERIA" (prd-validation-error-message e))))
+                          errors))
+        (should (seq-find (lambda (e)
+                            (and (string= "checkpoint-required-properties"
+                                          (prd-validation-error-rule e))
+                                 (string-match "VERIFY" (prd-validation-error-message e))))
+                          errors))))))
+
+(ert-deftest prd-test-dependencies-across-checkpoints ()
+  "Test that dependencies between items in different checkpoints validate correctly."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "chk-deps.org"
+     "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1\n:VERIFY: test\n:END:\n\n*** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** CHK-099-02 Phase 2\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-02\n:CRITERIA: Phase 2\n:VERIFY: test\n:END:\n\n*** ITEM Task 2 depends on Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:DEPENDS: ITEM-901\n:END:\n")
+    (prd--build-item-index)
+    ;; Both items should be indexed
+    (should (gethash "ITEM-901" prd--item-index))
+    (should (gethash "ITEM-902" prd--item-index))
+    ;; Dependency should be valid (no valid-depends error)
+    (let ((errors (prd--validate-file-impl
+                   (expand-file-name "chk-deps.org"
+                                     (expand-file-name "projects" prd-test--temp-dir)))))
+      (should-not (seq-find (lambda (e)
+                              (and (string= "valid-depends" (prd-validation-error-rule e))
+                                   (eq 'error (prd-validation-error-severity e))))
+                            errors)))))
+
+(ert-deftest prd-test-dashboard-metrics-include-chk-items ()
+  "Test that dashboard metrics count items inside checkpoint headings."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "chk-metrics.org"
+     "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Done\n:VERIFY: test\n:END:\n\n*** DONE Completed in checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n*** ITEM Pending in checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\n** ITEM Outside checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-903\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #C\n:END:\n")
+    (prd--build-item-index)
+    (let ((metrics (prd--calculate-metrics)))
+      (should (= 3 (prd-metrics-total-items metrics)))
+      (should (= 1 (prd-metrics-complete metrics)))
+      (should (= 2 (prd-metrics-pending metrics))))))
+
+(ert-deftest prd-test-category-progress-includes-checkpoint-breakdown ()
+  "Test that category progress includes checkpoint progress breakdown."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "chk-progress.org"
+     "* PROJ-099 Test Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1\n:VERIFY: test\n:END:\n\n*** DONE Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n*** DONE Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** CHK-099-02 Phase 2\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-02\n:CRITERIA: Phase 2\n:VERIFY: test\n:END:\n\n*** ITEM Task 3\n:PROPERTIES:\n:CUSTOM_ID: ITEM-903\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\n** ITEM Task 4 outside checkpoints\n:PROPERTIES:\n:CUSTOM_ID: ITEM-904\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #C\n:END:\n")
+    (prd--build-item-index)
+    (let ((progress (prd--calculate-category-progress)))
+      (should (listp progress))
+      (when progress
+        (let ((proj (seq-find (lambda (p) (equal "PROJ-099" (cdr (assoc 'id p)))) progress)))
+          (should proj)
+          ;; Total should count all items (4)
+          (should (= 4 (cdr (assoc 'total proj))))
+          ;; Complete should count done items (2)
+          (should (= 2 (cdr (assoc 'complete proj))))
+          ;; Should have checkpoints breakdown
+          (when-let ((chks (cdr (assoc 'checkpoints proj))))
+            ;; chks is a vector for JSON serialization
+            (should (= 2 (length chks)))
+            (let ((chk1 (aref chks 0))
+                  (chk2 (aref chks 1)))
+              ;; CHK-099-01 should have 2 items, 2 done
+              (should (equal "CHK-099-01" (cdr (assoc 'id chk1))))
+              (should (= 2 (cdr (assoc 'total chk1))))
+              (should (= 2 (cdr (assoc 'complete chk1))))
+              ;; CHK-099-02 should have 1 item, 0 done
+              (should (equal "CHK-099-02" (cdr (assoc 'id chk2))))
+              (should (= 1 (cdr (assoc 'total chk2))))
+              (should (= 0 (cdr (assoc 'complete chk2)))))))))))
+
+(ert-deftest prd-test-no-checkpoints-no-breakdown ()
+  "Test that categories without checkpoints have no checkpoint field."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "no-chk.org"
+     "* PROJ-099 Simple Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")
+    (prd--build-item-index)
+    (let ((progress (prd--calculate-category-progress)))
+      (when progress
+        (let ((proj (seq-find (lambda (p) (equal "PROJ-099" (cdr (assoc 'id p)))) progress)))
+          (should proj)
+          ;; No checkpoints key when none exist
+          (should-not (assoc 'checkpoints proj)))))))
+
+(ert-deftest prd-test-next-checkpoint-number-empty ()
+  "Test next checkpoint number with no checkpoints returns 1."
+  (prd-test--with-fixture
+    ;; Create a project with no checkpoints
+    (prd-test--create-item-file
+     "no-chk.org"
+     "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** ITEM Task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")
+    (should (= 1 (prd-next-checkpoint-number 99)))))
+
+(ert-deftest prd-test-next-checkpoint-number-with-existing ()
+  "Test next checkpoint number finds max and adds 1."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "chk-existing.org"
+     "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Phase 1\n:VERIFY: test\n:END:\n\n** CHK-099-03 Phase 3\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-03\n:CRITERIA: Phase 3\n:VERIFY: test\n:END:\n")
+    (should (= 4 (prd-next-checkpoint-number 99)))))
+
+(ert-deftest prd-test-next-checkpoint-number-different-categories ()
+  "Test that checkpoint numbers are independent per category."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj1-chk.org"
+     "* PROJ-001 Test 1\n:PROPERTIES:\n:CUSTOM_ID: PROJ-001\n:GOAL: Test\n:END:\n\n** CHK-001-05 Phase 5\n:PROPERTIES:\n:CUSTOM_ID: CHK-001-05\n:CRITERIA: Done\n:VERIFY: test\n:END:\n")
+    (prd-test--create-item-file
+     "proj2-chk.org"
+     "* PROJ-002 Test 2\n:PROPERTIES:\n:CUSTOM_ID: PROJ-002\n:GOAL: Test\n:END:\n\n** CHK-002-02 Phase 2\n:PROPERTIES:\n:CUSTOM_ID: CHK-002-02\n:CRITERIA: Done\n:VERIFY: test\n:END:\n")
+    ;; Category 001 should give next as 6
+    (should (= 6 (prd-next-checkpoint-number 1)))
+    ;; Category 002 should give next as 3
+    (should (= 3 (prd-next-checkpoint-number 2)))
+    ;; Category 003 (no checkpoints) should give 1
+    (should (= 1 (prd-next-checkpoint-number 3)))))
+
+(ert-deftest prd-test-next-ids-cli-includes-chk ()
+  "Test that prd-next-ids-cli JSON includes next_chk field."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj-chk-ids.org"
+     "* PROJ-003 Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-003\n:GOAL: Goal\n:END:\n\n** CHK-003-02 Phase 2\n:PROPERTIES:\n:CUSTOM_ID: CHK-003-02\n:CRITERIA: Done\n:VERIFY: test\n:END:\n\n*** ITEM Task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-010\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (let* ((output (prd-next-ids-cli))
+           (parsed (json-read-from-string output)))
+      ;; Should have next_chk field
+      (should (assq 'next_chk parsed))
+      ;; next_chk should be a vector/array with entries
+      (let ((chk-entries (cdr (assq 'next_chk parsed))))
+        (should (> (length chk-entries) 0))
+        ;; Find the entry for PROJ-003
+        (let ((entry (seq-find (lambda (e) (equal "PROJ-003" (cdr (assq 'category e))))
+                               chk-entries)))
+          (should entry)
+          (should (= 3 (cdr (assq 'next_chk entry))))
+          (should (equal "CHK-003-03" (cdr (assq 'next_chk_formatted entry)))))))))
+
+(ert-deftest prd-test-next-ids-cli-after-cache-clear ()
+  "Test prd-next-ids-cli works after fresh cache clear."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "simple.org"
+     "* PROJ-001 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-001\n:GOAL: Test\n:END:\n\n** ITEM Task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (prd-clear-cache)
+    ;; Should work without error after cache clear
+    (let* ((output (prd-next-ids-cli))
+           (parsed (json-read-from-string output)))
+      (should (assq 'next_item parsed))
+      (should (= 2 (cdr (assq 'next_item parsed)))))))
+
+(ert-deftest prd-test-find-parent-checkpoint ()
+  "Test finding parent checkpoint for items."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-parent.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Phase 1\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:CRITERIA: Done\n:VERIFY: test\n:END:\n\n*** ITEM Under checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-901\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** ITEM Outside checkpoint\n:PROPERTIES:\n:CUSTOM_ID: ITEM-902\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")))
+      ;; Item under CHK-099-01 should find it
+      ;; The file has header lines, then PROJ-099 around line 3, CHK-099-01 around line 9,
+      ;; ITEM-901 around line 15, ITEM-902 around line 23
+      ;; We need to find the actual line numbers
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        ;; Find ITEM-901 line
+        (re-search-forward "ITEM Under checkpoint")
+        (let ((item-901-line (line-number-at-pos)))
+          ;; Should find CHK-099-01 as parent
+          (should (equal "CHK-099-01" (prd--find-parent-checkpoint file item-901-line))))
+        ;; Find ITEM-902 line
+        (goto-char (point-min))
+        (re-search-forward "ITEM Outside checkpoint")
+        (let ((item-902-line (line-number-at-pos)))
+          ;; Should NOT find a parent checkpoint (it's at level 2, same as CHK)
+          (should (null (prd--find-parent-checkpoint file item-902-line))))))))
+
+(ert-deftest prd-test-checkpoint-with-slug-in-id ()
+  "Test that CHK IDs with slug suffixes are handled correctly."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-slug.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01-backend-ready Backend ready\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01-backend-ready\n:CRITERIA: Backend compiles and passes tests\n:VERIFY: cargo test\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (let ((chks (prd--parse-buffer-checkpoints)))
+            (should (= 1 (length chks)))
+            (let ((chk (car chks)))
+              (should (equal "CHK-099-01-backend-ready" (prd-checkpoint-id chk)))
+              ;; Validate should pass for valid slug format
+              (let ((errors (prd--validate-checkpoint chk)))
+                (should-not (seq-find (lambda (e)
+                                        (string= "checkpoint-id-format"
+                                                 (prd-validation-error-rule e)))
+                                      errors))))))))))
+
+(ert-deftest prd-test-checkpoint-validation-is-warning-not-error ()
+  "Test that checkpoint validation issues are warnings, not errors.
+This ensures that checkpoint issues don't cause validate-all to report valid=false."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "chk-warn.org"
+                 "* PROJ-099 Test\n:PROPERTIES:\n:CUSTOM_ID: PROJ-099\n:GOAL: Test\n:END:\n\n** CHK-099-01 Missing props\n:PROPERTIES:\n:CUSTOM_ID: CHK-099-01\n:END:\n")))
+      (prd--build-item-index)
+      (let ((errors (prd--validate-file-impl file)))
+        ;; All checkpoint issues should be warnings, not errors
+        (dolist (err errors)
+          (when (string-prefix-p "checkpoint-" (prd-validation-error-rule err))
+            (should (eq 'warning (prd-validation-error-severity err)))))))))
+
 (provide 'prd-tasks-test)
 ;;; prd-tasks-test.el ends here
