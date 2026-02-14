@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BookOpen, FileText } from 'lucide-svelte';
+  import { BookOpen, FileText, Plus } from 'lucide-svelte';
   import { manuscriptStore, projectState } from '$lib/stores';
   import type { ChapterStatus } from '$lib/types/manuscript';
   import BinderSection from './BinderSection.svelte';
@@ -103,9 +103,9 @@
   onAdd={handleAdd}
 >
   {#if sortedChapters.length === 0 && !isCreating}
-    <div class="placeholder-text">
-      No chapters yet
-    </div>
+    <button class="placeholder-cta" type="button" onclick={handleAdd}>
+      <Plus size={12} /> Add first chapter
+    </button>
   {/if}
 
   {#each sortedChapters as chapter (chapter.slug)}
@@ -142,12 +142,38 @@
 </BinderSection>
 
 <style>
-  .placeholder-text {
+  .placeholder-cta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
     padding: var(--spacing-xs) var(--spacing-sm);
     padding-left: calc(var(--spacing-sm) + 16px + var(--spacing-xs));
+    border: none;
+    background: transparent;
     font-size: var(--font-size-xs);
-    color: var(--text-tertiary);
     font-style: italic;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background-color var(--transition-fast),
+      transform var(--transition-fast);
+  }
+
+  .placeholder-cta:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    transform: translateX(2px);
+  }
+
+  .placeholder-cta :global(svg) {
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+  }
+
+  .placeholder-cta:hover :global(svg) {
+    opacity: 1;
   }
 
   .chapter-row {

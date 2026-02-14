@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ComponentType } from 'svelte';
-  import { Users, MapPin, Package, Lightbulb, File } from 'lucide-svelte';
+  import { Users, MapPin, Package, Lightbulb, File, Plus } from 'lucide-svelte';
   import { entityStore, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -190,9 +190,9 @@
       ontoggle={() => toggleSection(entityType)}
     >
       {#if entities.length === 0 && !isCreatingEntity[entityType]}
-        <div class="placeholder-text">
-          No {schema.name.toLowerCase()}s yet
-        </div>
+        <button class="placeholder-cta" type="button" onclick={() => startCreateEntity(entityType)}>
+          <Plus size={12} /> Add first {schema.name.toLowerCase()}
+        </button>
       {/if}
 
       {#each entities as entity (entity.slug)}
@@ -241,12 +241,38 @@
     gap: 2px;
   }
 
-  .placeholder-text {
+  .placeholder-cta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
     padding: var(--spacing-xs) var(--spacing-sm);
     padding-left: calc(var(--spacing-sm) + 16px + var(--spacing-xs));
+    border: none;
+    background: transparent;
     font-size: var(--font-size-xs);
-    color: var(--text-tertiary);
     font-style: italic;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background-color var(--transition-fast),
+      transform var(--transition-fast);
+  }
+
+  .placeholder-cta:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    transform: translateX(2px);
+  }
+
+  .placeholder-cta :global(svg) {
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+  }
+
+  .placeholder-cta:hover :global(svg) {
+    opacity: 1;
   }
 
   .inline-input-wrapper {
