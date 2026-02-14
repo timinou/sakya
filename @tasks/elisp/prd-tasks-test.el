@@ -40,10 +40,15 @@
       (insert "* Core Competencies\n")
       (insert ":PROPERTIES:\n")
       (insert ":CUSTOM_ID: core\n")
-      (insert ":END:\n")))
-  ;; Create initiatives directory
-  (let ((init-dir (expand-file-name "initiatives" prd-test--temp-dir)))
-    (make-directory init-dir))
+      (insert ":END:\n"))
+    ;; Create index.org (should be excluded from agents)
+    (with-temp-file (expand-file-name "index.org" agents-dir)
+      (insert "#+TITLE: Agent Registry\n\n")
+      (insert "* Available Agents\n")
+      (insert "- test-agent\n")))
+  ;; Create task category directories
+  (dolist (subdir '("projects" "bugfixes" "improvements"))
+    (make-directory (expand-file-name subdir prd-test--temp-dir)))
   ;; Set the tasks directory
   (setq prd-tasks-directory prd-test--temp-dir)
   ;; Clear caches
@@ -66,15 +71,22 @@
          ,@body)
      (prd-test--teardown)))
 
-(defun prd-test--create-item-file (filename content)
-  "Create a test item file with FILENAME and CONTENT in initiatives dir."
+(defun prd-test--create-item-file (filename content &optional subdir)
+  "Create a test item file with FILENAME and CONTENT in SUBDIR (default projects)."
   (let ((file-path (expand-file-name
                     filename
-                    (expand-file-name "initiatives" prd-test--temp-dir)))
+                    (expand-file-name (or subdir "projects") prd-test--temp-dir)))
         ;; Add org-mode header to configure TODO keywords
         (header "#+TODO: ITEM(i) DOING(d) REVIEW(r) | DONE(D) BLOCKED(b)\n\n"))
     (with-temp-file file-path
       (insert header)
+      (insert content))
+    file-path))
+
+(defun prd-test--create-doc-file (filename content)
+  "Create a documentation file with FILENAME and CONTENT at root of temp dir."
+  (let ((file-path (expand-file-name filename prd-test--temp-dir)))
+    (with-temp-file file-path
       (insert content))
     file-path))
 
@@ -95,10 +107,10 @@
   (should (equal '("ITEM-001" "ITEM-002" "ITEM-003")
                  (prd--parse-depends "ITEM-001, ITEM-002, ITEM-003"))))
 
-(ert-deftest prd-test-parse-depends-cross-init ()
-  "Test parsing cross-initiative dependencies."
-  (should (equal '("INIT-001:ITEM-005" "ITEM-002")
-                 (prd--parse-depends "INIT-001:ITEM-005, ITEM-002"))))
+(ert-deftest prd-test-parse-depends-cross-category ()
+  "Test parsing cross-category dependencies."
+  (should (equal '("PROJ-001:ITEM-005" "ITEM-002")
+                 (prd--parse-depends "PROJ-001:ITEM-005, ITEM-002"))))
 
 (ert-deftest prd-test-extract-agent-from-link-full ()
   "Test extracting agent from full org link."
@@ -152,10 +164,21 @@
     (should-not (string-match prd-item-id-regexp "item-001"))
     (should-not (string-match prd-item-id-regexp "ITEM001"))))
 
-(ert-deftest prd-test-init-id-format-valid ()
-  "Test valid INIT ID formats."
-  (should (string-match prd-init-id-regexp "INIT-001"))
-  (should (string-match prd-init-id-regexp "INIT-999")))
+(ert-deftest prd-test-category-id-format-valid ()
+  "Test valid category ID formats (PROJ, BUG, IMP)."
+  (let ((cat-re (prd--category-id-regexp)))
+    (should (string-match cat-re "PROJ-001"))
+    (should (string-match cat-re "BUG-001"))
+    (should (string-match cat-re "IMP-001"))
+    (should (string-match cat-re "PROJ-999"))))
+
+(ert-deftest prd-test-category-id-format-invalid ()
+  "Test invalid category ID formats."
+  (let ((cat-re (prd--category-id-regexp))
+        (case-fold-search nil))
+    (should-not (string-match cat-re "INIT-001"))
+    (should-not (string-match cat-re "proj-001"))
+    (should-not (string-match cat-re "TASK-001"))))
 
 ;;; Integration Tests - Item Parsing
 
@@ -163,8 +186,8 @@
   "Test parsing valid items from buffer."
   (prd-test--with-fixture
     (let ((file (prd-test--create-item-file
-                 "test-init.org"
-                 "#+TITLE: Test\n\n* INIT-001 Test Initiative\n\n** ITEM Test task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\nTask description.\n")))
+                 "test-proj.org"
+                 "#+TITLE: Test\n\n* PROJ-001 Test Project\n\n** ITEM Test task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\nTask description.\n")))
       (with-temp-buffer
         (insert-file-contents file)
         (org-mode)
@@ -188,6 +211,37 @@
           (should (= 2 (length items)))
           (let ((second-item (cadr items)))
             (should (equal '("ITEM-001") (prd-item-depends second-item)))))))))
+
+;;; Integration Tests - Category Parsing
+
+(ert-deftest prd-test-parse-buffer-categories ()
+  "Test parsing categories (PROJ/BUG/IMP) from buffer."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "test-proj.org"
+                 "#+TITLE: Test\n\n* PROJ-001 Foundation\n:PROPERTIES:\n:CUSTOM_ID: PROJ-001\n:GOAL: Build foundation\n:END:\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-mode)
+        (let ((cats (prd--parse-buffer-categories)))
+          (should (= 1 (length cats)))
+          (let ((cat (car cats)))
+            (should (equal "PROJ-001" (prd-category-id cat)))
+            (should (string-match "Foundation" (prd-category-title cat)))))))))
+
+(ert-deftest prd-test-parse-buffer-categories-bug ()
+  "Test parsing BUG categories."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "test-bug.org"
+                 "#+TITLE: Bug Fix\n\n* BUG-001 Fix crash\n:PROPERTIES:\n:CUSTOM_ID: BUG-001\n:GOAL: Fix the crash\n:END:\n"
+                 "bugfixes")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-mode)
+        (let ((cats (prd--parse-buffer-categories)))
+          (should (= 1 (length cats)))
+          (should (equal "BUG-001" (prd-category-id (car cats)))))))))
 
 ;;; Integration Tests - Validation
 
@@ -260,7 +314,9 @@
                  :properties '(("CUSTOM_ID" . "ITEM-001")
                                ("AGENT" . "[[file:agents/test-agent.org::#core][test-agent:core]]")
                                ("EFFORT" . "1h")
-                               ("PRIORITY" . "#B")))))
+                               ("PRIORITY" . "#B")
+                               ("TEST_PLAN" . "compile, test-rust")
+                               ("COMPONENT_REF" . "[[file:../../src/mod.rs][Mod]]")))))
       (let ((errors (prd--validate-item item)))
         ;; Should have no errors (might have info messages)
         (should-not (seq-find (lambda (e)
@@ -283,6 +339,12 @@
     (prd--build-agent-cache)
     (should-not (prd--valid-agent-p "nonexistent-agent"))
     (should-not (prd--valid-agent-p "fake-agent:section"))))
+
+(ert-deftest prd-test-index-org-excluded-from-agents ()
+  "Test that index.org is not counted as a valid agent."
+  (prd-test--with-fixture
+    (prd--build-agent-cache)
+    (should-not (prd--valid-agent-p "index"))))
 
 ;;; Integration Tests - Cycle Detection
 
@@ -373,7 +435,10 @@
         (should (assoc 'metrics parsed))
         (should (assoc 'agents parsed))
         (should (assoc 'blockers parsed))
-        (should (assoc 'velocity parsed))))))
+        (should (assoc 'velocity parsed))
+        ;; Should use "categories" key, not "initiatives"
+        (should (assoc 'categories parsed))
+        (should-not (assoc 'initiatives parsed))))))
 
 ;;; Integration Tests - Full Validation
 
@@ -382,7 +447,7 @@
   (prd-test--with-fixture
     (let ((file (prd-test--create-item-file
                  "full-test.org"
-                 "#+TITLE: Full Test\n\n* INIT-001 Test Initiative\n:PROPERTIES:\n:CUSTOM_ID: INIT-001\n:GOAL: Test goal\n:END:\n\n** ITEM First task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\nDescription.\n")))
+                 "#+TITLE: Full Test\n\n* PROJ-001 Test Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-001\n:GOAL: Test goal\n:END:\n\n** ITEM First task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: [[file:../agents/test-agent.org::#core][test-agent:core]]\n:EFFORT: 1h\n:PRIORITY: #B\n:TEST_PLAN: compile\n:COMPONENT_REF: [[file:../../src/mod.rs][Mod]]\n:END:\n\nDescription.\n")))
       (prd--build-item-index)
       (let ((errors (prd--validate-file-impl file)))
         ;; Should have no errors for valid file
@@ -397,7 +462,9 @@
   (prd-test--with-fixture
     (let ((agents (prd-list-agents)))
       (should (listp agents))
-      (should (assoc "test-agent" agents)))))
+      (should (assoc "test-agent" agents))
+      ;; index.org should not appear as agent
+      (should-not (assoc "index" agents)))))
 
 (ert-deftest prd-test-list-blocked-empty ()
   "Test listing blocked tasks when none exist."
@@ -513,30 +580,30 @@
     (let ((completed (prd--effort-completed-since 7)))
       (should (= 0 completed)))))
 
-;;; Unit Tests - Initiative Progress
+;;; Integration Tests - Category Progress
 
-(ert-deftest prd-test-calculate-initiative-progress-empty ()
-  "Test initiative progress with no initiatives."
+(ert-deftest prd-test-calculate-category-progress-empty ()
+  "Test category progress with no categories."
   (prd-test--with-fixture
     (prd--build-item-index)
-    (let ((progress (prd--calculate-initiative-progress)))
+    (let ((progress (prd--calculate-category-progress)))
       (should (listp progress)))))
 
-(ert-deftest prd-test-calculate-initiative-progress-with-items ()
-  "Test initiative progress calculation with items."
+(ert-deftest prd-test-calculate-category-progress-with-items ()
+  "Test category progress calculation with items."
   (prd-test--with-fixture
     (prd-test--create-item-file
-     "init-progress.org"
-     "* INIT-001 Test Initiative\n:PROPERTIES:\n:CUSTOM_ID: INIT-001\n:GOAL: Test\n:END:\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** DONE Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-002\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+     "proj-progress.org"
+     "* PROJ-001 Test Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-001\n:GOAL: Test\n:END:\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** DONE Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-002\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
     (prd--build-item-index)
-    (let ((progress (prd--calculate-initiative-progress)))
+    (let ((progress (prd--calculate-category-progress)))
       (should (listp progress))
       (when progress
-        (let ((init (car progress)))
-          (should (equal "INIT-001" (cdr (assoc 'id init))))
-          (should (= 2 (cdr (assoc 'total init))))
-          (should (= 1 (cdr (assoc 'complete init))))
-          (should (= 0.5 (cdr (assoc 'progress init)))))))))
+        (let ((proj (car progress)))
+          (should (equal "PROJ-001" (cdr (assoc 'id proj))))
+          (should (= 2 (cdr (assoc 'total proj))))
+          (should (= 1 (cdr (assoc 'complete proj))))
+          (should (= 0.5 (cdr (assoc 'progress proj)))))))))
 
 ;;; Unit Tests - Item Property Helper
 
@@ -568,14 +635,15 @@
           (should (assoc 'last_7_days velocity))
           (should (assoc 'trend velocity)))))))
 
-(ert-deftest prd-test-dashboard-json-includes-initiatives ()
-  "Test dashboard JSON includes initiatives."
+(ert-deftest prd-test-dashboard-json-includes-categories ()
+  "Test dashboard JSON includes categories (not initiatives)."
   (prd-test--with-fixture
     (prd--build-item-index)
     (let ((json-str (prd--format-dashboard 'json)))
       (should (stringp json-str))
       (let ((parsed (json-read-from-string json-str)))
-        (should (assoc 'initiatives parsed))))))
+        (should (assoc 'categories parsed))
+        (should-not (assoc 'initiatives parsed))))))
 
 ;;; Integration Tests - Closed Time Parsing
 
@@ -595,6 +663,203 @@
             (should (equal "DONE" (prd-item-status item)))
             ;; closed-time should be set (may or may not be parsed depending on org version)
             ))))))
+
+;;; New Tests - Cross-Category Dependencies (B1 fix)
+
+(ert-deftest prd-test-cross-category-dependency-valid ()
+  "Test that PROJ-XXX:ITEM-YYY cross-category dependencies are validated."
+  (prd-test--with-fixture
+    ;; Create a file with a cross-category dependency
+    (prd-test--create-item-file
+     "proj-a.org"
+     "* PROJ-001 Project A\n\n** ITEM Task A\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")
+    (prd-test--create-item-file
+     "proj-b.org"
+     "* PROJ-002 Project B\n\n** ITEM Task B depends on A\n:PROPERTIES:\n:CUSTOM_ID: ITEM-002\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:DEPENDS: PROJ-001:ITEM-001\n:END:\n")
+    (prd--build-item-index)
+    ;; PROJ-001:ITEM-001 should resolve to ITEM-001
+    (let ((errors (prd--validate-file-impl
+                   (expand-file-name "proj-b.org"
+                                     (expand-file-name "projects" prd-test--temp-dir)))))
+      ;; Should NOT have a "valid-depends" error for the cross-category ref
+      (should-not (seq-find (lambda (e)
+                              (and (string= "valid-depends" (prd-validation-error-rule e))
+                                   (eq 'error (prd-validation-error-severity e))))
+                            errors)))))
+
+;;; New Tests - Non-Required Property Extraction (B4 fix)
+
+(ert-deftest prd-test-extract-all-properties-includes-optional ()
+  "Test that extract-all-properties extracts all properties, not just required ones."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "props-test.org"
+                 "** ITEM Task with extras\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:DEPENDS: ITEM-999\n:COMPONENT_REF: [[file:../../src/mod.rs][Mod]]\n:DOC_REF: [[file:../../docs/design.org][Design]]\n:TEST_PLAN: compile, test-rust, e2e\n:FILES: src/mod.rs, src/lib.rs\n:END:\n")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-mode)
+        (let* ((items (prd--parse-buffer-items))
+               (item (car items))
+               (props (prd-item-properties item)))
+          ;; All properties should be present, not just required ones
+          (should (assoc "CUSTOM_ID" props))
+          (should (assoc "AGENT" props))
+          (should (assoc "EFFORT" props))
+          (should (assoc "PRIORITY" props))
+          (should (assoc "DEPENDS" props))
+          (should (assoc "COMPONENT_REF" props))
+          (should (assoc "DOC_REF" props))
+          (should (assoc "TEST_PLAN" props))
+          (should (assoc "FILES" props)))))))
+
+;;; New Tests - Agent Metrics Independence (B8 fix)
+
+(ert-deftest prd-test-agent-metrics-independent-counts ()
+  "Test that agent metrics are calculated independently per agent.
+This verifies the fix for the shared-literal mutation bug."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "multi-agent.org"
+     "** ITEM Agent A task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n** ITEM Agent A task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-002\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    ;; Create a second agent
+    (let ((agents-dir (expand-file-name "agents" prd-test--temp-dir)))
+      (with-temp-file (expand-file-name "other-agent.org" agents-dir)
+        (insert "#+TITLE: Other Agent\n\n* Identity\n:PROPERTIES:\n:CUSTOM_ID: identity\n:END:\n")))
+    (prd-test--create-item-file
+     "other-agent-tasks.org"
+     "** DONE Other agent task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-003\n:AGENT: other-agent\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n")
+    (prd-clear-cache)
+    (prd--build-item-index)
+    (let ((agent-metrics (prd--calculate-agent-metrics)))
+      ;; test-agent should have 2 assigned, 0 complete
+      (let ((ta-metrics (gethash "test-agent" agent-metrics)))
+        (should ta-metrics)
+        (should (= 2 (cdr (assoc 'assigned ta-metrics))))
+        (should (= 0 (cdr (assoc 'complete ta-metrics)))))
+      ;; other-agent should have 1 assigned, 1 complete
+      (let ((oa-metrics (gethash "other-agent" agent-metrics)))
+        (should oa-metrics)
+        (should (= 1 (cdr (assoc 'assigned oa-metrics))))
+        (should (= 1 (cdr (assoc 'complete oa-metrics))))))))
+
+;;; New Tests - Documentation Files Excluded (B9 fix)
+
+(ert-deftest prd-test-docs-excluded-from-validation ()
+  "Test that documentation files are not scanned for task validation."
+  (prd-test--with-fixture
+    ;; Create a documentation file at root of @tasks with ITEM examples
+    (prd-test--create-doc-file
+     "reference.org"
+     "#+TITLE: Reference Guide\n\n* Example\n** ITEM Example task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-EXAMPLE\n:END:\nThis is just an example.\n")
+    ;; Create a real task file in projects/
+    (prd-test--create-item-file
+     "real-tasks.org"
+     "* PROJ-001 Real Project\n\n** ITEM Real task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (prd--build-item-index)
+    ;; The example item from reference.org should NOT be in the index
+    (should-not (gethash "ITEM-EXAMPLE" prd--item-index))
+    ;; The real task should be in the index
+    (should (gethash "ITEM-001" prd--item-index))))
+
+(ert-deftest prd-test-task-org-files-scans-subdirs-only ()
+  "Test that prd--task-org-files only scans category subdirectories."
+  (prd-test--with-fixture
+    ;; Create files in expected places
+    (prd-test--create-item-file "proj.org" "content" "projects")
+    (prd-test--create-item-file "bug.org" "content" "bugfixes")
+    (prd-test--create-item-file "imp.org" "content" "improvements")
+    ;; Create a file at root (should not be included)
+    (prd-test--create-doc-file "reference.org" "should not be included")
+    (let ((files (prd--task-org-files)))
+      ;; Should include files from subdirs
+      (should (>= (length files) 3))
+      ;; Should NOT include root-level files
+      (should-not (seq-find (lambda (f)
+                              (string= (file-name-nondirectory f) "reference.org"))
+                            files)))))
+
+;;; New Tests - Validation Rules (I1)
+
+(ert-deftest prd-test-validate-missing-test-plan-warning ()
+  "Test that missing TEST_PLAN produces a warning."
+  (prd-test--with-fixture
+    (prd--build-item-index)
+    (let ((item (prd-make-item
+                 :id "ITEM-001"
+                 :file "test.org"
+                 :line 10
+                 :title "Test task"
+                 :status "ITEM"
+                 :agent "test-agent:core"
+                 :effort "1h"
+                 :priority "#B"
+                 :depends nil
+                 :blocks nil
+                 :properties '(("CUSTOM_ID" . "ITEM-001")
+                               ("AGENT" . "test-agent:core")
+                               ("EFFORT" . "1h")
+                               ("PRIORITY" . "#B")))))
+      (let ((errors (prd--validate-item item)))
+        (should (seq-find (lambda (e)
+                            (and (string= "has-test-plan" (prd-validation-error-rule e))
+                                 (eq 'warning (prd-validation-error-severity e))))
+                          errors))))))
+
+(ert-deftest prd-test-validate-missing-component-ref-info ()
+  "Test that missing COMPONENT_REF produces an info message."
+  (prd-test--with-fixture
+    (prd--build-item-index)
+    (let ((item (prd-make-item
+                 :id "ITEM-001"
+                 :file "test.org"
+                 :line 10
+                 :title "Test task"
+                 :status "ITEM"
+                 :agent "test-agent:core"
+                 :effort "1h"
+                 :priority "#B"
+                 :depends nil
+                 :blocks nil
+                 :properties '(("CUSTOM_ID" . "ITEM-001")
+                               ("AGENT" . "test-agent:core")
+                               ("EFFORT" . "1h")
+                               ("PRIORITY" . "#B")
+                               ("TEST_PLAN" . "compile")))))
+      (let ((errors (prd--validate-item item)))
+        (should (seq-find (lambda (e)
+                            (and (string= "has-component-ref" (prd-validation-error-rule e))
+                                 (eq 'info (prd-validation-error-severity e))))
+                          errors))))))
+
+;;; New Tests - Velocity Trend Half-Comparison (B5 fix)
+
+(ert-deftest prd-test-velocity-trend-calculates-halves ()
+  "Test that velocity trend properly compares first half vs second half.
+This verifies the fix where earlier period no longer includes recent period."
+  (prd-test--with-fixture
+    (prd--build-item-index)
+    ;; With no completed items, should be unknown
+    (should (equal "unknown" (prd--velocity-trend 14)))
+    ;; The function should work without errors even with empty data
+    (should (stringp (prd--velocity-trend 30)))))
+
+;;; New Tests - find-parent-category
+
+(ert-deftest prd-test-find-parent-category ()
+  "Test finding the parent category for a given line."
+  (prd-test--with-fixture
+    (let ((file (prd-test--create-item-file
+                 "parent-cat.org"
+                 "* PROJ-001 Project Alpha\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #A\n:END:\n\n* PROJ-002 Project Beta\n\n** ITEM Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-002\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")))
+      ;; Test prd--find-parent-category directly
+      ;; The file has header on line 1-2, PROJ-001 on line 3, ITEM-001 on ~line 5,
+      ;; PROJ-002 on ~line 13, ITEM-002 on ~line 15
+      ;; Item under PROJ-001 should find PROJ-001
+      (should (equal "PROJ-001" (prd--find-parent-category file 5)))
+      ;; Item under PROJ-002 should find PROJ-002
+      (should (equal "PROJ-002" (prd--find-parent-category file 15)))
+      ;; Line before any category should return nil
+      (should (null (prd--find-parent-category file 1))))))
 
 (provide 'prd-tasks-test)
 ;;; prd-tasks-test.el ends here

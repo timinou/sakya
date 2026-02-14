@@ -14,14 +14,14 @@ This document instructs Claude Code on how to work with the `@tasks` PRD system.
 Before making changes to @tasks files, always run validation:
 
 ```bash
-# Validate all @tasks files (JSON output for parsing)
-emacsclient -s sakya -e '(prd-validate-all-cli :format json)'
+# Validate all @tasks files (JSON output, the default for -cli variants)
+emacsclient -s sakya -e '(prd-validate-all-cli)'
 
 # Validate specific file
-emacsclient -s sakya -e '(prd-validate-file-cli "/path/to/file.org" :format json)'
+emacsclient -s sakya -e '(prd-validate-file-cli "/path/to/file.org")'
 
 # Get current dashboard metrics
-emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
+emacsclient -s sakya -e '(prd-dashboard-cli)'
 ```
 
 ## Claude Code Hooks
@@ -31,7 +31,7 @@ emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
 After editing any file in `@tasks/`, run validation:
 
 ```bash
-emacsclient -s sakya -e '(prd-validate-file-cli "{{file}}" :format json)'
+emacsclient -s sakya -e '(prd-validate-file-cli "{{file}}")'
 ```
 
 Parse the JSON output:
@@ -44,7 +44,7 @@ Parse the JSON output:
 Before committing changes that include @tasks files:
 
 ```bash
-emacsclient -s sakya -e '(prd-validate-all-cli :format json)'
+emacsclient -s sakya -e '(prd-validate-all-cli)'
 ```
 
 Block commit if `valid: false`.
@@ -54,7 +54,7 @@ Block commit if `valid: false`.
 On session start, optionally show dashboard:
 
 ```bash
-emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
+emacsclient -s sakya -e '(prd-dashboard-cli)'
 ```
 
 ## Output Format
@@ -93,20 +93,13 @@ emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
 ```json
 {
   "timestamp": "2026-02-03T10:30:00Z",
-  "projects": [
+  "categories": [
     {
       "id": "PROJ-001",
-      "name": "Feature Name",
-      "status": "in-progress",
-      "progress": 0.75,
-      "items": {
-        "total": 8,
-        "done": 6,
-        "in_progress": 1,
-        "blocked": 0,
-        "pending": 1
-      },
-      "estimated_remaining": "2h"
+      "title": "Feature Name",
+      "total": 8,
+      "complete": 6,
+      "progress": 0.75
     }
   ],
   "agents": {
@@ -121,8 +114,7 @@ emacsclient -s sakya -e '(prd-dashboard-cli :format json)'
   "blockers": [
     {
       "item_id": "ITEM-015",
-      "blocked_by": ["ITEM-012", "ITEM-014"],
-      "category": "projects"
+      "blocked_by": ["ITEM-012", "ITEM-014"]
     }
   ]
 }
@@ -181,9 +173,9 @@ Every ITEM **must** have:
 ### Recommended Properties
 
 - `DEPENDS` - Dependencies (comma-separated ITEM IDs)
-- `COMPONENT_REF` - Link to component/module
+- `COMPONENT_REF` - Link to component/module (validated as info-level)
 - `FILES` - Files that will be modified
-- `TEST_PLAN` - Verification approach (compile, test-rust, test-svelte, e2e)
+- `TEST_PLAN` - Verification approach (validated as warning-level)
 
 ### Updating Task Status
 
@@ -273,13 +265,13 @@ Returns: `"45 tasks: 12 done, 3 in-progress, 2 blocked, 28 pending"`
 ### Velocity Calculation
 
 ```bash
-emacsclient -s sakya -e '(prd-velocity-report :days 7)'
+emacsclient -s sakya -e '(prd-velocity-report 7)'
 ```
 
 ### Blocked Tasks
 
 ```bash
-emacsclient -s sakya -e '(prd-list-blocked :format json)'
+emacsclient -s sakya -e '(prd-list-blocked)'
 ```
 
 ## Error Recovery
@@ -298,7 +290,7 @@ emacsclient -s sakya -e '(prd-clear-cache)'
 
 ```bash
 # Audit all links
-emacsclient -s sakya -e '(prd-audit-links :format json)'
+emacsclient -s sakya -e '(prd-audit-links (quote json))'
 
 # Repair broken links (interactive)
 emacsclient -s sakya -e '(prd-repair-links)'
@@ -326,7 +318,7 @@ emacs --daemon
 
 Check for valid JSON:
 ```bash
-emacsclient -s sakya -e '(prd-validate-all-cli :format json)' | jq .
+emacsclient -s sakya -e '(prd-validate-all-cli)' | jq .
 ```
 
 ### Missing agent definitions

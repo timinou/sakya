@@ -1,7 +1,7 @@
 ;;; prd-tasks.el --- PRD Task Management Validation and Automation -*- lexical-binding: t; -*-
 
 ;; Author: Design System Team
-;; Version: 1.0.0
+;; Version: 2.0.0
 ;; Package-Requires: ((emacs "29.1") (org "9.6"))
 ;; Keywords: org-mode, project-management, validation
 
@@ -9,8 +9,9 @@
 
 ;; This module provides validation, automation, and dashboard functionality
 ;; for the PRD @tasks system.  It validates org-mode files containing
-;; initiatives (INIT-XXX) and tasks (ITEM-XXX), ensuring they have required
-;; properties, valid agent references, and no circular dependencies.
+;; categories (PROJ-XXX, BUG-XXX, IMP-XXX) and tasks (ITEM-XXX), ensuring
+;; they have required properties, valid agent references, and no circular
+;; dependencies.
 ;;
 ;; Main entry points:
 ;;   - `prd-validate-file' - Validate a single @tasks file
@@ -63,10 +64,16 @@ If nil, automatically detected from current file."
   :type 'regexp
   :group 'prd-tasks)
 
-(defcustom prd-init-id-regexp
-  "^INIT-[0-9]+"
-  "Regular expression for valid INIT identifiers."
-  :type 'regexp
+(defcustom prd-category-prefixes
+  '("PROJ" "BUG" "IMP")
+  "Prefixes for category identifiers (e.g., PROJ-001, BUG-001, IMP-001)."
+  :type '(repeat string)
+  :group 'prd-tasks)
+
+(defcustom prd-category-subdirs
+  '("projects" "bugfixes" "improvements")
+  "Subdirectories under @tasks that contain task files."
+  :type '(repeat string)
   :group 'prd-tasks)
 
 (defcustom prd-todo-keywords
@@ -74,6 +81,10 @@ If nil, automatically detected from current file."
   "TODO keywords used in @tasks files."
   :type '(repeat string)
   :group 'prd-tasks)
+
+(defun prd--category-id-regexp ()
+  "Build regexp matching any category prefix (e.g., PROJ-001, BUG-001, IMP-001)."
+  (concat "^\\(" (mapconcat #'regexp-quote prd-category-prefixes "\\|") "\\)-[0-9]+"))
 
 ;;; Internal Data Structures
 
@@ -87,10 +98,10 @@ If nil, automatically detected from current file."
   "An ITEM extracted from an org file."
   id file line title status agent effort priority depends blocks properties closed-time)
 
-(cl-defstruct (prd-init
-               (:constructor prd-make-init))
-  "An INIT extracted from an org file."
-  id file line title status goal depends-init items)
+(cl-defstruct (prd-category
+               (:constructor prd-make-category))
+  "A category (PROJ/BUG/IMP) extracted from an org file."
+  id file line title status goal depends-category items)
 
 (cl-defstruct (prd-metrics
                (:constructor prd-make-metrics))
@@ -103,36 +114,49 @@ If nil, automatically detected from current file."
   "Find the @tasks directory."
   (or prd-tasks-directory
       (when-let ((current (or buffer-file-name default-directory)))
-        (locate-dominating-file current "@tasks"))
-      (expand-file-name "docs/@tasks"
-                        (locate-dominating-file default-directory ".git"))))
+        (when-let ((parent (locate-dominating-file current "@tasks")))
+          (expand-file-name "@tasks" parent)))
+      (let ((git-root (locate-dominating-file default-directory ".git")))
+        (when git-root
+          (expand-file-name "docs/@tasks" git-root)))))
 
 (defun prd--tasks-directory ()
   "Return the @tasks directory path, ensuring it exists."
   (let ((dir (prd--find-tasks-directory)))
     (if (and dir (file-directory-p dir))
         (file-name-as-directory dir)
-      (let ((alt-dir (expand-file-name "@tasks" (prd--find-tasks-directory))))
-        (if (file-directory-p alt-dir)
-            (file-name-as-directory alt-dir)
-          (error "Cannot find @tasks directory"))))))
+      (error "Cannot find @tasks directory"))))
 
 (defun prd--all-org-files ()
   "Return list of all org files in @tasks directory tree."
   (let ((dir (prd--tasks-directory)))
     (directory-files-recursively dir "\\.org$")))
 
+(defun prd--task-org-files ()
+  "Return list of org files in task subdirectories only.
+Scans `prd-category-subdirs' (projects/, bugfixes/, improvements/).
+Use this for validation and metrics to avoid scanning documentation files."
+  (let ((base (prd--tasks-directory))
+        (files '()))
+    (dolist (subdir prd-category-subdirs)
+      (let ((dir (expand-file-name subdir base)))
+        (when (file-directory-p dir)
+          (setq files (append files (directory-files dir t "\\.org$"))))))
+    ;; Filter out .gitkeep and similar non-org files
+    (seq-filter (lambda (f) (string-suffix-p ".org" f)) files)))
+
 (defun prd--agent-files ()
-  "Return list of agent definition files."
+  "Return list of agent definition files.
+Excludes index.org which is the registry document, not an agent."
   (let ((agents-dir (expand-file-name "agents" (prd--tasks-directory))))
     (when (file-directory-p agents-dir)
-      (directory-files agents-dir t "\\.org$"))))
+      (seq-filter (lambda (f)
+                    (not (string= (file-name-nondirectory f) "index.org")))
+                  (directory-files agents-dir t "\\.org$")))))
 
-(defun prd--initiative-files ()
-  "Return list of initiative files."
-  (let ((init-dir (expand-file-name "initiatives" (prd--tasks-directory))))
-    (when (file-directory-p init-dir)
-      (directory-files init-dir t "\\.org$"))))
+(defun prd--category-files ()
+  "Return list of all category files across task subdirectories."
+  (prd--task-org-files))
 
 ;;; Org Element Extraction
 
@@ -204,30 +228,31 @@ Handles both direct properties and those in property drawers."
                     items))))))
     (nreverse items)))
 
-(defun prd--parse-buffer-inits ()
-  "Parse current buffer and return list of `prd-init' structs."
+(defun prd--parse-buffer-categories ()
+  "Parse current buffer and return list of `prd-category' structs."
   (let ((ast (org-element-parse-buffer))
-        (inits '()))
+        (categories '())
+        (cat-regexp (prd--category-id-regexp)))
     (org-element-map ast 'headline
       (lambda (hl)
         (let ((title (org-element-property :raw-value hl)))
           (when (let ((case-fold-search nil))
-                  (string-match prd-init-id-regexp title))
+                  (string-match cat-regexp title))
             (let* ((begin (org-element-property :begin hl))
                    (line (line-number-at-pos begin))
                    (custom-id (prd--extract-property hl "CUSTOM_ID"))
                    (goal (prd--extract-property hl "GOAL"))
-                   (depends-init (prd--extract-property hl "DEPENDS_INIT")))
-              (push (prd-make-init
+                   (depends-cat (prd--extract-property hl "DEPENDS_CATEGORY")))
+              (push (prd-make-category
                      :id (or custom-id (match-string 0 title))
                      :file (buffer-file-name)
                      :line line
                      :title title
                      :goal goal
-                     :depends-init (prd--parse-depends depends-init)
+                     :depends-category (prd--parse-depends depends-cat)
                      :items '())
-                    inits))))))
-    (nreverse inits)))
+                    categories))))))
+    (nreverse categories)))
 
 (defun prd--parse-depends (depends-str)
   "Parse DEPENDS-STR into list of dependency IDs."
@@ -236,12 +261,17 @@ Handles both direct properties and those in property drawers."
             (split-string depends-str "[,]" t "[ \t]+"))))
 
 (defun prd--extract-all-properties (headline)
-  "Extract all properties from HEADLINE as alist."
+  "Extract all properties from HEADLINE as alist.
+Extracts every property from the property drawer, not just required ones.
+Uses `org-element-map' to find node-properties regardless of AST nesting."
   (let ((props '()))
-    (dolist (prop prd-required-item-properties)
-      (when-let ((val (prd--extract-property headline prop)))
-        (push (cons prop val) props)))
-    props))
+    (org-element-map headline 'node-property
+      (lambda (node)
+        (let ((key (org-element-property :key node))
+              (val (org-element-property :value node)))
+          (when (and key val (not (string-empty-p val)))
+            (push (cons key val) props)))))
+    (nreverse props)))
 
 ;;; Agent Validation
 
@@ -318,8 +348,8 @@ Returns alist of (AGENT-NAME . FILE-PATH)."
 (defun prd--setup-org-keywords ()
   "Set up org-mode to recognize PRD TODO keywords.
 This is needed because org-element parses TODO keywords from buffer settings,
-but our files may not have #+TODO: headers."
-  ;; Insert a TODO header at the beginning if not present
+but our files may not have #+TODO: headers.
+Uses buffer-local variable to avoid expensive org-mode reinit."
   (save-excursion
     (goto-char (point-min))
     (unless (re-search-forward "^#\\+TODO:" nil t)
@@ -328,13 +358,15 @@ but our files may not have #+TODO: headers."
       (while (looking-at "^#\\+")
         (forward-line 1))
       (insert "#+TODO: ITEM(i) DOING(d) REVIEW(r) | DONE(D) BLOCKED(b)\n")))
-  ;; Re-initialize org-mode to pick up the new keyword
-  (org-mode))
+  ;; Set buffer-local org-todo-keywords and refresh without full org-mode reinit
+  (setq-local org-todo-keywords
+              '((sequence "ITEM(i)" "DOING(d)" "REVIEW(r)" "|" "DONE(D)" "BLOCKED(b)")))
+  (org-set-regexps-and-options))
 
 (defun prd--build-item-index ()
-  "Build index of all items across all files."
+  "Build index of all items across task files."
   (let ((index (make-hash-table :test 'equal)))
-    (dolist (file (prd--all-org-files))
+    (dolist (file (prd--task-org-files))
       (with-temp-buffer
         (insert-file-contents file)
         (let ((buffer-file-name file))  ; org-mode needs this for some features
@@ -345,16 +377,23 @@ but our files may not have #+TODO: headers."
               (puthash id item index))))))
     (setq prd--item-index index)))
 
+(defun prd--cross-ref-regexp ()
+  "Build regexp for cross-category references like PROJ-001:ITEM-005."
+  (concat "^\\("
+          (mapconcat #'regexp-quote prd-category-prefixes "\\|")
+          "\\)-[0-9]+:\\(ITEM-[0-9]+\\)"))
+
 (defun prd--valid-depends-p (depends-list)
   "Check if all dependencies in DEPENDS-LIST are valid."
   (unless prd--item-index
     (prd--build-item-index))
-  (seq-every-p (lambda (dep)
-                 (or (gethash dep prd--item-index)
-                     ;; Cross-init reference INIT-XXX:ITEM-YYY
-                     (when (string-match "^\\(INIT-[0-9]+\\):\\(ITEM-[0-9]+\\)" dep)
-                       (gethash (match-string 2 dep) prd--item-index))))
-               depends-list))
+  (let ((cross-ref-re (prd--cross-ref-regexp)))
+    (seq-every-p (lambda (dep)
+                   (or (gethash dep prd--item-index)
+                       ;; Cross-category reference PROJ-XXX:ITEM-YYY
+                       (when (string-match cross-ref-re dep)
+                         (gethash (match-string 2 dep) prd--item-index))))
+                 depends-list)))
 
 (defun prd--detect-cycles ()
   "Detect circular dependencies in items.
@@ -397,7 +436,8 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
   "Validate a single ITEM, returning list of errors."
   (let ((errors '())
         (file (prd-item-file item))
-        (line (prd-item-line item)))
+        (line (prd-item-line item))
+        (cross-ref-re (prd--cross-ref-regexp)))
 
     ;; Check required properties
     (dolist (prop prd-required-item-properties)
@@ -468,7 +508,7 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
     (when-let ((deps (prd-item-depends item)))
       (dolist (dep deps)
         (unless (or (gethash dep prd--item-index)
-                    (string-match "^INIT-[0-9]+:" dep))
+                    (string-match cross-ref-re dep))
           (push (prd-make-error
                  :file file
                  :line line
@@ -478,6 +518,32 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
                  :hint "Check that the referenced ITEM exists"
                  :context (prd-item-title item))
                 errors))))
+
+    ;; I1: Check for TEST_PLAN (warning)
+    (when-let ((id (prd-item-id item)))
+      (unless (cdr (assoc "TEST_PLAN" (prd-item-properties item)))
+        (push (prd-make-error
+               :file file
+               :line line
+               :rule "has-test-plan"
+               :severity 'warning
+               :message "Missing recommended property: TEST_PLAN"
+               :hint "Add :TEST_PLAN: property (e.g., compile, test-rust, e2e)"
+               :context (prd-item-title item))
+              errors)))
+
+    ;; I1: Check for COMPONENT_REF (info)
+    (when-let ((id (prd-item-id item)))
+      (unless (cdr (assoc "COMPONENT_REF" (prd-item-properties item)))
+        (push (prd-make-error
+               :file file
+               :line line
+               :rule "has-component-ref"
+               :severity 'info
+               :message "Missing optional property: COMPONENT_REF"
+               :hint "Add :COMPONENT_REF: linking to the component/module this implements"
+               :context (prd-item-title item))
+              errors)))
 
     (nreverse errors)))
 
@@ -520,7 +586,7 @@ FORMAT can be `plain' (default) or `json'."
   (prd--build-item-index)
   (let ((all-errors '())
         (format (or format 'plain)))
-    (dolist (file (prd--all-org-files))
+    (dolist (file (prd--task-org-files))
       (setq all-errors (append all-errors (prd--validate-file-impl file))))
     ;; Check for cycles
     (let ((cycles (prd--detect-cycles)))
@@ -577,12 +643,15 @@ FILE is optional context."
            (warn-list (seq-filter (lambda (e)
                                     (eq (prd-validation-error-severity e) 'warning))
                                   errors))
+           (info-list (seq-filter (lambda (e)
+                                    (eq (prd-validation-error-severity e) 'info))
+                                  errors))
            (metrics (prd--calculate-metrics)))
        (json-encode
         `((valid . ,(if err-list :json-false t))
           (errors . ,(mapcar #'prd--error-to-alist err-list))
           (warnings . ,(mapcar #'prd--error-to-alist warn-list))
-          (info . [])
+          (info . ,(mapcar #'prd--error-to-alist info-list))
           (needs_link_sync . :json-false)
           (metrics . ((total_items . ,(prd-metrics-total-items metrics))
                       (complete . ,(prd-metrics-complete metrics))
@@ -648,88 +717,93 @@ FILE is optional context."
      :blocked blocked
      :pending pending)))
 
-(defun prd--calculate-initiative-metrics ()
-  "Calculate metrics per initiative."
-  (let ((init-metrics (make-hash-table :test 'equal)))
-    (dolist (file (prd--all-org-files))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (org-mode)
-        (let ((inits (prd--parse-buffer-inits))
-              (items (prd--parse-buffer-items)))
-          (dolist (init inits)
-            (let ((init-id (prd-init-id init)))
-              (puthash init-id
-                       `((id . ,init-id)
-                         (title . ,(prd-init-title init))
-                         (file . ,(prd-init-file init))
-                         (items . ,(make-hash-table :test 'equal)))
-                       init-metrics)))
-          ;; Associate items with their initiative (parent)
-          (dolist (item items)
-            (let* ((item-file (prd-item-file item))
-                   (init-id (prd--find-parent-init item-file (prd-item-line item))))
-              (when init-id
-                (when-let ((init-data (gethash init-id init-metrics)))
-                  (puthash (prd-item-id item) item
-                           (cdr (assoc 'items init-data))))))))))
-    init-metrics))
-
-(defun prd--calculate-initiative-progress ()
-  "Calculate progress for each initiative.
-Returns list of alists with id, title, total, complete, and progress."
-  (unless prd--item-index
-    (prd--build-item-index))
-  (let ((progress '())
-        (init-items (make-hash-table :test 'equal)))
-    ;; Group items by their parent initiative
-    (dolist (file (prd--all-org-files))
+(defun prd--calculate-category-metrics ()
+  "Calculate metrics per category."
+  (let ((cat-metrics (make-hash-table :test 'equal)))
+    (dolist (file (prd--task-org-files))
       (with-temp-buffer
         (insert-file-contents file)
         (let ((buffer-file-name file))
           (org-mode)
           (prd--setup-org-keywords)
-          (let ((inits (prd--parse-buffer-inits))
+          (let ((categories (prd--parse-buffer-categories))
                 (items (prd--parse-buffer-items)))
-            ;; Initialize initiative entries
-            (dolist (init inits)
-              (unless (gethash (prd-init-id init) init-items)
-                (puthash (prd-init-id init)
-                         `((title . ,(prd-init-title init))
-                           (items . ()))
-                         init-items)))
-            ;; Associate items with their initiative
+            (dolist (cat categories)
+              (let ((cat-id (prd-category-id cat)))
+                (puthash cat-id
+                         `((id . ,cat-id)
+                           (title . ,(prd-category-title cat))
+                           (file . ,(prd-category-file cat))
+                           (items . ,(make-hash-table :test 'equal)))
+                         cat-metrics)))
+            ;; Associate items with their category (parent)
             (dolist (item items)
-              (let ((init-id (prd--find-parent-init file (prd-item-line item))))
-                (when (and init-id (gethash init-id init-items))
-                  (let ((init-data (gethash init-id init-items)))
-                    (push item (cdr (assoc 'items init-data)))))))))))
-    ;; Calculate progress for each initiative
+              (let* ((item-file (prd-item-file item))
+                     (cat-id (prd--find-parent-category item-file (prd-item-line item))))
+                (when cat-id
+                  (when-let ((cat-data (gethash cat-id cat-metrics)))
+                    (puthash (prd-item-id item) item
+                             (cdr (assoc 'items cat-data)))))))))))
+    cat-metrics))
+
+(defun prd--calculate-category-progress ()
+  "Calculate progress for each category.
+Returns list of alists with id, title, total, complete, and progress."
+  (unless prd--item-index
+    (prd--build-item-index))
+  (let ((progress '())
+        (cat-items (make-hash-table :test 'equal)))
+    ;; Group items by their parent category
+    (dolist (file (prd--task-org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (let ((categories (prd--parse-buffer-categories))
+                (items (prd--parse-buffer-items)))
+            ;; Initialize category entries
+            (dolist (cat categories)
+              (unless (gethash (prd-category-id cat) cat-items)
+                (puthash (prd-category-id cat)
+                         `((title . ,(prd-category-title cat))
+                           (items . ()))
+                         cat-items)))
+            ;; Associate items with their category
+            (dolist (item items)
+              (let ((cat-id (prd--find-parent-category file (prd-item-line item))))
+                (when (and cat-id (gethash cat-id cat-items))
+                  (let ((cat-data (gethash cat-id cat-items)))
+                    (push item (cdr (assoc 'items cat-data)))))))))))
+    ;; Calculate progress for each category
     (maphash
-     (lambda (init-id init-data)
-       (let* ((items (cdr (assoc 'items init-data)))
-              (title (cdr (assoc 'title init-data)))
+     (lambda (cat-id cat-data)
+       (let* ((items (cdr (assoc 'items cat-data)))
+              (title (cdr (assoc 'title cat-data)))
               (total (length items))
               (done (seq-count (lambda (i) (string= (prd-item-status i) "DONE")) items)))
-         (push `((id . ,init-id)
+         (push `((id . ,cat-id)
                  (title . ,title)
                  (total . ,total)
                  (complete . ,done)
                  (progress . ,(if (> total 0) (/ (float done) total) 0.0)))
                progress)))
-     init-items)
+     cat-items)
     (nreverse progress)))
 
-(defun prd--find-parent-init (file line)
-  "Find the INIT-XXX that contains LINE in FILE."
-  (with-temp-buffer
-    (insert-file-contents file)
-    (goto-char (point-min))
-    (let ((found-init nil))
-      (while (re-search-forward "^\\*+ \\(INIT-[0-9]+\\)" nil t)
-        (when (<= (line-number-at-pos) line)
-          (setq found-init (match-string 1))))
-      found-init)))
+(defun prd--find-parent-category (file line)
+  "Find the category (PROJ-XXX, BUG-XXX, IMP-XXX) that contains LINE in FILE."
+  (let ((cat-re (concat "^\\*+ \\(\\(?:"
+                        (mapconcat #'regexp-quote prd-category-prefixes "\\|")
+                        "\\)-[0-9]+\\)")))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (let ((found-cat nil))
+        (while (re-search-forward cat-re nil t)
+          (when (<= (line-number-at-pos) line)
+            (setq found-cat (match-string 1))))
+        found-cat))))
 
 (defun prd--calculate-agent-metrics ()
   "Calculate metrics per agent."
@@ -743,7 +817,7 @@ Returns list of alists with id, title, total, complete, and progress."
                 (agent-name (car (split-string agent ":")))
                 (metrics (or (gethash agent-name agent-metrics)
                              (puthash agent-name
-                                      '((assigned . 0) (complete . 0))
+                                      (list (cons 'assigned 0) (cons 'complete 0))
                                       agent-metrics))))
            (cl-incf (cdr (assoc 'assigned metrics)))
            (when (string= (prd-item-status item) "DONE")
@@ -783,7 +857,7 @@ FORMAT defaults to `json'."
   "Format dashboard according to FORMAT."
   (let ((metrics (prd--calculate-metrics))
         (agent-metrics (prd--calculate-agent-metrics))
-        (init-progress (prd--calculate-initiative-progress))
+        (cat-progress (prd--calculate-category-progress))
         (blocked-items (prd-list-blocked))
         (velocity-7d (prd--calculate-velocity 7))
         (velocity-trend (prd--velocity-trend 14)))
@@ -799,7 +873,7 @@ FORMAT defaults to `json'."
                         (in_progress . ,(prd-metrics-in-progress metrics))
                         (blocked . ,(prd-metrics-blocked metrics))
                         (pending . ,(prd-metrics-pending metrics))))
-            (initiatives . ,(vconcat init-progress))
+            (categories . ,(vconcat cat-progress))
             (agents . ,agents-alist)
             (blockers . ,(mapcar (lambda (item)
                                    `((item_id . ,(prd-item-id item))
@@ -828,14 +902,14 @@ FORMAT defaults to `json'."
          (insert (format "Last 7 days: %.1f items/day (%s)\n\n"
                          velocity-7d velocity-trend))
 
-         (when init-progress
-           (insert "== Initiative Progress ==\n")
-           (dolist (init init-progress)
-             (let ((id (cdr (assoc 'id init)))
-                   (title (cdr (assoc 'title init)))
-                   (total (cdr (assoc 'total init)))
-                   (complete (cdr (assoc 'complete init)))
-                   (progress (cdr (assoc 'progress init))))
+         (when cat-progress
+           (insert "== Category Progress ==\n")
+           (dolist (cat cat-progress)
+             (let ((id (cdr (assoc 'id cat)))
+                   (title (cdr (assoc 'title cat)))
+                   (total (cdr (assoc 'total cat)))
+                   (complete (cdr (assoc 'complete cat)))
+                   (progress (cdr (assoc 'progress cat))))
                (insert (format "%s: %d/%d (%.0f%%) - %s\n"
                                id complete total (* 100 progress)
                                (or title "")))))
@@ -874,9 +948,8 @@ FORMAT defaults to `json'."
 ;;; Blocked Tasks
 
 ;;;###autoload
-(defun prd-list-blocked (&optional format)
-  "List all blocked tasks.
-FORMAT can be `plain' (default) or `json'."
+(defun prd-list-blocked ()
+  "List all blocked tasks."
   (interactive)
   (unless prd--item-index
     (prd--build-item-index))
@@ -1024,6 +1097,25 @@ Returns nil if the format is invalid."
      prd--item-index)
     completed))
 
+(defun prd--items-completed-between (days-ago-start days-ago-end)
+  "Return items completed between DAYS-AGO-START and DAYS-AGO-END days ago.
+DAYS-AGO-START is the further-back boundary, DAYS-AGO-END is the more recent."
+  (unless prd--item-index
+    (prd--build-item-index))
+  (let* ((cutoff-start (time-subtract (current-time)
+                                      (days-to-time days-ago-start)))
+         (cutoff-end (time-subtract (current-time)
+                                    (days-to-time days-ago-end)))
+         (completed '()))
+    (maphash
+     (lambda (_id item)
+       (when-let ((closed (prd-item-closed-time item)))
+         (when (and (time-less-p cutoff-start closed)
+                    (not (time-less-p cutoff-end closed)))
+           (push item completed))))
+     prd--item-index)
+    completed))
+
 (defun prd--calculate-velocity (days)
   "Calculate velocity (items/day) over DAYS."
   (let ((completed (prd--items-completed-since days)))
@@ -1032,14 +1124,17 @@ Returns nil if the format is invalid."
       0.0)))
 
 (defun prd--velocity-trend (days)
-  "Calculate velocity trend comparing two periods.
-Compares first half to second half of DAYS period."
-  (let ((recent (prd--calculate-velocity (/ days 2)))
-        (earlier (prd--calculate-velocity days)))
+  "Calculate velocity trend comparing two halves of DAYS period.
+Compares items completed in second half (more recent) vs first half (earlier)."
+  (let* ((half (/ days 2))
+         (recent-count (length (prd--items-completed-between half 0)))
+         (earlier-count (length (prd--items-completed-between days half)))
+         (recent-vel (if (> half 0) (/ (float recent-count) half) 0.0))
+         (earlier-vel (if (> half 0) (/ (float earlier-count) half) 0.0)))
     (cond
-     ((= earlier 0) "unknown")
-     ((> recent (* 1.1 earlier)) "increasing")
-     ((< recent (* 0.9 earlier)) "decreasing")
+     ((= earlier-vel 0) (if (> recent-vel 0) "increasing" "unknown"))
+     ((> recent-vel (* 1.1 earlier-vel)) "increasing")
+     ((< recent-vel (* 0.9 earlier-vel)) "decreasing")
      (t "stable"))))
 
 ;;;###autoload
