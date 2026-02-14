@@ -358,4 +358,76 @@ mod tests {
         assert_eq!(created.name, opened.name);
         assert_eq!(created.version, opened.version);
     }
+
+    // ── legacy YAML backward compatibility ─────────────────────────
+
+    #[test]
+    fn open_project_handles_legacy_yaml_without_version() {
+        let dir = setup_test_dir();
+        let root = dir.path().to_path_buf();
+
+        // Legacy YAML: only name, no version/timestamps
+        std::fs::write(
+            root.join("sakya.yaml"),
+            "name: Old Novel\nauthor: Legacy Author\n",
+        )
+        .unwrap();
+
+        let manifest = open_project(root.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(manifest.name, "Old Novel");
+        assert_eq!(manifest.version, "0.1.0");
+        assert_eq!(manifest.author, Some("Legacy Author".to_string()));
+        assert!(manifest.created_at <= chrono::Utc::now());
+        assert!(manifest.updated_at <= chrono::Utc::now());
+    }
+
+    #[test]
+    fn open_project_handles_legacy_yaml_with_extra_fields() {
+        let dir = setup_test_dir();
+        let root = dir.path().to_path_buf();
+
+        // Exact copy of the example project YAML (has extra fields like genre, schemas, created)
+        let legacy_yaml = r#"name: The Warmth of Distant Things
+author: Sakya Example Project
+created: 2026-02-14
+genre: Magical Realism
+description: >
+  A person in their thirties looks back at their twenties—the friendships,
+  the bars, the late nights, the slow drift apart.
+schemas:
+  - character
+  - place
+  - item
+  - idea
+"#;
+        std::fs::write(root.join("sakya.yaml"), legacy_yaml).unwrap();
+
+        let manifest = open_project(root.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(manifest.name, "The Warmth of Distant Things");
+        assert_eq!(manifest.version, "0.1.0"); // defaulted
+        assert_eq!(manifest.author, Some("Sakya Example Project".to_string()));
+    }
+
+    #[test]
+    fn open_project_preserves_explicit_version() {
+        let dir = setup_test_dir();
+        let root = dir.path().to_path_buf();
+
+        let yaml = r#"name: Versioned Novel
+version: "2.0.0"
+createdAt: "2025-01-01T00:00:00Z"
+updatedAt: "2025-06-15T12:00:00Z"
+"#;
+        std::fs::write(root.join("sakya.yaml"), yaml).unwrap();
+
+        let manifest = open_project(root.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(manifest.name, "Versioned Novel");
+        assert_eq!(manifest.version, "2.0.0");
+        assert_eq!(
+            manifest.created_at,
+            "2025-01-01T00:00:00Z"
+                .parse::<chrono::DateTime<chrono::Utc>>()
+                .unwrap()
+        );
+    }
 }

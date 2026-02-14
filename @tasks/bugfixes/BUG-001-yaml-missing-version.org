@@ -1,0 +1,89 @@
+#+TITLE: BUG-001 Fix "YAML error: missing field `version`" on project open
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-001 Fix "YAML error: missing field `version`" on project open
+:PROPERTIES:
+:CUSTOM_ID: BUG-001
+:GOAL: Any sakya.yaml with at least a name field opens successfully, with sensible defaults for missing fields.
+:COMPLETION: Legacy and minimal YAML files deserialize without error; example project updated to current schema.
+:END:
+
+** DONE Add serde defaults to ProjectManifest fields
+:PROPERTIES:
+:CUSTOM_ID: ITEM-046-serde-defaults
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: src-tauri/src/models/project.rs
+:TEST_PLAN: test-rust
+:END:
+
+*** Description
+Add =#[serde(default = "...")]= to =version=, =created_at=, and =updated_at= fields on =ProjectManifest=.
+Provide =default_version()= returning ="0.1.0"= and =default_timestamp()= returning =Utc::now()=.
+
+*** Acceptance Criteria
+- [X] =version= defaults to ="0.1.0"= when missing from YAML
+- [X] =created_at= and =updated_at= default to current time when missing
+- [X] Explicit values in YAML are preserved (not overwritten by defaults)
+- [X] Extra unknown fields (e.g. =genre=, =schemas=) are silently ignored
+
+** DONE Add backward-compatibility Rust tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-047-rust-tests
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:DEPENDS: ITEM-046-serde-defaults
+:FILES: src-tauri/src/models/project.rs, src-tauri/src/commands/project.rs
+:TEST_PLAN: test-rust
+:END:
+
+*** Description
+Add 5 new tests: 2 model-level deserialization tests and 3 command-level integration tests covering minimal YAML, legacy YAML with extra fields, and explicit version preservation.
+
+*** Acceptance Criteria
+- [X] =deserialization_with_minimal_yaml= — YAML with only =name=, defaults applied
+- [X] =deserialization_preserves_provided_fields= — full YAML preserved
+- [X] =open_project_handles_legacy_yaml_without_version= — missing version/timestamps
+- [X] =open_project_handles_legacy_yaml_with_extra_fields= — example project YAML clone
+- [X] =open_project_preserves_explicit_version= — explicit version not overwritten
+- [X] All 173 Rust tests pass (168 existing + 5 new)
+
+** DONE Update example project YAML to current schema
+:PROPERTIES:
+:CUSTOM_ID: ITEM-048-example-yaml
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 15m
+:PRIORITY: #B
+:FILES: examples/the-warmth-of-distant-things/sakya.yaml
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Rewrite =examples/the-warmth-of-distant-things/sakya.yaml= to use the current =ProjectManifest= schema. Remove legacy fields (=genre=, =created=, =schemas=) and add =version=, =createdAt=, =updatedAt=.
+
+*** Acceptance Criteria
+- [X] YAML contains =name=, =version=, =author=, =description=, =createdAt=, =updatedAt=
+- [X] Legacy fields removed
+- [X] File can be deserialized by =serde_yaml::from_str::<ProjectManifest>()=
+
+** DOING Add E2E test for legacy project opening
+:PROPERTIES:
+:CUSTOM_ID: ITEM-049-e2e-test
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-046-serde-defaults
+:FILES: e2e/app.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add Playwright E2E test verifying that opening a project with legacy YAML (no version/timestamps) succeeds without showing an error banner. Mock =open_project= to return a manifest with default-filled values.
+
+*** Acceptance Criteria
+- [ ] E2E test opens a project with legacy manifest mock
+- [ ] No error banner or error message is visible
+- [ ] Project name and version are correctly displayed/loaded
