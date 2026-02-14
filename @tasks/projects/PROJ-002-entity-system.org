@@ -100,7 +100,7 @@ Create the hierarchical tree component for the binder sidebar.
 - [ ] Selected item highlighted
 - [ ] Icons from lucide-svelte, color-coded by entity type
 
-** ITEM Create EntityForm component
+** DONE Create EntityForm component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-015-entity-form
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -172,7 +172,7 @@ Create a Svelte 5 store for managing entity data with Tauri command integration.
 - [ ] Invalidation on create/update/delete
 - [ ] Singleton export
 
-** ITEM Create SchemaEditor component
+** DONE Create SchemaEditor component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-018-schema-editor
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
