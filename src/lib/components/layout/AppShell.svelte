@@ -151,6 +151,8 @@
     const _binderVisible = uiState.panes.binderVisible;
     const _inspectorVisible = uiState.panes.inspectorVisible;
     const _distractionFree = uiState.distractionFreeMode;
+    const _typewriter = uiState.typewriterMode;
+    const _focus = uiState.focusMode;
 
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
@@ -269,6 +271,28 @@
       } else {
         uiState.toggleBinder();
       }
+      return;
+    }
+
+    // Ctrl+Shift+F: Toggle distraction-free mode
+    if (mod && e.shiftKey && e.key === 'F') {
+      e.preventDefault();
+      uiState.toggleDistractionFreeMode();
+      return;
+    }
+
+    // Ctrl+Shift+T: Toggle typewriter mode
+    if (mod && e.shiftKey && e.key === 'T') {
+      e.preventDefault();
+      uiState.toggleTypewriterMode();
+      return;
+    }
+
+    // Ctrl+Shift+.: Toggle focus mode
+    if (mod && e.shiftKey && (e.key === '>' || e.code === 'Period')) {
+      e.preventDefault();
+      uiState.toggleFocusMode();
+      return;
     }
   }
 </script>

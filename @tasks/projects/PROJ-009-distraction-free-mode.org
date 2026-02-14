@@ -92,7 +92,7 @@ Add a distraction-free mode to AppShell that hides all UI chrome — binder side
 :CUSTOM_ID: CHK-009-02
 :END:
 
-*** ITEM Keyboard shortcuts and toolbar toggle
+*** DONE Keyboard shortcuts and toolbar toggle
 :PROPERTIES:
 :CUSTOM_ID: ITEM-097
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

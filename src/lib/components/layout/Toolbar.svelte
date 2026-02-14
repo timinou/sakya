@@ -1,9 +1,18 @@
 <script lang="ts">
   import { uiState, projectState } from '$lib/stores';
-  import { PanelLeft, PanelRight, Sun, Moon, Monitor } from 'lucide-svelte';
+  import { PanelLeft, PanelRight, Sun, Moon, Monitor, Eye, Check } from 'lucide-svelte';
   import type { Theme, ViewMode } from '$lib/types';
 
   const themes: Theme[] = ['light', 'dark', 'system'];
+
+  let focusDropdownOpen = $state(false);
+  let dropdownRef = $state<HTMLDivElement | null>(null);
+  let triggerRef = $state<HTMLButtonElement | null>(null);
+
+  // Whether any focus mode is active (to highlight the trigger button)
+  let anyFocusModeActive = $derived(
+    uiState.typewriterMode || uiState.focusMode || uiState.distractionFreeMode
+  );
 
   function cycleTheme() {
     const currentIndex = themes.indexOf(uiState.theme);
@@ -14,7 +23,33 @@
   function setViewMode(mode: ViewMode) {
     uiState.setViewMode(mode);
   }
+
+  function toggleFocusDropdown() {
+    focusDropdownOpen = !focusDropdownOpen;
+  }
+
+  function handleDropdownKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      focusDropdownOpen = false;
+      triggerRef?.focus();
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (!focusDropdownOpen) return;
+    const target = e.target as Node;
+    if (
+      dropdownRef && !dropdownRef.contains(target) &&
+      triggerRef && !triggerRef.contains(target)
+    ) {
+      focusDropdownOpen = false;
+    }
+  }
 </script>
+
+<svelte:window onclick={handleClickOutside} />
 
 <header class="toolbar">
   <div class="toolbar-left">
@@ -53,6 +88,70 @@
   </div>
 
   <div class="toolbar-right">
+    <!-- Focus modes dropdown -->
+    <div class="focus-dropdown-wrapper">
+      <button
+        bind:this={triggerRef}
+        class="toolbar-btn"
+        class:active={anyFocusModeActive}
+        onclick={toggleFocusDropdown}
+        title="Focus Modes"
+        aria-label="Focus modes menu"
+        aria-haspopup="true"
+        aria-expanded={focusDropdownOpen}
+      >
+        <Eye size={16} />
+      </button>
+
+      {#if focusDropdownOpen}
+        <div
+          bind:this={dropdownRef}
+          class="focus-dropdown"
+          role="menu"
+          aria-label="Focus modes"
+          tabindex="-1"
+          onkeydown={handleDropdownKeydown}
+        >
+          <button
+            class="focus-dropdown-item"
+            role="menuitemcheckbox"
+            aria-checked={uiState.typewriterMode}
+            onclick={() => { uiState.toggleTypewriterMode(); }}
+          >
+            <span class="focus-dropdown-check">
+              {#if uiState.typewriterMode}<Check size={14} />{/if}
+            </span>
+            <span class="focus-dropdown-label">Typewriter Mode</span>
+            <span class="focus-dropdown-shortcut">Ctrl+Shift+T</span>
+          </button>
+          <button
+            class="focus-dropdown-item"
+            role="menuitemcheckbox"
+            aria-checked={uiState.focusMode}
+            onclick={() => { uiState.toggleFocusMode(); }}
+          >
+            <span class="focus-dropdown-check">
+              {#if uiState.focusMode}<Check size={14} />{/if}
+            </span>
+            <span class="focus-dropdown-label">Focus Mode</span>
+            <span class="focus-dropdown-shortcut">Ctrl+Shift+.</span>
+          </button>
+          <button
+            class="focus-dropdown-item"
+            role="menuitemcheckbox"
+            aria-checked={uiState.distractionFreeMode}
+            onclick={() => { uiState.toggleDistractionFreeMode(); }}
+          >
+            <span class="focus-dropdown-check">
+              {#if uiState.distractionFreeMode}<Check size={14} />{/if}
+            </span>
+            <span class="focus-dropdown-label">Distraction-Free</span>
+            <span class="focus-dropdown-shortcut">Ctrl+Shift+F</span>
+          </button>
+        </div>
+      {/if}
+    </div>
+
     <button
       class="toolbar-btn"
       onclick={cycleTheme}
@@ -194,5 +293,69 @@
 
   .toolbar-btn.active {
     color: var(--accent-primary);
+  }
+
+  /* --- Focus dropdown --- */
+  .focus-dropdown-wrapper {
+    position: relative;
+  }
+
+  .focus-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 220px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    z-index: 200;
+    padding: var(--spacing-xs) 0;
+    -webkit-app-region: no-drag;
+  }
+
+  .focus-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    text-align: left;
+    box-shadow: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .focus-dropdown-item:hover {
+    background: var(--bg-tertiary);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .focus-dropdown-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--accent-primary);
+  }
+
+  .focus-dropdown-label {
+    flex: 1;
+  }
+
+  .focus-dropdown-shortcut {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    margin-left: auto;
+    padding-left: var(--spacing-sm);
   }
 </style>
