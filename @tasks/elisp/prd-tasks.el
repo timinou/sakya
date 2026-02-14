@@ -928,9 +928,14 @@ and optionally checkpoints (list of checkpoint progress alists)."
   (unless prd--item-index
     (prd--build-item-index))
   (let ((progress '())
-        (cat-items (make-hash-table :test 'equal))
-        ;; Map: chk-id -> (title . items-list)
-        (chk-items (make-hash-table :test 'equal))
+        ;; Map: cat-id -> list of items
+        (cat-item-lists (make-hash-table :test 'equal))
+        ;; Map: cat-id -> title
+        (cat-titles (make-hash-table :test 'equal))
+        ;; Map: chk-id -> list of items
+        (chk-item-lists (make-hash-table :test 'equal))
+        ;; Map: chk-id -> title
+        (chk-titles (make-hash-table :test 'equal))
         ;; Map: cat-id -> list of chk-ids
         (cat-chks (make-hash-table :test 'equal)))
     ;; Group items by their parent category and checkpoint
@@ -945,18 +950,15 @@ and optionally checkpoints (list of checkpoint progress alists)."
                 (items (prd--parse-buffer-items)))
             ;; Initialize category entries
             (dolist (cat categories)
-              (unless (gethash (prd-category-id cat) cat-items)
-                (puthash (prd-category-id cat)
-                         `((title . ,(prd-category-title cat))
-                           (items . ()))
-                         cat-items)))
+              (let ((cat-id (prd-category-id cat)))
+                (unless (gethash cat-id cat-item-lists)
+                  (puthash cat-id '() cat-item-lists)
+                  (puthash cat-id (prd-category-title cat) cat-titles))))
             ;; Initialize checkpoint entries and link to categories
             (dolist (chk checkpoints)
               (when-let ((chk-id (prd-checkpoint-id chk)))
-                (puthash chk-id
-                         `((title . ,(prd-checkpoint-title chk))
-                           (items . ()))
-                         chk-items)
+                (puthash chk-id '() chk-item-lists)
+                (puthash chk-id (prd-checkpoint-title chk) chk-titles)
                 ;; Link checkpoint to parent category
                 (let ((cat-id (prd--find-parent-category file (prd-checkpoint-line chk))))
                   (when cat-id
@@ -964,8 +966,6 @@ and optionally checkpoints (list of checkpoint progress alists)."
                              (append (gethash cat-id cat-chks '()) (list chk-id))
                              cat-chks)))))
             ;; Associate items with their category and checkpoint
-            ;; Build checkpoint line boundaries from parsed checkpoints
-            ;; to avoid re-reading the file for each item
             (let ((chk-boundaries
                    (mapcar (lambda (chk)
                              (cons (prd-checkpoint-line chk) (prd-checkpoint-id chk)))
@@ -974,28 +974,28 @@ and optionally checkpoints (list of checkpoint progress alists)."
                 (let ((cat-id (prd--find-parent-category file (prd-item-line item)))
                       (chk-id (prd--item-checkpoint-from-boundaries
                                item chk-boundaries)))
-                  (when (and cat-id (gethash cat-id cat-items))
-                    (let ((cat-data (gethash cat-id cat-items)))
-                      (push item (cdr (assoc 'items cat-data)))))
-                  (when (and chk-id (gethash chk-id chk-items))
-                    (let ((chk-data (gethash chk-id chk-items)))
-                      (push item (cdr (assoc 'items chk-data))))))))))))
+                  (when (and cat-id (not (eq 'not-found (gethash cat-id cat-item-lists 'not-found))))
+                    (puthash cat-id
+                             (cons item (gethash cat-id cat-item-lists))
+                             cat-item-lists))
+                  (when (and chk-id (not (eq 'not-found (gethash chk-id chk-item-lists 'not-found))))
+                    (puthash chk-id
+                             (cons item (gethash chk-id chk-item-lists))
+                             chk-item-lists)))))))))
     ;; Calculate progress for each category
     (maphash
-     (lambda (cat-id cat-data)
-       (let* ((items (cdr (assoc 'items cat-data)))
-              (title (cdr (assoc 'title cat-data)))
-              (total (length items))
-              (done (seq-count (lambda (i) (string= (prd-item-status i) "DONE")) items))
+     (lambda (cat-id cat-item-list)
+       (let* ((title (gethash cat-id cat-titles))
+              (total (length cat-item-list))
+              (done (seq-count (lambda (i) (string= (prd-item-status i) "DONE")) cat-item-list))
               ;; Build checkpoint progress list
               (chk-ids (gethash cat-id cat-chks))
               (chk-progress
                (when chk-ids
                  (mapcar
                   (lambda (chk-id)
-                    (let* ((chk-data (gethash chk-id chk-items))
-                           (chk-title (cdr (assoc 'title chk-data)))
-                           (chk-item-list (cdr (assoc 'items chk-data)))
+                    (let* ((chk-title (gethash chk-id chk-titles))
+                           (chk-item-list (gethash chk-id chk-item-lists))
                            (chk-total (length chk-item-list))
                            (chk-done (seq-count (lambda (i) (string= (prd-item-status i) "DONE"))
                                                 chk-item-list)))
@@ -1013,7 +1013,7 @@ and optionally checkpoints (list of checkpoint progress alists)."
                  ,@(when chk-progress
                      `((checkpoints . ,(vconcat chk-progress)))))
                progress)))
-     cat-items)
+     cat-item-lists)
     (nreverse progress)))
 
 (defun prd--find-parent-category (file line)
