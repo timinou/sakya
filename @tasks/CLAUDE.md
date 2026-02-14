@@ -8,7 +8,10 @@ This document instructs Claude Code on how to work with the `@tasks` PRD system.
 - **Elisp Documentation**: [elisp/readme.org](elisp/readme.org)
 - **Agent Definitions**: [agents/index.org](agents/index.org)
 - **Current Dashboard**: [dashboard.org](dashboard.org)
-- **Process Guides**: [process/multi-file-changes.org](process/multi-file-changes.org)
+- **Process Guides**: [process/index.org](process/index.org)
+  - [Multi-File Changes](process/multi-file-changes.org) — `/multi-file-changes`
+  - [Task Runner](process/task-runner.org) — `/task`
+  - [Dashboard](process/dashboard.org) — `/dashboard`
 
 ## Validation Commands
 

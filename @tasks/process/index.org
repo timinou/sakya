@@ -19,6 +19,8 @@ Consult these before starting work that matches their trigger conditions.
 | Process | File | Consult When |
 |---------+------+--------------|
 | Multi-File Changes | [[file:multi-file-changes.org][multi-file-changes.org]] | 3+ files, vendored code, cross-crate boundaries |
+| Task Runner | [[file:task-runner.org][task-runner.org]] | Starting work on a task, picking next task |
+| Dashboard | [[file:dashboard.org][dashboard.org]] | Orientation, project status, discovering skills/agents |
 
 * Adding New Process Docs
 :PROPERTIES:
