@@ -166,7 +166,7 @@
 
   <!-- Word Count -->
   <div class="field-group">
-    <label class="field-label">Word Count</label>
+    <span class="field-label">Word Count</span>
     <div class="word-count-display">
       <span class="word-count-current">{currentWords.toLocaleString()}</span>
       {#if localChapter.targetWords && localChapter.targetWords > 0}

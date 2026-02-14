@@ -37,7 +37,8 @@
 </script>
 
 <div class="section" class:open={isOpen}>
-  <button class="section-header" onclick={toggle} type="button">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="section-header" onclick={toggle} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }} role="button" tabindex={0}>
     <span class="chevron" class:rotated={isOpen}>
       <ChevronRight size={14} />
     </span>
@@ -58,7 +59,7 @@
         <Plus size={14} />
       </button>
     {/if}
-  </button>
+  </div>
   {#if isOpen}
     <div class="section-content">
       {@render children()}

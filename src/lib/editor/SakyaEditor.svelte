@@ -36,6 +36,7 @@
 
   let { content = '', onSave, onCountChange, onNavigateWikiLink, readonly = false }: Props = $props();
 
+  // svelte-ignore state_referenced_locally
   const initialConfig = {
     namespace: 'SakyaEditor',
     theme: sakyaEditorTheme,

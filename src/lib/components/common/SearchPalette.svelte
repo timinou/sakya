@@ -254,6 +254,7 @@
     onmousedown={handleBackdropClick}
     onkeydown={handleFocusTrap}
     role="dialog"
+    tabindex="-1"
     aria-modal="true"
     aria-label="Search project"
   >

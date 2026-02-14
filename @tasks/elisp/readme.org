@@ -252,6 +252,15 @@ CLI-friendly dashboard with JSON output.
 emacsclient -s sakya -e '(prd-dashboard-cli)'
 #+END_SRC
 
+*** prd-next-ids-cli
+
+Return the next available IDs for all prefixes (ITEM, PROJ, BUG, IMP) as JSON.
+
+#+BEGIN_SRC bash
+emacsclient -s sakya -e '(prd-next-ids-cli)'
+# => {"next_item":46,"next_item_formatted":"ITEM-046","next_proj":7,...}
+#+END_SRC
+
 *** prd-quick-status
 
 Display one-line status summary in minibuffer.

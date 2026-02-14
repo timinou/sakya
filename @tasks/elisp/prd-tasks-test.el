@@ -861,5 +861,148 @@ This verifies the fix where earlier period no longer includes recent period."
       ;; Line before any category should return nil
       (should (null (prd--find-parent-category file 1))))))
 
+;;; Tests - Next ID Generation
+
+(ert-deftest prd-test-extract-id-number-item-simple ()
+  "Test extracting number from simple ITEM ID."
+  (should (= 45 (prd--extract-id-number "ITEM-045" "ITEM"))))
+
+(ert-deftest prd-test-extract-id-number-item-with-slug ()
+  "Test extracting number from ITEM ID with slug suffix."
+  (should (= 39 (prd--extract-id-number "ITEM-039-search-commands" "ITEM"))))
+
+(ert-deftest prd-test-extract-id-number-category ()
+  "Test extracting numbers from category IDs."
+  (should (= 3 (prd--extract-id-number "PROJ-003" "PROJ")))
+  (should (= 12 (prd--extract-id-number "BUG-012" "BUG")))
+  (should (= 1 (prd--extract-id-number "IMP-001" "IMP"))))
+
+(ert-deftest prd-test-extract-id-number-wrong-prefix ()
+  "Test that wrong prefix returns nil."
+  (should (null (prd--extract-id-number "ITEM-045" "PROJ")))
+  (should (null (prd--extract-id-number "PROJ-003" "BUG"))))
+
+(ert-deftest prd-test-extract-id-number-nil-input ()
+  "Test that nil input returns nil."
+  (should (null (prd--extract-id-number nil "ITEM"))))
+
+(ert-deftest prd-test-extract-id-number-leading-zeros ()
+  "Test that leading zeros are handled correctly."
+  (should (= 1 (prd--extract-id-number "ITEM-001" "ITEM")))
+  (should (= 10 (prd--extract-id-number "ITEM-010" "ITEM")))
+  (should (= 100 (prd--extract-id-number "ITEM-100" "ITEM"))))
+
+(ert-deftest prd-test-next-item-number-empty ()
+  "Test next item number with no items returns 1."
+  (prd-test--with-fixture
+    ;; No item files created — empty fixture
+    (should (= 1 (prd-next-item-number)))))
+
+(ert-deftest prd-test-next-item-number-single ()
+  "Test next item number with single item returns 2."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj.org"
+     "#+TITLE: Test\n\n* PROJ-001 Test\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (should (= 2 (prd-next-item-number)))))
+
+(ert-deftest prd-test-next-item-number-with-gaps ()
+  "Test next item number uses max+1, not gap-filling."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj.org"
+     "#+TITLE: Test\n\n* PROJ-001 Test\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-001\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n\n** ITEM Task 10\n:PROPERTIES:\n:CUSTOM_ID: ITEM-010\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (should (= 11 (prd-next-item-number)))))
+
+(ert-deftest prd-test-next-item-number-with-slugs ()
+  "Test next item number handles IDs with slug suffixes."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj.org"
+     "#+TITLE: Test\n\n* PROJ-001 Test\n\n** ITEM Search commands\n:PROPERTIES:\n:CUSTOM_ID: ITEM-045-search-commands\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (should (= 46 (prd-next-item-number)))))
+
+(ert-deftest prd-test-next-item-number-multiple-files ()
+  "Test next item number finds max across multiple files."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj1.org"
+     "#+TITLE: Test 1\n\n* PROJ-001 Test\n\n** ITEM Task 1\n:PROPERTIES:\n:CUSTOM_ID: ITEM-003\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (prd-test--create-item-file
+     "proj2.org"
+     "#+TITLE: Test 2\n\n* PROJ-002 Test\n\n** ITEM Task 2\n:PROPERTIES:\n:CUSTOM_ID: ITEM-007\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (should (= 8 (prd-next-item-number)))))
+
+(ert-deftest prd-test-next-category-number-empty ()
+  "Test next category number with no categories returns 1."
+  (prd-test--with-fixture
+    ;; No files — empty fixture
+    (should (= 1 (prd-next-category-number "PROJ")))))
+
+(ert-deftest prd-test-next-category-number-with-projects ()
+  "Test next category number finds max project number."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj1.org"
+     "#+TITLE: Test\n\n* PROJ-003 Third Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-003\n:GOAL: Goal\n:END:\n")
+    (prd-test--create-item-file
+     "proj2.org"
+     "#+TITLE: Test\n\n* PROJ-006 Sixth Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-006\n:GOAL: Goal\n:END:\n")
+    (should (= 7 (prd-next-category-number "PROJ")))))
+
+(ert-deftest prd-test-next-category-number-mixed-prefixes ()
+  "Test that category numbering is independent per prefix."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj.org"
+     "#+TITLE: Test\n\n* PROJ-005 Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-005\n:GOAL: Goal\n:END:\n")
+    (prd-test--create-item-file
+     "bug.org"
+     "#+TITLE: Test\n\n* BUG-002 Bug Fix\n:PROPERTIES:\n:CUSTOM_ID: BUG-002\n:GOAL: Goal\n:END:\n"
+     "bugfixes")
+    (should (= 6 (prd-next-category-number "PROJ")))
+    (should (= 3 (prd-next-category-number "BUG")))
+    (should (= 1 (prd-next-category-number "IMP")))))
+
+(ert-deftest prd-test-next-category-number-invalid-prefix ()
+  "Test that invalid prefix signals an error."
+  (prd-test--with-fixture
+    (should-error (prd-next-category-number "TASK") :type 'user-error)))
+
+(ert-deftest prd-test-next-ids-cli-json-structure ()
+  "Test that CLI output has all expected JSON keys."
+  (prd-test--with-fixture
+    (let* ((output (prd-next-ids-cli))
+           (parsed (json-read-from-string output)))
+      (should (assq 'next_item parsed))
+      (should (assq 'next_item_formatted parsed))
+      (should (assq 'next_proj parsed))
+      (should (assq 'next_proj_formatted parsed))
+      (should (assq 'next_bug parsed))
+      (should (assq 'next_bug_formatted parsed))
+      (should (assq 'next_imp parsed))
+      (should (assq 'next_imp_formatted parsed)))))
+
+(ert-deftest prd-test-next-ids-cli-json-values ()
+  "Test that CLI output has correct computed values."
+  (prd-test--with-fixture
+    (prd-test--create-item-file
+     "proj.org"
+     "#+TITLE: Test\n\n* PROJ-003 Project\n:PROPERTIES:\n:CUSTOM_ID: PROJ-003\n:GOAL: Goal\n:END:\n\n** ITEM Task\n:PROPERTIES:\n:CUSTOM_ID: ITEM-010\n:AGENT: test-agent:core\n:EFFORT: 1h\n:PRIORITY: #B\n:END:\n")
+    (prd-test--create-item-file
+     "bug.org"
+     "#+TITLE: Test\n\n* BUG-002 Bug\n:PROPERTIES:\n:CUSTOM_ID: BUG-002\n:GOAL: Fix\n:END:\n"
+     "bugfixes")
+    (let* ((output (prd-next-ids-cli))
+           (parsed (json-read-from-string output)))
+      (should (= 11 (alist-get 'next_item parsed)))
+      (should (equal "ITEM-011" (alist-get 'next_item_formatted parsed)))
+      (should (= 4 (alist-get 'next_proj parsed)))
+      (should (equal "PROJ-004" (alist-get 'next_proj_formatted parsed)))
+      (should (= 3 (alist-get 'next_bug parsed)))
+      (should (equal "BUG-003" (alist-get 'next_bug_formatted parsed)))
+      (should (= 1 (alist-get 'next_imp parsed)))
+      (should (equal "IMP-001" (alist-get 'next_imp_formatted parsed))))))
+
 (provide 'prd-tasks-test)
 ;;; prd-tasks-test.el ends here

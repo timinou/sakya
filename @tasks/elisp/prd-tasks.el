@@ -1225,6 +1225,74 @@ DAYS specifies the lookback period for velocity calculation (default 7)."
   (setq prd--item-index nil)
   (message "Cleared all caches."))
 
+;;; Next ID Generation
+
+(defun prd--extract-id-number (id-string prefix)
+  "Extract the numeric part from ID-STRING with given PREFIX.
+For example, (prd--extract-id-number \"ITEM-045-search-commands\" \"ITEM\") => 45.
+Returns nil if ID-STRING is nil or does not match PREFIX."
+  (when (and id-string
+             (string-match (concat "^" (regexp-quote prefix) "-\\([0-9]+\\)") id-string))
+    (string-to-number (match-string 1 id-string))))
+
+(defun prd-next-item-number ()
+  "Return the next available ITEM number (max existing + 1).
+Always returns at least 1.  Never reuses old numbers (no gap-filling)."
+  (prd--build-item-index)
+  (let ((max-num 0))
+    (maphash (lambda (id _item)
+               (let ((num (prd--extract-id-number id "ITEM")))
+                 (when (and num (> num max-num))
+                   (setq max-num num))))
+             prd--item-index)
+    (1+ max-num)))
+
+(defun prd-next-category-number (prefix)
+  "Return the next available number for category PREFIX.
+PREFIX must be one of `prd-category-prefixes' (\"PROJ\", \"BUG\", \"IMP\").
+Always returns at least 1.  Never reuses old numbers (no gap-filling)."
+  (unless (member prefix prd-category-prefixes)
+    (user-error "Invalid category prefix %S; must be one of %S"
+                prefix prd-category-prefixes))
+  (let ((max-num 0))
+    (dolist (file (prd--task-org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (org-mode)
+          (prd--setup-org-keywords)
+          (dolist (cat (prd--parse-buffer-categories))
+            (let ((num (prd--extract-id-number (prd-category-id cat) prefix)))
+              (when (and num (> num max-num))
+                (setq max-num num)))))))
+    (1+ max-num)))
+
+;;;###autoload
+(defun prd-next-ids-cli (&optional format)
+  "Return the next available IDs for all prefixes.
+FORMAT defaults to `json'.  When FORMAT is `plain', returns human-readable text.
+Designed for use via emacsclient."
+  (let* ((format (or format 'json))
+         (next-item (prd-next-item-number))
+         (next-proj (prd-next-category-number "PROJ"))
+         (next-bug  (prd-next-category-number "BUG"))
+         (next-imp  (prd-next-category-number "IMP")))
+    (pcase format
+      ('json
+       (json-encode
+        `((next_item . ,next-item)
+          (next_item_formatted . ,(format "ITEM-%03d" next-item))
+          (next_proj . ,next-proj)
+          (next_proj_formatted . ,(format "PROJ-%03d" next-proj))
+          (next_bug . ,next-bug)
+          (next_bug_formatted . ,(format "BUG-%03d" next-bug))
+          (next_imp . ,next-imp)
+          (next_imp_formatted . ,(format "IMP-%03d" next-imp)))))
+      ('plain
+       (format "Next ITEM: %d (ITEM-%03d)\nNext PROJ: %d (PROJ-%03d)\nNext BUG:  %d (BUG-%03d)\nNext IMP:  %d (IMP-%03d)\n"
+               next-item next-item next-proj next-proj
+               next-bug next-bug next-imp next-imp)))))
+
 ;;; Hooks for Doom Emacs Integration
 
 (defun prd-tasks-setup-doom-hooks ()

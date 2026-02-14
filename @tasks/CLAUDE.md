@@ -27,6 +27,9 @@ emacsclient -s sakya -e '(prd-validate-file-cli "/path/to/file.org")'
 
 # Get current dashboard metrics
 emacsclient -s sakya -e '(prd-dashboard-cli)'
+
+# Get next available IDs (ITEM, PROJ, BUG, IMP)
+emacsclient -s sakya -e '(prd-next-ids-cli)'
 ```
 
 ## Claude Code Hooks
@@ -128,6 +131,11 @@ emacsclient -s sakya -e '(prd-dashboard-cli)'
 ## Working with Tasks
 
 ### Creating New ITEMs
+
+To find the next available ID number, run:
+```bash
+emacsclient -s sakya -e '(prd-next-ids-cli)'
+```
 
 `ITEM` is a TODO keyword. Tasks are written as:
 

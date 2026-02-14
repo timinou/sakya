@@ -20,6 +20,7 @@
   let { schema, isNew = false, onSave, onCancel }: Props = $props();
 
   // Deep clone the input schema into local mutable state
+  // svelte-ignore state_referenced_locally
   let localSchema = $state<EntitySchema>(structuredClone(schema));
 
   // Track which field/axis cards are expanded

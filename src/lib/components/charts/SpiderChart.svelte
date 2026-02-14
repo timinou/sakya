@@ -201,6 +201,7 @@
     <!-- Value points (interactive) -->
     {#each axes as axis, i}
       {@const pt = valuePoint(i)}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <!-- Invisible larger hit area -->
       <circle
         cx={pt.x}

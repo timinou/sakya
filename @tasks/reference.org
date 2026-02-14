@@ -617,6 +617,9 @@ emacsclient -s sakya -e '(prd-validate-all-cli)'
 
 # JSON output for Claude Code
 emacsclient -s sakya -e '(prd-validate-all-cli :format json)'
+
+# Get next available IDs
+emacsclient -s sakya -e '(prd-next-ids-cli)'
 #+END_SRC
 
 ** Error Message Format
