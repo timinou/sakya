@@ -10,7 +10,7 @@
 :COMPLETION: All ITEMs complete, notes can be created/edited, corkboard displays draggable cards with persistent positions and colors.
 :END:
 
-** ITEM Create Tauri notes commands
+** DONE Create Tauri notes commands
 :PROPERTIES:
 :CUSTOM_ID: ITEM-034-notes-commands
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -31,7 +31,7 @@ Implement Tauri commands for notes CRUD and corkboard metadata.
 - [ ] =create_note=: Creates new note file and adds entry to notes.yaml
 - [ ] =delete_note=: Removes note file and entry from notes.yaml
 
-** ITEM Create notes store
+** DONE Create notes store
 :PROPERTIES:
 :CUSTOM_ID: ITEM-035-notes-store
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -51,7 +51,7 @@ Create a Svelte 5 store for notes and corkboard state management.
 - [ ] Tauri invoke calls for all backend operations
 - [ ] Singleton export
 
-** ITEM Create notes binder section
+** DONE Create notes binder section
 :PROPERTIES:
 :CUSTOM_ID: ITEM-036-notes-binder
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -71,7 +71,7 @@ Create the notes section in the binder sidebar.
 - [ ] Click opens note in editor (via editor store)
 - [ ] Visual indicator for notes with corkboard positions
 
-** ITEM Create Corkboard view
+** DONE Create Corkboard view
 :PROPERTIES:
 :CUSTOM_ID: ITEM-037-corkboard
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -93,7 +93,7 @@ Create the corkboard visual canvas with draggable note cards.
 - [ ] Cards positioned absolutely by percentage coordinates (responsive)
 - [ ] Empty state with "Create your first note" prompt
 
-** ITEM Create corkboard persistence
+** DONE Create corkboard persistence
 :PROPERTIES:
 :CUSTOM_ID: ITEM-038-corkboard-persistence
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
