@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test_helpers;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -11,4 +14,36 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn greet_with_name() {
+        let result = greet("World");
+        assert_eq!(result, "Hello, World! You've been greeted from Rust!");
+    }
+
+    #[test]
+    fn greet_with_empty_name() {
+        let result = greet("");
+        assert_eq!(result, "Hello, ! You've been greeted from Rust!");
+    }
+
+    #[test]
+    fn greet_with_special_characters() {
+        let result = greet("O'Brien & Friends <html>");
+        assert_eq!(
+            result,
+            "Hello, O'Brien & Friends <html>! You've been greeted from Rust!"
+        );
+    }
+
+    #[test]
+    fn greet_with_unicode() {
+        let result = greet("世界");
+        assert_eq!(result, "Hello, 世界! You've been greeted from Rust!");
+    }
 }
