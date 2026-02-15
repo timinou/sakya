@@ -472,7 +472,7 @@ Comprehensive round-trip tests. Import existing project files, export, diff must
 - [ ] All SyncMessage variants serialize/deserialize correctly
 - [ ] Message fragmentation works for large payloads
 
-*** ITEM SQLite schema + migrations for auth
+*** DONE SQLite schema + migrations for auth
 :PROPERTIES:
 :CUSTOM_ID: ITEM-139
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -492,7 +492,7 @@ Define SQLite tables: accounts, devices, magic_links. Use rusqlite with embedded
 - [ ] Migration system for schema versioning
 - [ ] ~4 unit tests passing
 
-*** ITEM Magic link send/verify flow
+*** DONE Magic link send/verify flow
 :PROPERTIES:
 :CUSTOM_ID: ITEM-140
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -514,7 +514,7 @@ send_magic_link(email): generate token, hash, store, send email via lettre. veri
 - [ ] Rate limiting: max 3 per email per hour
 - [ ] ~8 unit tests passing
 
-*** ITEM JWT token generation + validation
+*** DONE JWT token generation + validation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-141
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -534,7 +534,7 @@ JWT generation with claims: { sub: account_id, device_id, iat, exp }. 24-hour ex
 - [ ] Expired token rejection
 - [ ] ~6 unit tests passing
 
-*** ITEM Device registration and removal
+*** DONE Device registration and removal
 :PROPERTIES:
 :CUSTOM_ID: ITEM-142
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -555,7 +555,7 @@ Register a device for an account (name, Ed25519 public key). List devices. Remov
 - [ ] update_last_seen(device_id)
 - [ ] ~6 unit tests passing
 
-*** ITEM Axum JWT middleware extractor
+*** DONE Axum JWT middleware extractor
 :PROPERTIES:
 :CUSTOM_ID: ITEM-143
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -575,7 +575,7 @@ Axum extractor AuthenticatedDevice that validates JWT from Authorization: Bearer
 - [ ] 401 response for invalid tokens
 - [ ] ~4 unit tests passing
 
-*** ITEM SyncMessage enum + serialization
+*** DONE SyncMessage enum + serialization
 :PROPERTIES:
 :CUSTOM_ID: ITEM-144
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -594,7 +594,7 @@ Define SyncMessage enum with variants: Auth, JoinRoom, LeaveRoom, EncryptedUpdat
 - [ ] ErrorCode enum with standard error types
 - [ ] ~10 unit tests passing
 
-*** ITEM Message fragmentation/reassembly
+*** DONE Message fragmentation/reassembly
 :PROPERTIES:
 :CUSTOM_ID: ITEM-145
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
