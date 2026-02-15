@@ -1,0 +1,83 @@
+#+TITLE: IMP-002 Recent Projects List on Launcher
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-002 Recent Projects List on Launcher
+:PROPERTIES:
+:CUSTOM_ID: IMP-002
+:GOAL: Add a "Recent Projects" list to the launcher so users can one-click reopen previously visited projects instead of navigating to the folder every time.
+:COMPLETION: Rust backend stores/retrieves recent projects in app data dir, launcher UI shows recent list, E2E tests cover all flows.
+:END:
+
+** TODO Add RecentProject model and Rust commands
+:PROPERTIES:
+:CUSTOM_ID: ITEM-107-recent-projects-rust
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src-tauri/src/models/project.rs, src-tauri/src/commands/project.rs, src-tauri/src/lib.rs
+:TEST_PLAN: unit
+:END:
+
+*** Description
+Add =RecentProject= struct to models. Implement 3 new Tauri commands:
+- =list_recent_projects=: Read + validate (prune stale paths) + return
+- =add_recent_project=: Upsert entry, bump timestamp, trim to 10, return updated list
+- =remove_recent_project=: Remove entry by path, return updated list
+
+Storage: =recent-projects.json= in Tauri app data dir (=~/.local/share/com.undefine.sakya/=).
+Helper functions accept =PathBuf= for testability (no =AppHandle= needed in unit tests).
+
+*** Acceptance Criteria
+- [ ] RecentProject model with name, path, lastOpened fields
+- [ ] list_recent_projects reads, validates, prunes stale entries
+- [ ] add_recent_project upserts and caps at 10
+- [ ] remove_recent_project removes by path
+- [ ] Edge cases: missing file, corrupt JSON, stale paths
+- [ ] Commands registered in lib.rs
+
+** TODO Add frontend store and launcher UI
+:PROPERTIES:
+:CUSTOM_ID: ITEM-108-recent-projects-ui
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/project.svelte.ts, src/routes/+page.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Update =projectState= with =recentProjects= state array and methods (=loadRecent()=, =removeRecent(path)=).
+Update launcher =+page.svelte= to show recent projects list between header and action buttons.
+Hook into =open()= and =create()= to call =add_recent_project= after success.
+
+*** Acceptance Criteria
+- [ ] projectState has recentProjects array and load/remove methods
+- [ ] Launcher shows recent projects when list is non-empty
+- [ ] Each entry shows name, truncated path, click to open, X to remove
+- [ ] Opening/creating a project adds it to recent list
+- [ ] Empty state (no recent projects) shows just Create/Open buttons
+
+** TODO Write E2E tests for recent projects
+:PROPERTIES:
+:CUSTOM_ID: ITEM-109-recent-projects-e2e
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/app.spec.ts, e2e/utils/tauri-mocks.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add mocks for the 3 new commands. Write E2E tests covering:
+- Recent projects appear on launcher
+- Clicking a recent project opens it
+- Remove button removes from list
+- Empty state shows just Create/Open buttons
+
+*** Acceptance Criteria
+- [ ] Mocks for list/add/remove recent projects
+- [ ] Test: recent projects displayed on launcher
+- [ ] Test: click recent project -> opens it
+- [ ] Test: remove button removes entry
+- [ ] Test: empty state shows default buttons

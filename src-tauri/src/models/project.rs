@@ -39,6 +39,14 @@ impl ProjectManifest {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentProject {
+    pub name: String,
+    pub path: String,
+    pub last_opened: DateTime<Utc>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
