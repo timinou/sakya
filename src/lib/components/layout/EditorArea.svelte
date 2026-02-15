@@ -1,8 +1,9 @@
 <script lang="ts">
   import { manuscriptStore, notesStore, editorState, projectState, entityStore } from '$lib/stores';
-  import type { EntitySchema } from '$lib/types';
+  import type { EntitySchema, EntityInstance } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import SchemaEditor from '$lib/components/entities/SchemaEditor.svelte';
+  import EntityForm from '$lib/components/entities/EntityForm.svelte';
   import WritingStats from '$lib/components/stats/WritingStats.svelte';
   import EditorTabs from './EditorTabs.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
@@ -16,6 +17,9 @@
 
   // Schema editor state — keyed by tab ID
   let schemaCache = $state<Record<string, { schema: EntitySchema; isNew: boolean }>>({});
+
+  // Entity editor state — keyed by tab ID
+  let entityCache = $state<Record<string, { schema: EntitySchema; entity: EntityInstance }>>({});
 
   let activeContent = $derived(
     editorState.activeTab ? contentCache[editorState.activeTab.id] ?? null : null
@@ -75,6 +79,60 @@
       ? schemaCache[editorState.activeTab.id] ?? null
       : null
   );
+
+  // Derive active entity for entity tabs
+  let activeEntity = $derived(
+    editorState.activeTab?.documentType === 'entity'
+      ? entityCache[editorState.activeTab.id] ?? null
+      : null
+  );
+
+  // Load entity data when an entity tab becomes active
+  $effect(() => {
+    const tab = editorState.activeTab;
+    const path = projectState.projectPath;
+    if (!tab || tab.documentType !== 'entity' || !path) return;
+    if (entityCache[tab.id]) return; // Already loaded
+
+    // Parse tab ID: entity:{schemaType}:{slug}
+    const parts = tab.id.split(':');
+    if (parts.length < 3) return;
+    const schemaType = parts[1];
+    const slug = parts.slice(2).join(':');
+
+    loadEntity(path, schemaType, slug, tab.id);
+  });
+
+  async function loadEntity(projectPath: string, schemaType: string, slug: string, tabId: string) {
+    isLoadingContent = true;
+    try {
+      const [schema, entity] = await Promise.all([
+        entityStore.getSchema(projectPath, schemaType),
+        entityStore.getEntity(projectPath, schemaType, slug),
+      ]);
+      entityCache[tabId] = { schema, entity };
+    } catch (e) {
+      console.error('[EditorArea] Failed to load entity:', e);
+    } finally {
+      isLoadingContent = false;
+    }
+  }
+
+  async function handleEntitySave(entity: EntityInstance) {
+    const path = projectState.projectPath;
+    const tab = editorState.activeTab;
+    if (!path || !tab) return;
+
+    try {
+      await entityStore.saveEntity(path, entity);
+      // Update cache with saved entity
+      if (entityCache[tab.id]) {
+        entityCache[tab.id] = { ...entityCache[tab.id], entity };
+      }
+    } catch (e) {
+      console.error('[EditorArea] Failed to save entity:', e);
+    }
+  }
 
   // Listen for schema editing events
   $effect(() => {
@@ -257,6 +315,16 @@
         />
       </div>
     {/key}
+  {:else if activeEntity}
+    {#key editorState.activeTab?.id}
+      <div class="editor-container entity-editor-container">
+        <EntityForm
+          schema={activeEntity.schema}
+          entity={activeEntity.entity}
+          onSave={handleEntitySave}
+        />
+      </div>
+    {/key}
   {:else if editorState.activeTab?.documentType === 'stats'}
     <div class="editor-container stats-container">
       <WritingStats />
@@ -301,6 +369,10 @@
   }
 
   .schema-editor-container {
+    overflow-y: auto;
+  }
+
+  .entity-editor-container {
     overflow-y: auto;
   }
 

@@ -266,8 +266,8 @@
     if (!deleteTarget || !projectState.projectPath) return;
     const { slug, schemaType } = deleteTarget;
     try {
-      // Close open tab for this entity
-      const tabId = `entity:${slug}`;
+      // Close open tab for this entity (3-part tab ID: entity:{schemaType}:{slug})
+      const tabId = `entity:${schemaType}:${slug}`;
       editorState.closeTab(tabId);
       await entityStore.deleteEntity(projectState.projectPath, schemaType, slug);
       await entityStore.loadEntities(projectState.projectPath, schemaType);
@@ -291,10 +291,10 @@
     if (!deleteTypeTarget || !projectState.projectPath) return;
     const { schemaType } = deleteTypeTarget;
     try {
-      // Close all open tabs for entities of this type
+      // Close all open tabs for entities of this type (3-part tab ID)
       const entities = entityStore.entitiesByType[schemaType] ?? [];
       for (const entity of entities) {
-        editorState.closeTab(`entity:${entity.slug}`);
+        editorState.closeTab(`entity:${schemaType}:${entity.slug}`);
       }
       await entityStore.deleteSchema(projectState.projectPath, schemaType);
       await entityStore.loadSchemas(projectState.projectPath);

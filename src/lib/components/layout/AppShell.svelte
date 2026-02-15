@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { Chapter, ChapterStatus } from '$lib/types';
-  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore } from '$lib/stores';
+  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore, entityStore } from '$lib/stores';
   import { SearchPalette, ToastContainer } from '$lib/components/common';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
   import CompileDialog from '$lib/components/compile/CompileDialog.svelte';
@@ -114,22 +114,29 @@
     uiState.setInspectorWidth(uiState.panes.inspectorWidth - delta);
   }
 
+  function handleSelectEntity(schemaType: string, slug: string) {
+    // Look up entity title from the store's entity list
+    const entities = entityStore.entitiesByType[schemaType] ?? [];
+    const entity = entities.find((e: { slug: string }) => e.slug === slug);
+    const title = entity?.title ?? slug;
+
+    editorState.openDocument({
+      id: `entity:${schemaType}:${slug}`,
+      title,
+      documentType: 'entity',
+      documentSlug: slug,
+      isDirty: false,
+    });
+  }
+
   function handleSearchNavigate(fileType: string, slug: string, entityType?: string) {
     switch (fileType) {
       case 'chapter':
         manuscriptStore.selectChapter(slug);
         break;
       case 'entity':
-        // Open entity by selecting it via the entity store flow
-        // The entity type is the schema type for entity navigation
         if (entityType) {
-          editorState.openDocument({
-            id: `entity:${entityType}:${slug}`,
-            title: slug,
-            documentType: 'entity',
-            documentSlug: slug,
-            isDirty: false,
-          });
+          handleSelectEntity(entityType, slug);
         }
         break;
       case 'note':
@@ -295,6 +302,8 @@
           manuscriptStore.selectChapter('');
         } else if (tab.documentType === 'note') {
           notesStore.selectNote('');
+        } else if (tab.documentType === 'entity') {
+          entityStore.currentEntity = null;
         }
       }
       return;
@@ -405,7 +414,7 @@
       {#if binderContent}
         {@render binderContent()}
       {:else}
-        <Binder />
+        <Binder onSelectEntity={handleSelectEntity} />
       {/if}
     </div>
     <PaneResizer onResize={handleBinderResize} />

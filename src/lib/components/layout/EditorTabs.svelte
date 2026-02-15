@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { editorState, manuscriptStore, notesStore } from '$lib/stores';
+  import { editorState, manuscriptStore, notesStore, entityStore } from '$lib/stores';
   import { X } from 'lucide-svelte';
 
   function switchTab(tabId: string) {
@@ -15,6 +15,8 @@
       manuscriptStore.selectChapter('');
     } else if (tab?.documentType === 'note') {
       notesStore.selectNote('');
+    } else if (tab?.documentType === 'entity') {
+      entityStore.currentEntity = null;
     }
   }
 </script>
