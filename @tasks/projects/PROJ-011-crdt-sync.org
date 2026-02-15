@@ -222,7 +222,7 @@ DocumentKey wraps a 256-bit symmetric key for encrypting CRDT updates per projec
 - [X] Unit tests: generation, derivation determinism, zeroize behavior
 - [X] ~6 unit tests passing (6 passing)
 
-*** ITEM Property-based tests for crypto primitives
+*** DONE Property-based tests for crypto primitives
 :PROPERTIES:
 :CUSTOM_ID: ITEM-129
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -237,12 +237,12 @@ DocumentKey wraps a 256-bit symmetric key for encrypting CRDT updates per projec
 Property-based tests using proptest to verify cryptographic properties hold for arbitrary inputs.
 
 **** Acceptance Criteria
-- [ ] proptest strategies for arbitrary byte vectors, keys, messages
-- [ ] Property: decrypt(encrypt(m, k, n, aad), k, n, aad) == m for all m, k
-- [ ] Property: verify(m, sign(m, sk), pk) == true for all m, (sk, pk)
-- [ ] Property: dh(a, B) == dh(b, A) for all (a, A), (b, B) keypairs
-- [ ] Property: hash chain is append-only
-- [ ] ~10 property tests passing
+- [X] proptest strategies for arbitrary byte vectors, keys, messages
+- [X] Property: decrypt(encrypt(m, k, n, aad), k, n, aad) == m for all m, k
+- [X] Property: verify(m, sign(m, sk), pk) == true for all m, (sk, pk)
+- [X] Property: dh(a, B) == dh(b, A) for all (a, A), (b, B) keypairs
+- [X] Property: hash chain is append-only
+- [X] ~10 property tests passing (14 passing)
 
 ** CHK-011-03 CRDT Document Model (sakya-crdt)
 :PROPERTIES:
@@ -259,7 +259,7 @@ Property-based tests using proptest to verify cryptographic properties hold for 
 - [ ] export_to_files() produces identical output
 - [ ] Rich text mark mapping is bidirectional and lossless
 
-*** ITEM CrdtProject struct + LoroDoc container hierarchy
+*** DONE CrdtProject struct + LoroDoc container hierarchy
 :PROPERTIES:
 :CUSTOM_ID: ITEM-130
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -273,15 +273,15 @@ Property-based tests using proptest to verify cryptographic properties hold for 
 Create CrdtProject struct that wraps a LoroDoc and initializes the container hierarchy (meta, chapters tree, notes tree, entities map, sessions map). This is the central abstraction -- all Loro API calls go through this struct.
 
 **** Acceptance Criteria
-- [ ] CrdtProject::new() creates LoroDoc with all containers
-- [ ] CrdtProject::from_snapshot(bytes) loads from encoded binary
-- [ ] CrdtProject::export_snapshot() -> Vec<u8>
-- [ ] CrdtProject::export_updates(since) -> Vec<u8>
-- [ ] CrdtProject::import_updates(bytes)
-- [ ] Container accessors: chapters_tree(), notes_tree(), entities_map(), meta_map()
-- [ ] ~8 unit tests passing
+- [X] CrdtProject::new() creates LoroDoc with all containers
+- [X] CrdtProject::from_snapshot(bytes) loads from encoded binary
+- [X] CrdtProject::export_snapshot() -> Vec<u8>
+- [X] CrdtProject::export_updates(since) -> Vec<u8>
+- [X] CrdtProject::import_updates(bytes)
+- [X] Container accessors: chapters_tree(), notes_tree(), entities_map(), meta_map()
+- [X] ~8 unit tests passing (8 passing)
 
-*** ITEM Chapter CRUD via CRDT operations
+*** DONE Chapter CRUD via CRDT operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-131
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -296,16 +296,16 @@ Create CrdtProject struct that wraps a LoroDoc and initializes the container hie
 Chapter CRUD through the CRDT. Create chapter (add node to LoroTree, set metadata, initialize LoroText body). Read, update metadata, delete, reorder (movable tree).
 
 **** Acceptance Criteria
-- [ ] create_chapter(title) -> ChapterId
-- [ ] get_chapter(id) -> ChapterData
-- [ ] update_chapter_meta(id, updates)
-- [ ] delete_chapter(id)
-- [ ] reorder_chapter(id, new_position)
-- [ ] list_chapters() -> Vec<ChapterData> ordered by tree position
-- [ ] Body text operations: insert_text, delete_text
-- [ ] ~12 unit tests passing
+- [X] create_chapter(title) -> ChapterId
+- [X] get_chapter(id) -> ChapterData
+- [X] update_chapter_meta(id, updates)
+- [X] delete_chapter(id)
+- [X] reorder_chapter(id, new_position)
+- [X] list_chapters() -> Vec<ChapterData> ordered by tree position
+- [X] Body text operations: insert_text, delete_text
+- [X] ~12 unit tests passing (19 chapter tests)
 
-*** ITEM Note CRUD via CRDT operations
+*** DONE Note CRUD via CRDT operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-132
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -320,11 +320,11 @@ Chapter CRUD through the CRDT. Create chapter (add node to LoroTree, set metadat
 Same pattern as chapters but for notes. Notes also use LoroTree for drag-and-drop reordering. Notes have simpler metadata (title, folder hierarchy).
 
 **** Acceptance Criteria
-- [ ] CRUD operations mirroring chapter pattern
-- [ ] Support for nested folders (tree hierarchy)
-- [ ] ~8 unit tests passing
+- [X] CRUD operations mirroring chapter pattern
+- [X] Support for nested folders (tree hierarchy)
+- [X] ~8 unit tests passing (11 note tests)
 
-*** ITEM Entity CRUD via CRDT operations
+*** DONE Entity CRUD via CRDT operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-133
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -339,13 +339,13 @@ Same pattern as chapters but for notes. Notes also use LoroTree for drag-and-dro
 Entity CRUD through LoroMap hierarchy. Entities organized by schema. Dynamic field support -- adding/removing fields just adds/removes keys in the LoroMap.
 
 **** Acceptance Criteria
-- [ ] create_entity(schema, slug, fields)
-- [ ] get_entity(schema, slug)
-- [ ] update_entity(schema, slug, field_updates)
-- [ ] delete_entity(schema, slug)
-- [ ] list_entities(schema)
-- [ ] Dynamic field support
-- [ ] ~8 unit tests passing
+- [X] create_entity(schema, slug, fields)
+- [X] get_entity(schema, slug)
+- [X] update_entity(schema, slug, field_updates)
+- [X] delete_entity(schema, slug)
+- [X] list_entities(schema)
+- [X] Dynamic field support (JSON values, arrays via LoroList)
+- [X] ~8 unit tests passing (11 entity tests)
 
 *** ITEM import_from_files() -- project file ingestion
 :PROPERTIES:
@@ -614,7 +614,7 @@ For messages exceeding 256 KiB, implement fragmentation and reassembly with time
 - [ ] Timeout for incomplete fragments
 - [ ] ~6 unit tests passing
 
-*** ITEM Protocol property tests
+*** DONE Protocol property tests
 :PROPERTIES:
 :CUSTOM_ID: ITEM-146
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
