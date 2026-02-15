@@ -713,6 +713,204 @@ impl CrdtProject {
 
         Ok(result)
     }
+
+    /// Lists all schema names that have entities.
+    pub fn list_entity_schemas(&self) -> Vec<String> {
+        let entities = self.entities_map();
+        entities.keys().map(|k| k.to_string()).collect()
+    }
+
+    // ── Import methods (explicit slug, all metadata) ─────────────────────
+
+    /// Import a chapter with an explicit slug and all metadata.
+    /// Used by `import_from_files` to preserve existing slugs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn import_chapter(
+        &self,
+        slug: &str,
+        title: &str,
+        status: &str,
+        pov: Option<&str>,
+        synopsis: Option<&str>,
+        target_words: Option<u32>,
+        body: &str,
+    ) -> Result<(), CrdtError> {
+        let chapters = self.chapters_tree();
+        let node_id = chapters.create(None)?;
+        let meta = chapters.get_meta(node_id)?;
+
+        meta.insert("slug", slug)?;
+        meta.insert("title", title)?;
+        meta.insert("status", status)?;
+        if let Some(pov) = pov {
+            meta.insert("pov", pov)?;
+        }
+        if let Some(synopsis) = synopsis {
+            meta.insert("synopsis", synopsis)?;
+        }
+        if let Some(tw) = target_words {
+            meta.insert("targetWords", tw as i64)?;
+        }
+        let body_text = meta.insert_container("body", LoroText::new())?;
+        if !body.is_empty() {
+            body_text.insert(0, body)?;
+        }
+        Ok(())
+    }
+
+    /// Import a note with an explicit slug and all metadata.
+    #[allow(clippy::too_many_arguments)]
+    pub fn import_note(
+        &self,
+        slug: &str,
+        title: &str,
+        color: Option<&str>,
+        label: Option<&str>,
+        position_x: Option<f64>,
+        position_y: Option<f64>,
+        body: &str,
+    ) -> Result<(), CrdtError> {
+        let notes = self.notes_tree();
+        let node_id = notes.create(None)?;
+        let meta = notes.get_meta(node_id)?;
+
+        meta.insert("slug", slug)?;
+        meta.insert("title", title)?;
+        if let Some(color) = color {
+            meta.insert("color", color)?;
+        }
+        if let Some(label) = label {
+            meta.insert("label", label)?;
+        }
+        if let Some(x) = position_x {
+            meta.insert("positionX", x)?;
+        }
+        if let Some(y) = position_y {
+            meta.insert("positionY", y)?;
+        }
+        let body_text = meta.insert_container("body", LoroText::new())?;
+        if !body.is_empty() {
+            body_text.insert(0, body)?;
+        }
+        Ok(())
+    }
+
+    /// Get full note data including position metadata.
+    pub fn get_note_full(
+        &self,
+        slug: &str,
+    ) -> Result<(crate::NoteData, Option<f64>, Option<f64>), CrdtError> {
+        let notes = self.notes_tree();
+        let node_id = find_node_by_slug(&notes, slug)
+            .ok_or_else(|| CrdtError::NoteNotFound(slug.to_string()))?;
+        let meta = notes.get_meta(node_id)?;
+
+        let note = self.get_note(slug)?;
+
+        let pos_x = meta.get("positionX").and_then(|v| match v {
+            ValueOrContainer::Value(LoroValue::Double(f)) => Some(f),
+            _ => None,
+        });
+        let pos_y = meta.get("positionY").and_then(|v| match v {
+            ValueOrContainer::Value(LoroValue::Double(f)) => Some(f),
+            _ => None,
+        });
+
+        Ok((note, pos_x, pos_y))
+    }
+
+    // ── Session CRUD ─────────────────────────────────────────────────────
+
+    /// Import a writing session.
+    #[allow(clippy::too_many_arguments)]
+    pub fn import_session(
+        &self,
+        id: &str,
+        start: &str,
+        end: Option<&str>,
+        duration_minutes: Option<f64>,
+        words_written: u32,
+        chapter_slug: &str,
+        sprint_goal: Option<u32>,
+    ) -> Result<(), CrdtError> {
+        let sessions = self.sessions_map();
+        let session_map = sessions.insert_container(id, LoroMap::new())?;
+        session_map.insert("start", start)?;
+        if let Some(end) = end {
+            session_map.insert("end", end)?;
+        }
+        if let Some(dm) = duration_minutes {
+            session_map.insert("durationMinutes", dm)?;
+        }
+        session_map.insert("wordsWritten", words_written as i64)?;
+        session_map.insert("chapterSlug", chapter_slug)?;
+        if let Some(goal) = sprint_goal {
+            session_map.insert("sprintGoal", goal as i64)?;
+        }
+        Ok(())
+    }
+
+    /// List all session IDs.
+    pub fn list_session_ids(&self) -> Vec<String> {
+        let sessions = self.sessions_map();
+        sessions.keys().map(|k| k.to_string()).collect()
+    }
+
+    /// Get session data by ID.
+    pub fn get_session(&self, id: &str) -> Result<crate::SessionData, CrdtError> {
+        let sessions = self.sessions_map();
+        let session_map = sessions
+            .get(id)
+            .and_then(get_sub_map)
+            .ok_or_else(|| CrdtError::Serialization(format!("Session not found: {}", id)))?;
+
+        let start = session_map
+            .get("start")
+            .and_then(|v| voc_as_str(&v).map(str::to_string))
+            .unwrap_or_default();
+        let end = session_map
+            .get("end")
+            .and_then(|v| voc_as_str(&v).map(str::to_string));
+        let duration_minutes = session_map.get("durationMinutes").and_then(|v| match v {
+            ValueOrContainer::Value(LoroValue::Double(f)) => Some(f),
+            _ => None,
+        });
+        let words_written = session_map
+            .get("wordsWritten")
+            .and_then(|v| voc_as_i64(&v))
+            .unwrap_or(0) as u32;
+        let chapter_slug = session_map
+            .get("chapterSlug")
+            .and_then(|v| voc_as_str(&v).map(str::to_string))
+            .unwrap_or_default();
+        let sprint_goal = session_map
+            .get("sprintGoal")
+            .and_then(|v| voc_as_i64(&v))
+            .map(|n| n as u32);
+
+        Ok(crate::SessionData {
+            id: id.to_string(),
+            start,
+            end,
+            duration_minutes,
+            words_written,
+            chapter_slug,
+            sprint_goal,
+        })
+    }
+
+    /// Set project metadata.
+    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), CrdtError> {
+        self.meta_map().insert(key, value)?;
+        Ok(())
+    }
+
+    /// Get project metadata.
+    pub fn get_meta_value(&self, key: &str) -> Option<String> {
+        self.meta_map()
+            .get(key)
+            .and_then(|v| voc_as_str(&v).map(str::to_string))
+    }
 }
 
 // ── JSON → Loro field insertion ──────────────────────────────────────────────

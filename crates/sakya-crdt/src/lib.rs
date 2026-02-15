@@ -7,12 +7,18 @@
 pub mod chapter;
 pub mod entity;
 pub mod error;
+pub mod export;
+pub mod import;
+pub mod marks;
 pub mod note;
 pub mod project;
 
-pub use chapter::{ChapterData, ChapterMetaUpdate, ChapterSummary};
+pub use chapter::{ChapterData, ChapterMetaUpdate, ChapterSummary, SessionData};
 pub use entity::EntityData;
 pub use error::CrdtError;
+pub use export::export_to_files;
+pub use import::import_from_files;
+pub use marks::{ExpandBehavior, MarkRegistry, MarkSpan, MarkedText};
 pub use note::{NoteData, NoteSummary};
 pub use project::CrdtProject;
 

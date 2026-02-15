@@ -46,3 +46,23 @@ pub struct ChapterSummary {
     /// Writing status.
     pub status: String,
 }
+
+/// Writing session data.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionData {
+    /// Session identifier (ISO 8601 timestamp).
+    pub id: String,
+    /// Session start time.
+    pub start: String,
+    /// Session end time.
+    pub end: Option<String>,
+    /// Duration in minutes.
+    pub duration_minutes: Option<f64>,
+    /// Words written during the session.
+    pub words_written: u32,
+    /// Chapter being worked on.
+    pub chapter_slug: String,
+    /// Sprint goal (target word count).
+    pub sprint_goal: Option<u32>,
+}
