@@ -6,8 +6,26 @@ class ProjectState {
   projectPath = $state<string | null>(null);
   isLoading = $state(false);
   error = $state<string | null>(null);
+  recentProjects = $state<RecentProject[]>([]);
 
   isOpen = $derived(this.manifest !== null);
+
+  async loadRecent(): Promise<void> {
+    try {
+      this.recentProjects = await invoke<RecentProject[]>('list_recent_projects');
+    } catch {
+      // Silently fail - recent projects is non-critical
+      this.recentProjects = [];
+    }
+  }
+
+  async removeRecent(path: string): Promise<void> {
+    try {
+      this.recentProjects = await invoke<RecentProject[]>('remove_recent_project', { path });
+    } catch {
+      // Silently fail
+    }
+  }
 
   async open(path: string): Promise<void> {
     this.isLoading = true;
@@ -16,6 +34,10 @@ class ProjectState {
       const manifest = await invoke<ProjectManifest>('open_project', { path });
       this.manifest = manifest;
       this.projectPath = path;
+      // Add to recent projects (fire and forget)
+      invoke<RecentProject[]>('add_recent_project', { name: manifest.name, path })
+        .then((list) => { this.recentProjects = list; })
+        .catch(() => {});
     } catch (e) {
       this.error = String(e);
       throw e;

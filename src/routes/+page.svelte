@@ -1,11 +1,16 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { projectState } from '$lib/stores';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { FolderOpen, Plus, FileText } from 'lucide-svelte';
+  import { FolderOpen, Plus, FileText, Clock, X } from 'lucide-svelte';
 
   let showCreateForm = $state(false);
   let newProjectName = $state('');
   let newProjectPath = $state('');
+
+  onMount(() => {
+    projectState.loadRecent();
+  });
 
   async function handleCreateProject() {
     if (!newProjectName.trim() || !newProjectPath.trim()) return;
@@ -47,6 +52,19 @@
     newProjectPath = '';
     projectState.error = null;
   }
+
+  async function handleOpenRecent(path: string) {
+    try {
+      await projectState.open(path);
+    } catch {
+      // error captured in projectState.error
+    }
+  }
+
+  async function handleRemoveRecent(path: string, event: Event) {
+    event.stopPropagation();
+    await projectState.removeRecent(path);
+  }
 </script>
 
 {#if projectState.isOpen}
@@ -72,6 +90,32 @@
         <div class="loading-indicator" aria-label="Loading">
           <span class="loading-spinner"></span>
           <span>Loading project...</span>
+        </div>
+      {/if}
+
+      {#if projectState.recentProjects.length > 0 && !showCreateForm}
+        <div class="recent-projects">
+          <h2 class="recent-header">
+            <Clock size={14} />
+            Recent Projects
+          </h2>
+          <ul class="recent-list">
+            {#each projectState.recentProjects as project}
+              <li class="recent-item">
+                <button class="recent-button" onclick={() => handleOpenRecent(project.path)}>
+                  <span class="recent-name">{project.name}</span>
+                  <span class="recent-path">{project.path}</span>
+                </button>
+                <button
+                  class="recent-remove"
+                  onclick={(e) => handleRemoveRecent(project.path, e)}
+                  aria-label="Remove {project.name} from recent projects"
+                >
+                  <X size={14} />
+                </button>
+              </li>
+            {/each}
+          </ul>
         </div>
       {/if}
 
@@ -300,5 +344,98 @@
   .form-actions .btn-primary,
   .form-actions .btn-secondary {
     flex: 1;
+  }
+
+  .recent-projects {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .recent-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .recent-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .recent-item {
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .recent-item:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--border-secondary);
+  }
+
+  .recent-button {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-md);
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+  }
+
+  .recent-name {
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .recent-path {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .recent-remove {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: var(--spacing-sm);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .recent-item:hover .recent-remove {
+    opacity: 1;
+  }
+
+  .recent-remove:hover {
+    color: var(--color-error);
+    background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
   }
 </style>
