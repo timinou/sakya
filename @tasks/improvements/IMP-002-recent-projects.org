@@ -58,7 +58,8 @@ Hook into =open()= and =create()= to call =add_recent_project= after success.
 - [ ] Opening/creating a project adds it to recent list
 - [ ] Empty state (no recent projects) shows just Create/Open buttons
 
-** TODO Write E2E tests for recent projects
+** DONE Write E2E tests for recent projects
+CLOSED: [2026-02-15 Sat]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-109-recent-projects-e2e
 :AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
@@ -76,8 +77,23 @@ Add mocks for the 3 new commands. Write E2E tests covering:
 - Empty state shows just Create/Open buttons
 
 *** Acceptance Criteria
-- [ ] Mocks for list/add/remove recent projects
-- [ ] Test: recent projects displayed on launcher
-- [ ] Test: click recent project -> opens it
-- [ ] Test: remove button removes entry
-- [ ] Test: empty state shows default buttons
+- [X] Mocks for list/add/remove recent projects
+- [X] Test: recent projects displayed on launcher
+- [X] Test: click recent project -> opens it
+- [X] Test: remove button removes entry
+- [X] Test: empty state shows default buttons
+- [X] Test: recent projects hidden when create form is shown
+- [X] Test: opening project via dialog adds to recent projects
+
+*** Implementation Notes
+Implemented 6 comprehensive E2E tests in e2e/app.spec.ts:
+1. Shows recent projects when list is non-empty (verifies all 3 mock projects and paths)
+2. Does not show recent section when list is empty
+3. Clicking a recent project opens it (verifies IPC call with correct path)
+4. Remove button removes a project from the list (verifies IPC call and UI update)
+5. Recent projects hidden when create form is shown (and reappears on cancel)
+6. Opening project via dialog adds to recent projects (verifies add_recent_project IPC)
+
+Added MOCK_RECENT_PROJECTS to e2e/utils/tauri-mocks.ts with 3 test projects.
+Added default mocks for list_recent_projects, add_recent_project, remove_recent_project.
+All 190 E2E tests pass.
