@@ -304,6 +304,112 @@ test.describe("Typewriter Mode", () => {
     expect(afterSecondToggle).toBe(false);
   });
 
+  test("typewriter mode adds padding class to editor-scroll", async ({
+    page,
+  }) => {
+    // Open a chapter to get an editor
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    const editorScroll = page.locator(".editor-scroll");
+
+    // Verify no typewriter-active class initially
+    await expect(editorScroll).not.toHaveClass(/typewriter-active/);
+
+    // Enable typewriter mode
+    await page.keyboard.press("Control+Shift+T");
+
+    // Verify the class is added
+    await expect(editorScroll).toHaveClass(/typewriter-active/);
+
+    // Verify padding is applied (50vh)
+    const paddingTop = await editorScroll.evaluate((el) =>
+      window.getComputedStyle(el).getPropertyValue("padding-top"),
+    );
+    // 50vh = half the viewport height; just check it's a large value (> 100px)
+    expect(parseInt(paddingTop)).toBeGreaterThan(100);
+  });
+
+  test("cursor stays near vertical center while typing", async ({ page }) => {
+    // Open a chapter
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    // Click into the editor
+    const editorContent = page.locator('[contenteditable="true"]');
+    await editorContent.click();
+    await page.waitForTimeout(200);
+
+    // Enable typewriter mode
+    await page.keyboard.press("Control+Shift+T");
+    await page.waitForTimeout(500); // Wait for initial scroll
+
+    // Type some text to trigger update listener
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Testing typewriter centering");
+    await page.waitForTimeout(500); // Wait for smooth scroll
+
+    // Get the active element and scroll container positions
+    const positions = await page.evaluate(() => {
+      const scrollContainer = document.querySelector(".editor-scroll");
+      if (!scrollContainer) return null;
+
+      // Find the focused element (the paragraph being typed in)
+      const selection = window.getSelection();
+      if (!selection || !selection.anchorNode) return null;
+
+      const activeElement =
+        selection.anchorNode.nodeType === Node.ELEMENT_NODE
+          ? (selection.anchorNode as Element)
+          : selection.anchorNode.parentElement;
+      if (!activeElement) return null;
+
+      // Get closest block-level element
+      const block = activeElement.closest(
+        ".editor-paragraph, [class^='editor-heading']",
+      );
+      if (!block) return null;
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elementRect = block.getBoundingClientRect();
+      const elementCenter = elementRect.top + elementRect.height / 2;
+      const containerCenter = containerRect.top + containerRect.height / 2;
+
+      return {
+        offset: Math.abs(elementCenter - containerCenter),
+        containerHeight: containerRect.height,
+      };
+    });
+
+    expect(positions).not.toBeNull();
+    // The cursor element should be within ~150px of the vertical midpoint
+    // (smooth scroll may still be animating, so allow generous tolerance)
+    expect(positions!.offset).toBeLessThan(150);
+  });
+
+  test("padding removed when typewriter mode disabled", async ({ page }) => {
+    // Open a chapter
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    const editorScroll = page.locator(".editor-scroll");
+
+    // Enable typewriter mode
+    await page.keyboard.press("Control+Shift+T");
+    await expect(editorScroll).toHaveClass(/typewriter-active/);
+
+    // Disable typewriter mode
+    await page.keyboard.press("Control+Shift+T");
+    await expect(editorScroll).not.toHaveClass(/typewriter-active/);
+
+    // Verify padding is back to normal (not 50vh)
+    const paddingTop = await editorScroll.evaluate((el) =>
+      window.getComputedStyle(el).getPropertyValue("padding-top"),
+    );
+    expect(parseInt(paddingTop)).toBeLessThan(50);
+  });
+
   test("distraction-free mode can be toggled via toolbar dropdown", async ({
     page,
   }) => {

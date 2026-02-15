@@ -2,9 +2,6 @@
   import { getEditor } from 'svelte-lexical';
   import { onMount } from 'svelte';
   import {
-    SELECTION_CHANGE_COMMAND,
-    KEY_ENTER_COMMAND,
-    COMMAND_PRIORITY_LOW,
     $getSelection as getSelection,
     $isRangeSelection as isRangeSelection,
   } from 'lexical';
@@ -12,8 +9,14 @@
 
   const editor = getEditor();
 
-  let cleanupFns: (() => void)[] = [];
+  let cleanupFn: (() => void) | null = null;
   let rafId: number | null = null;
+
+  function getScrollContainer(): Element | null {
+    const rootElement = editor.getRootElement();
+    if (!rootElement) return null;
+    return rootElement.closest('.editor-scroll');
+  }
 
   function scrollCaretToCenter(): void {
     const rootElement = editor.getRootElement();
@@ -30,7 +33,7 @@
       const anchorElement = editor.getElementByKey(anchorKey);
       if (!anchorElement) return;
 
-      const scrollContainer = rootElement.closest('.editor-scroll');
+      const scrollContainer = getScrollContainer();
       if (!scrollContainer) return;
 
       // Cancel any pending scroll
@@ -41,58 +44,52 @@
       rafId = requestAnimationFrame(() => {
         rafId = null;
 
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const elementRect = anchorElement.getBoundingClientRect();
+        // Use absolute scroll position: element's offset from scroll container top
+        const elementOffsetTop = anchorElement.offsetTop;
+        const containerHeight = scrollContainer.clientHeight;
+        const elementHeight = anchorElement.offsetHeight;
 
-        // Calculate where the element center is relative to the container
-        const elementCenter = elementRect.top + elementRect.height / 2;
-        const containerCenter = containerRect.top + containerRect.height / 2;
-        const offset = elementCenter - containerCenter;
+        const targetScroll = elementOffsetTop - containerHeight / 2 + elementHeight / 2;
 
-        // Only scroll if the element is not already near the center
-        if (Math.abs(offset) > 10) {
-          scrollContainer.scrollBy({
-            top: offset,
-            behavior: 'smooth',
-          });
-        }
+        scrollContainer.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth',
+        });
       });
     });
   }
 
-  function registerListeners(): void {
-    cleanupFns.push(
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        () => {
-          scrollCaretToCenter();
-          return false; // Don't prevent other handlers
-        },
-        COMMAND_PRIORITY_LOW,
-      ),
-    );
+  function enable(): void {
+    // Add padding class for scroll space above/below content
+    const scrollContainer = getScrollContainer();
+    if (scrollContainer) {
+      scrollContainer.classList.add('typewriter-active');
+    }
 
-    cleanupFns.push(
-      editor.registerCommand(
-        KEY_ENTER_COMMAND,
-        () => {
-          // Delay slightly so the new line is rendered before we scroll
-          requestAnimationFrame(() => scrollCaretToCenter());
-          return false;
-        },
-        COMMAND_PRIORITY_LOW,
-      ),
-    );
+    // Use registerUpdateListener for complete event coverage
+    // (typing, paste, delete, undo/redo, formatting, etc.)
+    cleanupFn = editor.registerUpdateListener(() => {
+      scrollCaretToCenter();
+    });
+
+    // Immediate scroll to center on enable
+    scrollCaretToCenter();
   }
 
-  function deregisterListeners(): void {
-    for (const cleanup of cleanupFns) {
-      cleanup();
+  function disable(): void {
+    if (cleanupFn) {
+      cleanupFn();
+      cleanupFn = null;
     }
-    cleanupFns = [];
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
       rafId = null;
+    }
+
+    // Remove padding class
+    const scrollContainer = getScrollContainer();
+    if (scrollContainer) {
+      scrollContainer.classList.remove('typewriter-active');
     }
   }
 
@@ -101,16 +98,16 @@
     const stopEffect = $effect.root(() => {
       $effect(() => {
         if (uiState.typewriterMode) {
-          registerListeners();
+          enable();
         } else {
-          deregisterListeners();
+          disable();
         }
       });
     });
 
     return () => {
       stopEffect();
-      deregisterListeners();
+      disable();
     };
   });
 </script>

@@ -1,0 +1,58 @@
+#+TITLE: IMP-004 Typewriter Mode — Keep Cursor Vertically Centered
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-004 Typewriter Mode — Keep Cursor Vertically Centered
+:PROPERTIES:
+:CUSTOM_ID: IMP-004
+:GOAL: Make typewriter mode properly keep the cursor vertically centered by adding scroll padding and using registerUpdateListener for complete event coverage.
+:COMPLETION: TypewriterPlugin adds/removes typewriter-active class with 50vh padding, uses registerUpdateListener instead of individual commands, scrollTo with absolute positioning. 3+ E2E tests pass.
+:END:
+
+** DONE Fix TypewriterPlugin centering with padding and registerUpdateListener
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-118
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/TypewriterPlugin.svelte, src/lib/editor/SakyaEditor.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Rewrite TypewriterPlugin to:
+1. Add/remove CSS class =typewriter-active= on =.editor-scroll= container when mode toggles
+2. Replace =SELECTION_CHANGE_COMMAND= + =KEY_ENTER_COMMAND= listeners with =editor.registerUpdateListener()= for complete event coverage (typing, paste, delete, undo, formatting)
+3. Use =scrollTo= with absolute positioning instead of =scrollBy=
+4. Add =padding-top: 50vh; padding-bottom: 50vh= via the class so first/last lines can be centered
+
+*** Acceptance Criteria
+- [X] =.editor-scroll.typewriter-active= has 50vh top/bottom padding
+- [X] =registerUpdateListener= fires on all editor state changes
+- [X] Cursor element is scrolled to vertical center using absolute =scrollTo=
+- [X] Padding class is added on enable and removed on disable
+- [X] No scroll jitter or infinite loops
+
+** DONE E2E tests for typewriter centering behavior
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-119
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/distraction-free.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add E2E tests to the existing Typewriter Mode describe block in =e2e/distraction-free.spec.ts= verifying:
+1. Typewriter mode adds =typewriter-active= class with padding
+2. Cursor stays near vertical center while typing
+3. Padding removed when typewriter mode disabled
+
+*** Acceptance Criteria
+- [X] Test verifies =.typewriter-active= class presence and padding
+- [X] Test verifies cursor element is near vertical midpoint
+- [X] Test verifies class removal on disable
+- [X] All existing distraction-free tests still pass

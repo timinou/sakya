@@ -106,6 +106,11 @@
     overflow-y: auto;
   }
 
+  .editor-scroll:global(.typewriter-active) {
+    padding-top: 50vh;
+    padding-bottom: 50vh;
+  }
+
   .readonly {
     opacity: 0.8;
   }
