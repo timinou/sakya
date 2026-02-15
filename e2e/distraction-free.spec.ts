@@ -735,6 +735,47 @@ test.describe("Focus Mode Visibility", () => {
     await expect(activeElement.first()).toHaveCSS("opacity", "1");
   });
 
+  test("focus highlight follows cursor when navigating between paragraphs", async ({
+    page,
+  }) => {
+    // Open a chapter
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    // Click into the editor to place cursor
+    const editorContent = page.locator('[contenteditable="true"]');
+    await editorContent.click();
+    await page.waitForTimeout(200);
+
+    // Enable focus mode
+    await page.keyboard.press("Control+Shift+.");
+    await page.waitForTimeout(300);
+
+    // Verify initial active element exists
+    const activeElements = page.locator(".editor-focus-active");
+    await expect(activeElements.first()).toBeVisible({ timeout: 3000 });
+
+    // Press End to go to end of line, then Enter to create a new paragraph
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Second paragraph text here");
+    await page.waitForTimeout(300);
+
+    // The active highlight should now be on the new (second) paragraph
+    const activeAfterEnter = page.locator(".editor-focus-active");
+    const secondParagraphText = await activeAfterEnter.first().textContent();
+    expect(secondParagraphText).toContain("Second paragraph");
+
+    // Now press ArrowUp to move cursor back to the first paragraph
+    await page.keyboard.press("ArrowUp");
+    await page.waitForTimeout(300);
+
+    // The highlight should follow the cursor to the first paragraph
+    const activeAfterArrowUp = page.locator(".editor-focus-active");
+    const firstParagraphText = await activeAfterArrowUp.first().textContent();
+    expect(firstParagraphText).toContain("morning light");
+  });
+
   test("editor content not blank when focus mode activated in distraction-free mode", async ({
     page,
   }) => {
