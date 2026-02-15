@@ -31,13 +31,28 @@
     }
   }
 
+  /** Fallback: mark the first child of the editor root as active. */
+  function highlightFirstBlock(): void {
+    const rootEl = editor.getRootElement();
+    if (rootEl?.firstElementChild) {
+      const firstChild = rootEl.firstElementChild as HTMLElement;
+      firstChild.classList.add('editor-focus-active');
+      activeElements.add(firstChild);
+    }
+  }
+
   /** Handle selection changes: find the block-level ancestors and highlight them. */
   function updateFocusHighlight(): void {
     editor.getEditorState().read(() => {
       const selection = getSelection();
-      if (!isRangeSelection(selection)) return;
 
       clearActiveElements();
+
+      if (!isRangeSelection(selection)) {
+        // No selection — fall back to highlighting the first block
+        highlightFirstBlock();
+        return;
+      }
 
       const anchorNode = selection.anchor.getNode();
       const focusNode = selection.focus.getNode();
@@ -82,7 +97,7 @@
             rootElement.classList.add('editor-focus-enabled');
           }
 
-          // Register the selection change listener
+          // Register the selection change listener (covers native selectionchange)
           const removeCommandListener = editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
             () => {
@@ -92,12 +107,20 @@
             COMMAND_PRIORITY_LOW,
           );
 
+          // Also listen to all editor state updates so the highlight follows
+          // the cursor for arrow-key navigation and click-to-position moves
+          // that may not fire SELECTION_CHANGE_COMMAND reliably.
+          const removeUpdateListener = editor.registerUpdateListener(() => {
+            updateFocusHighlight();
+          });
+
           // Immediately highlight the current selection
           updateFocusHighlight();
 
           // Cleanup: runs when effect re-runs or component destroys
           return () => {
             removeCommandListener();
+            removeUpdateListener();
             cleanupFocusMode();
           };
         } else {
