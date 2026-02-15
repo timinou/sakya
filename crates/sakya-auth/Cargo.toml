@@ -1,0 +1,22 @@
+[package]
+name = "sakya-auth"
+version = "0.1.0"
+edition = "2021"
+description = "Authentication for Sakya sync server"
+
+[dependencies]
+sakya-crypto = { path = "../sakya-crypto" }
+axum = "0.8"
+jsonwebtoken = "9"
+lettre = { version = "0.11", features = ["tokio1-native-tls"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rand = "0.8"
+tokio = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

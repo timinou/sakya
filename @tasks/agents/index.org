@@ -68,6 +68,11 @@ Agents represent specialized expertise profiles for task assignment. Each agent 
 | src/lib/tauri/ | svelte-developer, rust-architect |
 | src/lib/editor/ | lexical-specialist, svelte-developer |
 | src-tauri/src/ | rust-architect |
+| crates/ | rust-architect |
+| crates/sakya-crdt/src/marks.rs | lexical-specialist, rust-architect |
+| src/lib/components/sync/ | svelte-developer |
+| src/lib/stores/sync.svelte.ts | svelte-developer |
+| deploy/ | rust-architect |
 | tests/ | testing-engineer, svelte-developer |
 | e2e/ | testing-engineer |
 | docs/prd/ | writing-app-designer |

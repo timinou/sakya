@@ -29,7 +29,12 @@ Last updated: 2026-02-14 — All projects complete
 | PROJ-004 | Manuscript System | 5/5 | 100% | DONE |
 | PROJ-005 | Notes & Corkboard | 5/5 | 100% | DONE |
 | PROJ-006 | Integration & Polish | 7/7 | 100% | DONE |
-| *Totals* | | *45/45* | *100%* | *DONE* |
+| PROJ-007 | Complete CRUD Journeys & UX Polish | 28/28 | 100% | DONE |
+| PROJ-008 | Writing Sessions & Sprint Mode | 9/9 | 100% | DONE |
+| PROJ-009 | Distraction-Free & Typewriter Mode | 5/5 | 100% | DONE |
+| PROJ-010 | Manuscript Compilation & Export | 6/8 | 75% | IN PROGRESS |
+| PROJ-011 | CRDT Sync with E2E Encryption | 0/66 | 0% | NEW |
+| *Totals* | | *108/176* | *61%* | *IN PROGRESS* |
 
 ** Bugfixes
 
@@ -150,6 +155,12 @@ emacsclient -s sakya -e '(prd-velocity-report :days 14 :format json)'
 :PROPERTIES:
 :CUSTOM_ID: notes
 :END:
+
+** Week of 2026-02-15
+
+- PROJ-011 CRDT Sync with E2E Encryption created (66 items across 11 checkpoints)
+- Starting CHK-011-01: Workspace Migration
+- Research complete: Loro CRDT, Secsync E2E encryption, deploy-rs
 
 ** Week of 2026-02-14
 

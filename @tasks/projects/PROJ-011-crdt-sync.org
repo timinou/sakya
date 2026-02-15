@@ -1,0 +1,1510 @@
+#+TITLE: PROJ-011 CRDT Sync with E2E Encryption
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* PROJ-011 CRDT Sync with E2E Encryption
+:PROPERTIES:
+:CUSTOM_ID: PROJ-011
+:GOAL: Enable multi-device writing via CRDT-based syncing with end-to-end encryption, using Loro as the CRDT engine and a lightweight Axum relay server.
+:DEPENDS_INIT: PROJ-001, PROJ-003, PROJ-004
+:COMPLETION: All ITEMs complete. Two Sakya instances can sync a project in real-time through an E2E encrypted relay server. Lexical editor has character-level CRDT binding. Device pairing works via QR/string. Files remain human-readable on disk.
+:END:
+
+** CHK-011-01 Workspace Migration
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-01
+:CRITERIA: Cargo workspace created, all crate stubs compile, existing tests pass unchanged.
+:VERIFY: cargo test && bun run test:e2e && cargo clippy --workspace
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] Root Cargo.toml exists with workspace definition
+- [ ] All 6 crate stubs compile
+- [ ] All existing Rust tests pass (388)
+- [ ] All E2E tests pass (249)
+- [ ] cargo clippy --workspace has 0 warnings
+
+*** ITEM Create root Cargo.toml workspace
+:PROPERTIES:
+:CUSTOM_ID: ITEM-120
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: Cargo.toml, src-tauri/Cargo.toml
+:TEST_PLAN: compile
+:END:
+
+**** Description
+Create a root-level Cargo.toml that defines a workspace with members ["src-tauri", "crates/*"]. The existing src-tauri/Cargo.toml becomes a workspace member.
+
+**** Acceptance Criteria
+- [ ] Root Cargo.toml exists with [workspace] section
+- [ ] src-tauri listed as workspace member
+- [ ] crates/* glob included in members
+- [ ] cargo check passes from root
+
+*** ITEM Move shared dependencies to workspace.dependencies
+:PROPERTIES:
+:CUSTOM_ID: ITEM-121
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-120
+:FILES: Cargo.toml, src-tauri/Cargo.toml
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Identify dependencies shared between src-tauri and future crates (serde, serde_json, thiserror, chrono, tokio). Move them to [workspace.dependencies] in root Cargo.toml. Update src-tauri/Cargo.toml to use dep.workspace = true syntax.
+
+**** Acceptance Criteria
+- [ ] Common dependencies in workspace.dependencies
+- [ ] src-tauri/Cargo.toml uses workspace references
+- [ ] cargo test passes (all 388 Rust tests)
+
+*** ITEM Create empty crate stubs with Cargo.toml files
+:PROPERTIES:
+:CUSTOM_ID: ITEM-122
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-121
+:FILES: crates/sakya-crypto/Cargo.toml, crates/sakya-crdt/Cargo.toml, crates/sakya-sync-protocol/Cargo.toml, crates/sakya-auth/Cargo.toml, crates/sakya-sync-server/Cargo.toml, crates/sakya-sync-client/Cargo.toml
+:TEST_PLAN: compile
+:END:
+
+**** Description
+Create six crate directories under crates/ with minimal Cargo.toml and src/lib.rs (or src/main.rs for sakya-sync-server). Each crate should have correct workspace dependency references and inter-crate dependencies as specified in the dependency graph.
+
+**** Acceptance Criteria
+- [ ] Six directories created: sakya-crypto, sakya-crdt, sakya-sync-protocol, sakya-auth, sakya-sync-server, sakya-sync-client
+- [ ] Each has Cargo.toml with workspace member config
+- [ ] Inter-crate dependencies match the dependency graph
+- [ ] cargo check --workspace passes
+- [ ] sakya-sync-server has [[bin]] target
+
+*** ITEM Verify all existing tests pass after workspace migration
+:PROPERTIES:
+:CUSTOM_ID: ITEM-123
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:DEPENDS: ITEM-120, ITEM-121, ITEM-122
+:TEST_PLAN: compile, test-rust, e2e
+:END:
+
+**** Description
+Run the full test suite (cargo test, bun run test:e2e) to verify the workspace migration didn't break anything. This is the gate condition for CHK-011-01.
+
+**** Acceptance Criteria
+- [ ] cargo test passes (388 tests)
+- [ ] bun run test:e2e passes (249 tests)
+- [ ] cargo clippy --workspace has 0 warnings
+- [ ] bun run tauri dev launches successfully
+
+** CHK-011-02 Encryption Foundation (sakya-crypto)
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-02
+:CRITERIA: All cryptographic primitives implemented and tested with property-based tests.
+:VERIFY: cargo test -p sakya-crypto
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] XChaCha20-Poly1305 AEAD encrypt/decrypt works
+- [ ] Ed25519 sign/verify works
+- [ ] X25519 key exchange derives shared secrets
+- [ ] Hash chain integrity verification works
+- [ ] Property-based tests pass for all primitives
+
+*** ITEM Implement Encryptor trait + XChaCha20Poly1305
+:PROPERTIES:
+:CUSTOM_ID: ITEM-124
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/encryptor.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define Encryptor trait with encrypt/decrypt methods. Implement XChaCha20Encryptor using chacha20poly1305 crate. XChaCha20 chosen for 192-bit nonce (safe random generation, no nonce reuse risk). Include AEAD associated data for context binding.
+
+**** Acceptance Criteria
+- [ ] Encryptor trait defined with encrypt/decrypt methods
+- [ ] XChaCha20Encryptor implementation using RustCrypto
+- [ ] 24-byte random nonce generation
+- [ ] Associated data (AAD) support
+- [ ] Unit tests: encrypt-decrypt round trip, wrong key fails, tampered ciphertext fails, wrong AAD fails
+- [ ] ~8 unit tests passing
+
+*** ITEM Implement Signer trait + Ed25519Signer
+:PROPERTIES:
+:CUSTOM_ID: ITEM-125
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/signer.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define Signer trait with sign/verify methods. Implement Ed25519Signer using ed25519-dalek. Include keypair generation, public key extraction, and serialization.
+
+**** Acceptance Criteria
+- [ ] Signer trait with sign/verify methods
+- [ ] Ed25519Signer implementation
+- [ ] Keypair generation from CSPRNG
+- [ ] Public key serialization (32 bytes)
+- [ ] Unit tests: sign-verify round trip, wrong key rejects, tampered message rejects
+- [ ] ~6 unit tests passing
+
+*** ITEM Implement EphemeralKeyPair (X25519 key exchange)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-126
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/key_exchange.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Implement X25519 Diffie-Hellman key exchange for device pairing. EphemeralKeyPair generates a temporary X25519 keypair, performs key agreement with a remote public key, and derives a shared secret used to encrypt provisioning payloads.
+
+**** Acceptance Criteria
+- [ ] EphemeralKeyPair struct with generate() method
+- [ ] derive_shared_secret(remote_pubkey) -> SharedSecret
+- [ ] Shared secret to encryption key derivation (HKDF or BLAKE2b)
+- [ ] Public key encoding for QR/string transfer
+- [ ] Unit tests: two keypairs derive same shared secret, serialization round trip
+- [ ] ~5 unit tests passing
+
+*** ITEM Implement HashChain for integrity verification
+:PROPERTIES:
+:CUSTOM_ID: ITEM-127
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: crates/sakya-crypto/src/hash_chain.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Implement hash chain for tamper-evident operation logging. Each entry: proof_n = BLAKE2b(proof_{n-1} || ciphertext_hash). Used to detect if the server drops or reorders encrypted updates.
+
+**** Acceptance Criteria
+- [ ] HashChain struct with append(data) -> proof and verify(data, proof, prev_proof) -> bool
+- [ ] BLAKE2b hashing via blake2 crate
+- [ ] Chain initialization with known genesis proof
+- [ ] Unit tests: chain grows correctly, tampered entry detected, fork detection
+- [ ] ~5 unit tests passing
+
+*** ITEM Implement DocumentKey with Zeroize + key derivation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-128
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/document_key.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+DocumentKey wraps a 256-bit symmetric key for encrypting CRDT updates per project. Implements Zeroize for secure memory cleanup. Includes generate() from CSPRNG and derive_from_master() for deterministic derivation.
+
+**** Acceptance Criteria
+- [ ] DocumentKey struct implementing Zeroize and ZeroizeOnDrop
+- [ ] generate() -> DocumentKey from OsRng
+- [ ] derive_from_master(master, context) -> DocumentKey via HKDF
+- [ ] Serialization to/from bytes
+- [ ] Unit tests: generation, derivation determinism, zeroize behavior
+- [ ] ~6 unit tests passing
+
+*** ITEM Property-based tests for crypto primitives
+:PROPERTIES:
+:CUSTOM_ID: ITEM-129
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-124, ITEM-125, ITEM-126, ITEM-127, ITEM-128
+:FILES: crates/sakya-crypto/tests/
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Property-based tests using proptest to verify cryptographic properties hold for arbitrary inputs.
+
+**** Acceptance Criteria
+- [ ] proptest strategies for arbitrary byte vectors, keys, messages
+- [ ] Property: decrypt(encrypt(m, k, n, aad), k, n, aad) == m for all m, k
+- [ ] Property: verify(m, sign(m, sk), pk) == true for all m, (sk, pk)
+- [ ] Property: dh(a, B) == dh(b, A) for all (a, A), (b, B) keypairs
+- [ ] Property: hash chain is append-only
+- [ ] ~10 property tests passing
+
+** CHK-011-03 CRDT Document Model (sakya-crdt)
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-03
+:CRITERIA: Lossless round-trip: existing project files -> CrdtProject -> export back to files with zero diff.
+:VERIFY: cargo test -p sakya-crdt
+:REVIEW_BY: rust-architect, lexical-specialist
+:END:
+
+*** Gate Conditions
+- [ ] CrdtProject struct initializes full LoroDoc hierarchy
+- [ ] Chapter/note/entity CRUD works through CRDT operations
+- [ ] import_from_files() ingests existing projects
+- [ ] export_to_files() produces identical output
+- [ ] Rich text mark mapping is bidirectional and lossless
+
+*** ITEM CrdtProject struct + LoroDoc container hierarchy
+:PROPERTIES:
+:CUSTOM_ID: ITEM-130
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: crates/sakya-crdt/src/project.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Create CrdtProject struct that wraps a LoroDoc and initializes the container hierarchy (meta, chapters tree, notes tree, entities map, sessions map). This is the central abstraction -- all Loro API calls go through this struct.
+
+**** Acceptance Criteria
+- [ ] CrdtProject::new() creates LoroDoc with all containers
+- [ ] CrdtProject::from_snapshot(bytes) loads from encoded binary
+- [ ] CrdtProject::export_snapshot() -> Vec<u8>
+- [ ] CrdtProject::export_updates(since) -> Vec<u8>
+- [ ] CrdtProject::import_updates(bytes)
+- [ ] Container accessors: chapters_tree(), notes_tree(), entities_map(), meta_map()
+- [ ] ~8 unit tests passing
+
+*** ITEM Chapter CRUD via CRDT operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-131
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-130
+:FILES: crates/sakya-crdt/src/chapter.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Chapter CRUD through the CRDT. Create chapter (add node to LoroTree, set metadata, initialize LoroText body). Read, update metadata, delete, reorder (movable tree).
+
+**** Acceptance Criteria
+- [ ] create_chapter(title) -> ChapterId
+- [ ] get_chapter(id) -> ChapterData
+- [ ] update_chapter_meta(id, updates)
+- [ ] delete_chapter(id)
+- [ ] reorder_chapter(id, new_position)
+- [ ] list_chapters() -> Vec<ChapterData> ordered by tree position
+- [ ] Body text operations: insert_text, delete_text
+- [ ] ~12 unit tests passing
+
+*** ITEM Note CRUD via CRDT operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-132
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-130
+:FILES: crates/sakya-crdt/src/note.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Same pattern as chapters but for notes. Notes also use LoroTree for drag-and-drop reordering. Notes have simpler metadata (title, folder hierarchy).
+
+**** Acceptance Criteria
+- [ ] CRUD operations mirroring chapter pattern
+- [ ] Support for nested folders (tree hierarchy)
+- [ ] ~8 unit tests passing
+
+*** ITEM Entity CRUD via CRDT operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-133
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-130
+:FILES: crates/sakya-crdt/src/entity.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Entity CRUD through LoroMap hierarchy. Entities organized by schema. Dynamic field support -- adding/removing fields just adds/removes keys in the LoroMap.
+
+**** Acceptance Criteria
+- [ ] create_entity(schema, slug, fields)
+- [ ] get_entity(schema, slug)
+- [ ] update_entity(schema, slug, field_updates)
+- [ ] delete_entity(schema, slug)
+- [ ] list_entities(schema)
+- [ ] Dynamic field support
+- [ ] ~8 unit tests passing
+
+*** ITEM import_from_files() -- project file ingestion
+:PROPERTIES:
+:CUSTOM_ID: ITEM-134
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-130, ITEM-131, ITEM-132, ITEM-133, ITEM-136
+:FILES: crates/sakya-crdt/src/import.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Walk an existing Sakya project directory and populate a CrdtProject. Read manuscript.yaml for chapter ordering, parse YAML frontmatter and Markdown body for each chapter, import notes and entities.
+
+**** Acceptance Criteria
+- [ ] Reads manuscript.yaml -> chapter ordering in LoroTree
+- [ ] Parses each chapter's YAML frontmatter into LoroMap fields
+- [ ] Parses Markdown body into LoroText with rich text marks
+- [ ] Imports notes with folder hierarchy
+- [ ] Imports entities grouped by schema
+- [ ] Handles missing/optional fields gracefully
+- [ ] ~10 unit + ~5 integration tests
+
+*** ITEM export_to_files() -- CRDT state to YAML+Markdown
+:PROPERTIES:
+:CUSTOM_ID: ITEM-135
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-130, ITEM-131, ITEM-132, ITEM-133, ITEM-136
+:FILES: crates/sakya-crdt/src/export.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Export CrdtProject state back to the file system. Walk the LoroTree chapters, generate manuscript.yaml and per-chapter files. This must produce output identical to the original files (lossless round-trip guarantee).
+
+**** Acceptance Criteria
+- [ ] Generates manuscript.yaml with correct chapter ordering
+- [ ] Each chapter exported as YAML frontmatter + Markdown body
+- [ ] Rich text marks converted back to Markdown syntax
+- [ ] Notes exported with folder hierarchy
+- [ ] Entities exported grouped by schema
+- [ ] Incremental export (only changed files rewritten)
+- [ ] ~10 unit + ~5 integration tests
+
+*** ITEM Rich text mark mapping (Markdown <-> Loro marks)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-136
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: crates/sakya-crdt/src/marks.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define bidirectional mapping between Markdown formatting and Loro rich text marks. Critical for lossless round-tripping. Mapping: **bold** <-> mark("bold", true), *italic* <-> mark("italic", true), # Heading <-> mark("heading", {level}), etc.
+
+**** Acceptance Criteria
+- [ ] Markdown -> Loro mark conversion for all supported syntax
+- [ ] Loro mark -> Markdown conversion (inverse)
+- [ ] Block-level marks (heading, list, quote) handled correctly
+- [ ] Inline marks (bold, italic, code, wiki-link) handled correctly
+- [ ] Nested marks preserved
+- [ ] Unknown marks passed through without loss
+- [ ] ~15 unit tests
+
+*** ITEM Custom mark registration for extensibility
+:PROPERTIES:
+:CUSTOM_ID: ITEM-137
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-136
+:FILES: crates/sakya-crdt/src/marks.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Extensibility mechanism for registering custom Loro marks. Prepares for future highlights and notes-on-highlights without requiring sakya-crdt changes.
+
+**** Acceptance Criteria
+- [ ] MarkRegistry struct with register(name, to_md, from_md) method
+- [ ] Default registry includes all built-in marks
+- [ ] Custom marks participate in import/export pipeline
+- [ ] Unit test: register a mock "highlight" mark, verify round-trip
+- [ ] ~4 unit tests passing
+
+*** ITEM Round-trip integration tests + property tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-138
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-134, ITEM-135
+:FILES: crates/sakya-crdt/tests/
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Comprehensive round-trip tests. Import existing project files, export, diff must be zero. Property tests for CRDT operation consistency. Concurrent merge tests.
+
+**** Acceptance Criteria
+- [ ] Test fixtures: minimal, medium, complex projects
+- [ ] All fixtures pass lossless round-trip (import -> export -> diff == 0)
+- [ ] Property test: random chapter CRUD maintains consistency
+- [ ] Concurrent merge test: two docs converge
+- [ ] ~15 integration + ~10 property tests
+
+** CHK-011-04 Authentication & Protocol
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-04
+:CRITERIA: Auth flow works end-to-end (magic link -> JWT -> authenticated requests), protocol messages serialize correctly.
+:VERIFY: cargo test -p sakya-auth -p sakya-sync-protocol
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] Magic link send/verify flow works
+- [ ] JWT generation and validation works
+- [ ] Device registration/removal works
+- [ ] All SyncMessage variants serialize/deserialize correctly
+- [ ] Message fragmentation works for large payloads
+
+*** ITEM SQLite schema + migrations for auth
+:PROPERTIES:
+:CUSTOM_ID: ITEM-139
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-auth/src/db.rs, crates/sakya-auth/migrations/
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define SQLite tables: accounts, devices, magic_links. Use rusqlite with embedded migrations. Include indexes on email and token_hash.
+
+**** Acceptance Criteria
+- [ ] accounts table (id, email, created_at)
+- [ ] devices table (id, account_id, name, ed25519_pubkey, created_at, last_seen)
+- [ ] magic_links table (id, email, token_hash, expires_at, used)
+- [ ] Migration system for schema versioning
+- [ ] ~4 unit tests passing
+
+*** ITEM Magic link send/verify flow
+:PROPERTIES:
+:CUSTOM_ID: ITEM-140
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-139
+:FILES: crates/sakya-auth/src/magic_link.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+send_magic_link(email): generate token, hash, store, send email via lettre. verify_magic_link(token): validate, check expiry (15 min), mark used, return/create account, return JWT.
+
+**** Acceptance Criteria
+- [ ] Token generation and hashing
+- [ ] Email sending via lettre
+- [ ] Token verification with expiry check
+- [ ] Auto-create account on first verification
+- [ ] Rate limiting: max 3 per email per hour
+- [ ] ~8 unit tests passing
+
+*** ITEM JWT token generation + validation
+:PROPERTIES:
+:CUSTOM_ID: ITEM-141
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-auth/src/jwt.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+JWT generation with claims: { sub: account_id, device_id, iat, exp }. 24-hour expiry. Validation extracts claims and verifies signature (HS256).
+
+**** Acceptance Criteria
+- [ ] JWT generation with configurable expiry
+- [ ] Claims include account_id and device_id
+- [ ] Validation returns structured claims
+- [ ] Expired token rejection
+- [ ] ~6 unit tests passing
+
+*** ITEM Device registration and removal
+:PROPERTIES:
+:CUSTOM_ID: ITEM-142
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-139
+:FILES: crates/sakya-auth/src/device.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Register a device for an account (name, Ed25519 public key). List devices. Remove device. Update last_seen on sync connection.
+
+**** Acceptance Criteria
+- [ ] register_device(account_id, name, pubkey)
+- [ ] list_devices(account_id)
+- [ ] remove_device(account_id, device_id)
+- [ ] update_last_seen(device_id)
+- [ ] ~6 unit tests passing
+
+*** ITEM Axum JWT middleware extractor
+:PROPERTIES:
+:CUSTOM_ID: ITEM-143
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-141
+:FILES: crates/sakya-auth/src/middleware.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Axum extractor AuthenticatedDevice that validates JWT from Authorization: Bearer header, extracts account_id and device_id. Returns 401 for missing/invalid/expired tokens.
+
+**** Acceptance Criteria
+- [ ] AuthenticatedDevice Axum extractor
+- [ ] JWT validation from Bearer header
+- [ ] 401 response for invalid tokens
+- [ ] ~4 unit tests passing
+
+*** ITEM SyncMessage enum + serialization
+:PROPERTIES:
+:CUSTOM_ID: ITEM-144
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-sync-protocol/src/message.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Define SyncMessage enum with variants: Auth, JoinRoom, LeaveRoom, EncryptedUpdate, EncryptedSnapshot, SyncRequest, SyncResponse, Ephemeral, Error. Serialize with serde_json using internally-tagged enum.
+
+**** Acceptance Criteria
+- [ ] All message variants defined with correct fields
+- [ ] Serialization round-trip for every variant
+- [ ] ErrorCode enum with standard error types
+- [ ] ~10 unit tests passing
+
+*** ITEM Message fragmentation/reassembly
+:PROPERTIES:
+:CUSTOM_ID: ITEM-145
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-144
+:FILES: crates/sakya-sync-protocol/src/fragment.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+For messages exceeding 256 KiB, implement fragmentation and reassembly with timeout for incomplete fragment sets (30s).
+
+**** Acceptance Criteria
+- [ ] FragmentedMessage struct with message_id, index, total, data
+- [ ] Fragment/reassemble round-trip
+- [ ] Timeout for incomplete fragments
+- [ ] ~6 unit tests passing
+
+*** ITEM Protocol property tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-146
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-144, ITEM-145
+:FILES: crates/sakya-sync-protocol/tests/
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Property tests: serialize-deserialize identity for any SyncMessage. Fragment-reassemble identity for any byte payload.
+
+**** Acceptance Criteria
+- [ ] proptest strategies for SyncMessage variants
+- [ ] Serde round-trip property
+- [ ] Fragment/reassemble identity property
+- [ ] ~5 property tests passing
+
+** CHK-011-05 Sync Server
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-05
+:CRITERIA: Server accepts authenticated WebSocket connections, stores encrypted blobs, relays to room members.
+:VERIFY: cargo test -p sakya-sync-server
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] Auth HTTP endpoints work
+- [ ] WebSocket upgrade with JWT auth works
+- [ ] Room join/leave/broadcast works
+- [ ] Encrypted updates stored and retrievable
+- [ ] Integration tests pass with test clients
+
+*** ITEM Axum HTTP routes (auth endpoints)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-147
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-139, ITEM-140, ITEM-141, ITEM-142, ITEM-143
+:FILES: crates/sakya-sync-server/src/routes/
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+HTTP routes: POST /auth/magic-link, POST /auth/verify, GET /devices, POST /devices, DELETE /devices/:id. All except magic-link/verify require JWT auth.
+
+**** Acceptance Criteria
+- [ ] All auth routes implemented
+- [ ] JWT middleware applied to protected routes
+- [ ] Proper error responses
+- [ ] ~8 unit tests passing
+
+*** ITEM WebSocket handler + JWT authentication
+:PROPERTIES:
+:CUSTOM_ID: ITEM-148
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-143, ITEM-144
+:FILES: crates/sakya-sync-server/src/ws.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+WebSocket upgrade at GET /sync. First message must be Auth { jwt }. Heartbeat ping/pong every 30s. Connection cleanup on disconnect.
+
+**** Acceptance Criteria
+- [ ] WebSocket upgrade handler
+- [ ] JWT authentication on first message
+- [ ] Heartbeat mechanism
+- [ ] Clean disconnect handling
+- [ ] ~6 unit tests passing
+
+*** ITEM RoomManager (project rooms + broadcast)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-149
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-148
+:FILES: crates/sakya-sync-server/src/room.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+RoomManager maintains HashMap<ProjectId, HashSet<DeviceConnection>>. JoinRoom adds connection. EncryptedUpdate broadcasts to all other room members. Handle disconnect cleanup.
+
+**** Acceptance Criteria
+- [ ] Room join/leave/broadcast operations
+- [ ] Concurrent access via tokio::sync::RwLock or dashmap
+- [ ] Disconnect cleanup
+- [ ] ~8 unit tests passing
+
+*** ITEM SQLite storage for encrypted updates/snapshots
+:PROPERTIES:
+:CUSTOM_ID: ITEM-150
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-sync-server/src/storage.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+SQLite tables: encrypted_updates and encrypted_snapshots. Store relayed updates for offline devices. Respond to SyncRequest with updates since version.
+
+**** Acceptance Criteria
+- [ ] encrypted_updates table with project_id, device_id, ciphertext, sequence
+- [ ] encrypted_snapshots table
+- [ ] Store and retrieve operations
+- [ ] Query by version/sequence
+- [ ] ~6 unit tests passing
+
+*** ITEM Socket activation + graceful shutdown
+:PROPERTIES:
+:CUSTOM_ID: ITEM-151
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: crates/sakya-sync-server/src/main.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Socket activation via listenfd for zero-downtime deploys. Graceful shutdown on SIGTERM: stop accepting, drain connections (5s timeout), flush writes.
+
+**** Acceptance Criteria
+- [ ] Socket activation support
+- [ ] Direct TCP binding fallback for development
+- [ ] Graceful shutdown with connection draining
+- [ ] ~4 unit tests passing
+
+*** ITEM Server integration tests with test client
+:PROPERTIES:
+:CUSTOM_ID: ITEM-152
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-147, ITEM-148, ITEM-149, ITEM-150, ITEM-151
+:FILES: crates/sakya-sync-server/tests/
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Integration tests with in-process server. Auth flow, room join/leave/broadcast, update storage/retrieval, two-client sync, reconnection.
+
+**** Acceptance Criteria
+- [ ] Auth flow end-to-end test
+- [ ] Room broadcast test
+- [ ] Update storage and retrieval test
+- [ ] Two-client sync test
+- [ ] ~15 integration tests passing
+
+** CHK-011-06 Sync Client
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-06
+:CRITERIA: Two Sakya instances sync a project through the server, with offline support.
+:VERIFY: cargo test -p sakya-sync-client
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] SyncEngine connects and authenticates
+- [ ] Local changes encrypted and sent
+- [ ] Remote changes decrypted and applied
+- [ ] Offline queue works
+- [ ] Two-client E2E test passes
+
+*** ITEM SyncEngine struct + WebSocket connection
+:PROPERTIES:
+:CUSTOM_ID: ITEM-153
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: crates/sakya-sync-client/src/engine.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+SyncEngine manages per-project sync sessions. Public API: connect, enable_project, disable_project, status. Internal: message send/receive loop on tokio task.
+
+**** Acceptance Criteria
+- [ ] SyncEngine struct with connect/disconnect
+- [ ] Per-project session management
+- [ ] Message send/receive loop
+- [ ] Status reporting
+- [ ] ~6 unit tests passing
+
+*** ITEM Reconnection logic (exponential backoff)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-154
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-153
+:FILES: crates/sakya-sync-client/src/reconnect.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Exponential backoff (1s, 2s, 4s, 8s, max 60s) with jitter (+/-25%). Reset on success. Report status changes.
+
+**** Acceptance Criteria
+- [ ] Exponential backoff with jitter
+- [ ] Max backoff cap (60s)
+- [ ] Reset on successful reconnection
+- [ ] Status change notifications
+- [ ] ~5 unit tests passing
+
+*** ITEM Sync flow (auth -> join -> encrypt/send -> decrypt/apply)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-155
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-153
+:FILES: crates/sakya-sync-client/src/sync_flow.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Full sync flow: connect -> Auth -> JoinRoom -> SyncRequest -> receive missing updates -> decrypt -> apply to CrdtProject -> export to files. On local change: encrypt -> send EncryptedUpdate.
+
+**** Acceptance Criteria
+- [ ] Auth + JoinRoom sequence
+- [ ] SyncRequest/SyncResponse handling
+- [ ] Encrypt outgoing updates
+- [ ] Decrypt and apply incoming updates
+- [ ] Export to files after remote changes
+- [ ] ~8 unit tests passing
+
+*** ITEM Offline queue (persist pending updates to disk)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-156
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-155
+:FILES: crates/sakya-sync-client/src/offline.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Queue encrypted updates locally when offline. Drain on reconnection. Handle large queue (>1000 updates) by creating snapshot instead.
+
+**** Acceptance Criteria
+- [ ] Append-only queue to local storage
+- [ ] Drain on reconnection in order
+- [ ] Snapshot fallback for large queues
+- [ ] ~5 unit tests passing
+
+*** ITEM Tauri commands for sync operations
+:PROPERTIES:
+:CUSTOM_ID: ITEM-157
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-153, ITEM-155
+:FILES: src-tauri/src/commands/sync.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Tauri IPC commands: sync_connect, sync_disconnect, sync_status, sync_enable_project, sync_disable_project. Wire to SyncEngine.
+
+**** Acceptance Criteria
+- [ ] All sync commands registered in lib.rs
+- [ ] Wire to SyncEngine methods
+- [ ] Proper error handling
+- [ ] ~4 unit tests passing
+
+*** ITEM E2E test -- two instances syncing through server
+:PROPERTIES:
+:CUSTOM_ID: ITEM-158
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-152, ITEM-153, ITEM-154, ITEM-155, ITEM-156
+:FILES: crates/sakya-sync-client/tests/e2e/
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+E2E test: start in-process server, two SyncEngines connect, Client A creates chapter -> Client B receives it. Client B edits -> Client A sees it. Offline test: disconnect A, edit both, reconnect, verify convergence.
+
+**** Acceptance Criteria
+- [ ] Two-client online sync test
+- [ ] Offline/reconnect convergence test
+- [ ] ~5 E2E tests passing
+
+** CHK-011-07 Lexical-Loro Deep Binding
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-07
+:CRITERIA: Editor changes update CRDT in real-time; remote CRDT changes update editor without cursor disruption.
+:VERIFY: bun run test:e2e (sync tests)
+:REVIEW_BY: lexical-specialist, svelte-developer
+:END:
+
+*** Gate Conditions
+- [ ] Typing in Lexical updates LoroText
+- [ ] Remote LoroText changes appear in Lexical
+- [ ] Cursor position preserved during remote updates
+- [ ] Markdown fallback still works when sync disabled
+
+*** ITEM LoroSyncPlugin.svelte -- Lexical -> Loro
+:PROPERTIES:
+:CUSTOM_ID: ITEM-159
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/LoroSyncPlugin.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Svelte 5 Lexical plugin that intercepts editor changes and translates to Loro operations. Maps inline formats (bold, italic, code) and block-level nodes (heading, list, quote) to Loro marks.
+
+**** Acceptance Criteria
+- [ ] RegisterUpdateListener captures text changes
+- [ ] Text insert/delete -> LoroText.insert()/delete()
+- [ ] Format changes -> LoroText.mark()/unmark()
+- [ ] Block-level node changes -> block marks
+- [ ] WikiLinkNode support
+- [ ] ~8 unit tests passing
+
+*** ITEM Loro -> Lexical change application
+:PROPERTIES:
+:CUSTOM_ID: ITEM-160
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-159
+:FILES: src/lib/editor/plugins/LoroSyncPlugin.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Subscribe to LoroDoc change events. On remote change, compute delta and apply to Lexical editor state: text insertions, deletions, format changes, block structure changes.
+
+**** Acceptance Criteria
+- [ ] LoroDoc change subscription
+- [ ] Delta computation
+- [ ] Lexical state update via editor.update()
+- [ ] ~6 unit tests passing
+
+*** ITEM Cursor position preservation during remote updates
+:PROPERTIES:
+:CUSTOM_ID: ITEM-161
+:AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-160
+:FILES: src/lib/editor/plugins/LoroSyncPlugin.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Use Loro's cursor API to store cursor as CRDT-aware position that survives remote edits. Prevents cursor jumping during collaborative editing.
+
+**** Acceptance Criteria
+- [ ] Cursor stored as Loro cursor position
+- [ ] Remote changes don't disrupt local cursor
+- [ ] ~4 unit tests passing
+
+*** ITEM Editor integration (loroDoc prop, fallback modes)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-162
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-159
+:FILES: src/lib/editor/SakyaEditor.svelte, src/lib/components/layout/EditorArea.svelte
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Modify SakyaEditor.svelte to accept optional loroDoc prop. When provided: use LoroSyncPlugin. When null: use existing markdown pipeline. Modify EditorArea.svelte to pass loroDoc when sync enabled.
+
+**** Acceptance Criteria
+- [ ] SakyaEditor accepts optional loroDoc prop
+- [ ] LoroSyncPlugin active when loroDoc provided
+- [ ] Markdown fallback when loroDoc is null
+- [ ] EditorArea integration
+- [ ] ~4 unit tests passing
+
+*** ITEM Background markdown export from CRDT state
+:PROPERTIES:
+:CUSTOM_ID: ITEM-163
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-162
+:FILES: src/lib/editor/utils/markdown-io.ts
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Even with sync enabled, keep on-disk Markdown files updated by periodically exporting from CRDT state. Debounce to every 2 seconds of inactivity.
+
+**** Acceptance Criteria
+- [ ] Debounced CRDT -> file export
+- [ ] Files remain human-readable
+- [ ] Git diff works on exported files
+- [ ] ~3 unit tests passing
+
+*** ITEM E2E tests for real-time editing sync
+:PROPERTIES:
+:CUSTOM_ID: ITEM-164
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-159, ITEM-160, ITEM-161, ITEM-162
+:FILES: e2e/sync/
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+E2E tests simulating two editors on same CRDT document. Type in A -> appears in B. Format text in A -> visible in B. Concurrent typing merges correctly.
+
+**** Acceptance Criteria
+- [ ] Single-editor CRDT round-trip test
+- [ ] Two-editor sync test
+- [ ] Format propagation test
+- [ ] Concurrent editing merge test
+- [ ] ~10 E2E tests passing
+
+** CHK-011-08 Device Pairing & Key Management
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-08
+:CRITERIA: New device can be paired via QR code or one-time string, receives encrypted keys, can decrypt sync updates.
+:VERIFY: cargo test -p sakya-crypto -p sakya-sync-client (pairing tests)
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] QR code generation works
+- [ ] One-time string encoding/decoding works
+- [ ] Provisioning payload encrypt/decrypt works
+- [ ] Key rotation on device removal works
+
+*** ITEM QR code generation + one-time string encoding
+:PROPERTIES:
+:CUSTOM_ID: ITEM-165
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/pairing.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Generate QR code containing { device_id, x25519_public_key, server_url } as JSON/base64/SVG via qrcode crate. One-time string: sk-pair_v1.<base64_payload>.
+
+**** Acceptance Criteria
+- [ ] QR code SVG generation
+- [ ] One-time string format with version prefix
+- [ ] Encode/decode round-trip
+- [ ] ~5 unit tests passing
+
+*** ITEM Provisioning payload encrypt/decrypt
+:PROPERTIES:
+:CUSTOM_ID: ITEM-166
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-126
+:FILES: crates/sakya-crypto/src/provisioning.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Provisioning payload: { account_id, ed25519_keypair, document_keys, server_auth_token }. Encrypt with shared secret from X25519 key exchange. Transmit via server as Ephemeral message.
+
+**** Acceptance Criteria
+- [ ] Provisioning payload struct
+- [ ] Encrypt with shared secret
+- [ ] Decrypt on receiving device
+- [ ] ~4 unit tests passing
+
+*** ITEM Key rotation on device removal
+:PROPERTIES:
+:CUSTOM_ID: ITEM-167
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: crates/sakya-crypto/src/rotation.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+On device removal: generate new DocumentKeys for all projects, encrypt for remaining devices, distribute via server.
+
+**** Acceptance Criteria
+- [ ] New key generation per project
+- [ ] Key distribution to remaining devices
+- [ ] Old keys invalidated
+- [ ] ~4 unit tests passing
+
+*** ITEM Secure local key storage (Tauri keychain)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-168
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: src-tauri/src/keystore.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Store Ed25519 keypair, DocumentKeys, account credentials in platform keychain via Tauri secure storage. Fallback to encrypted file storage.
+
+**** Acceptance Criteria
+- [ ] Keychain storage implementation
+- [ ] Encrypted file fallback
+- [ ] Keys never stored in plain text
+- [ ] ~4 unit tests passing
+
+*** ITEM Tauri commands for pairing flow
+:PROPERTIES:
+:CUSTOM_ID: ITEM-169
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-165, ITEM-166
+:FILES: src-tauri/src/commands/pairing.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Tauri commands: generate_pairing_code, complete_pairing, list_paired_devices, remove_device.
+
+**** Acceptance Criteria
+- [ ] All pairing commands registered
+- [ ] QR SVG and string returned from generate
+- [ ] Complete pairing flow wired
+- [ ] ~4 unit tests passing
+
+** CHK-011-09 Sync UI
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-09
+:CRITERIA: Complete UI for account management, device pairing, project sync settings, and sync status indication.
+:VERIFY: bun run test:e2e (sync UI tests)
+:REVIEW_BY: svelte-developer
+:END:
+
+*** Gate Conditions
+- [ ] Status indicator shows all states correctly
+- [ ] Magic link login flow works
+- [ ] Device list and pairing dialog work
+- [ ] Project sync toggle works
+- [ ] E2E tests cover all sync UI flows
+
+*** ITEM SyncStatusIndicator.svelte
+:PROPERTIES:
+:CUSTOM_ID: ITEM-170
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/sync/SyncStatusIndicator.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Status bar component (bottom-right). States: synced (green), syncing (yellow pulse), offline (yellow), error (red), disabled (grey). Click opens popover with details.
+
+**** Acceptance Criteria
+- [ ] All five states rendered correctly
+- [ ] Popover with details on click
+- [ ] Reactive to sync store changes
+- [ ] ~3 E2E tests
+
+*** ITEM AccountSettings.svelte (magic link login)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-171
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: src/lib/components/sync/AccountSettings.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Settings panel for account management. States: logged out (email input), waiting (check email), logged in (account info + logout). Magic link flow.
+
+**** Acceptance Criteria
+- [ ] Email input + send magic link button
+- [ ] Waiting state with countdown
+- [ ] Logged in state with account info
+- [ ] Logout button
+- [ ] ~4 E2E tests
+
+*** ITEM DeviceManager.svelte
+:PROPERTIES:
+:CUSTOM_ID: ITEM-172
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/sync/DeviceManager.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+List paired devices with name, type icon, last seen, "This device" badge. Add Device and Remove buttons.
+
+**** Acceptance Criteria
+- [ ] Device list with metadata
+- [ ] This device badge
+- [ ] Add Device opens PairingDialog
+- [ ] Remove with confirmation
+- [ ] ~3 E2E tests
+
+*** ITEM PairingDialog.svelte (QR + one-time string)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-173
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/sync/PairingDialog.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Dialog with two tabs: QR Code (SVG display) and Pairing String (copyable). Also input for entering remote device's pairing string.
+
+**** Acceptance Criteria
+- [ ] QR code display tab
+- [ ] Copyable string tab
+- [ ] Remote pairing input
+- [ ] ~3 E2E tests
+
+*** ITEM ProjectSyncSettings.svelte
+:PROPERTIES:
+:CUSTOM_ID: ITEM-174
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/sync/ProjectSyncSettings.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+**** Description
+Per-project sync toggle in project settings. When enabled: show status, last sync time. When disabled: explanation text.
+
+**** Acceptance Criteria
+- [ ] Sync toggle with confirmation dialog
+- [ ] Status display when enabled
+- [ ] Explanation when disabled
+- [ ] ~3 E2E tests
+
+*** ITEM sync.svelte.ts store
+:PROPERTIES:
+:CUSTOM_ID: ITEM-175
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/sync.svelte.ts
+:TEST_PLAN: compile, test-svelte
+:END:
+
+**** Description
+Svelte 5 runes store managing: connectionStatus, syncedProjects, account, devices, pendingUpdates. Methods call Tauri IPC commands.
+
+**** Acceptance Criteria
+- [ ] All state fields with $state rune
+- [ ] Methods for connect, disconnect, login, logout
+- [ ] Tauri event listener for status changes
+- [ ] ~5 unit tests passing
+
+*** ITEM E2E tests for sync UI flows
+:PROPERTIES:
+:CUSTOM_ID: ITEM-176
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-170, ITEM-171, ITEM-172, ITEM-173, ITEM-174, ITEM-175
+:FILES: e2e/sync-ui/
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+E2E tests: login flow, device list display, pairing dialog, project sync toggle, status indicator states. Use Tauri IPC mocks.
+
+**** Acceptance Criteria
+- [ ] Login flow test
+- [ ] Device manager test
+- [ ] Pairing dialog test
+- [ ] Project sync toggle test
+- [ ] Status indicator states test
+- [ ] ~15 E2E tests passing
+
+** CHK-011-10 Deployment
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-10
+:CRITERIA: sakya-sync-server deployed to VPS via deploy-rs with zero-downtime, TLS via Caddy.
+:VERIFY: curl https://sync.sakya.app/health returns 200
+:REVIEW_BY: rust-architect
+:END:
+
+*** Gate Conditions
+- [ ] Nix flake builds server binary
+- [ ] deploy-rs configuration works
+- [ ] Systemd service runs with hardening
+- [ ] Health check returns 200
+
+*** ITEM deploy/flake.nix + NixOS module
+:PROPERTIES:
+:CUSTOM_ID: ITEM-177
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: deploy/flake.nix, deploy/module.nix
+:TEST_PLAN: compile
+:END:
+
+**** Description
+Nix flake building sakya-sync-server. NixOS module with systemd service, Caddy virtual host, dedicated sakya user, SQLite database, EnvironmentFile for secrets.
+
+**** Acceptance Criteria
+- [ ] Nix flake builds server binary
+- [ ] NixOS module with systemd service
+- [ ] Caddy TLS configuration
+- [ ] Environment file for secrets
+- [ ] ~2 build tests
+
+*** ITEM deploy-rs configuration
+:PROPERTIES:
+:CUSTOM_ID: ITEM-178
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-177
+:FILES: deploy/deploy.nix
+:TEST_PLAN: compile
+:END:
+
+**** Description
+deploy-rs configuration with magic rollback (30s health check timeout).
+
+**** Acceptance Criteria
+- [ ] deploy-rs profile configured
+- [ ] Magic rollback on health check failure
+- [ ] Single VPS target
+- [ ] ~1 deploy test
+
+*** ITEM Systemd hardening + backup timer
+:PROPERTIES:
+:CUSTOM_ID: ITEM-179
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:DEPENDS: ITEM-177
+:FILES: deploy/module.nix
+:TEST_PLAN: compile
+:END:
+
+**** Description
+Systemd hardening: ProtectSystem=strict, ProtectHome=true, PrivateTmp=true, NoNewPrivileges=true. Daily backup timer with 7-day retention.
+
+**** Acceptance Criteria
+- [ ] Hardening directives applied
+- [ ] Daily backup timer
+- [ ] 7-day retention policy
+- [ ] ~1 backup test
+
+*** ITEM Smoke tests for deployed server
+:PROPERTIES:
+:CUSTOM_ID: ITEM-180
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-177, ITEM-178
+:FILES: deploy/smoke-test.sh
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Shell script verifying: health endpoint returns 200, WebSocket upgrade works, auth flow returns JWT, encrypted update relay works.
+
+**** Acceptance Criteria
+- [ ] Health check test
+- [ ] WebSocket upgrade test
+- [ ] Auth flow test
+- [ ] Update relay test
+
+** CHK-011-11 Hardening & Polish
+:PROPERTIES:
+:CUSTOM_ID: CHK-011-11
+:CRITERIA: System handles edge cases (large docs, network partitions, snapshot compaction) reliably.
+:VERIFY: cargo test --workspace && bun run test:e2e
+:REVIEW_BY: rust-architect, testing-engineer
+:END:
+
+*** Gate Conditions
+- [ ] Snapshot compaction works
+- [ ] Large documents handled
+- [ ] Network partition recovery works
+- [ ] Security audit passed
+
+*** ITEM Snapshot compaction
+:PROPERTIES:
+:CUSTOM_ID: ITEM-181
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #B
+:FILES: crates/sakya-sync-server/src/compaction.rs
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Periodically create encrypted snapshots to bound update chain length. Trigger: every 1000 updates or 24 hours. Garbage collect old updates after snapshot.
+
+**** Acceptance Criteria
+- [ ] Snapshot creation trigger logic
+- [ ] Old update garbage collection
+- [ ] ~4 unit tests passing
+
+*** ITEM Large document handling (>1MB)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-182
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: crates/sakya-sync-client/src/
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Handle projects with chapters >1MB. Ensure fragmentation works, memory stays bounded, progress reporting for large operations.
+
+**** Acceptance Criteria
+- [ ] Large document fragmentation
+- [ ] Bounded memory usage
+- [ ] Progress reporting
+- [ ] ~3 unit tests passing
+
+*** ITEM Network partition recovery
+:PROPERTIES:
+:CUSTOM_ID: ITEM-183
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 2h
+:PRIORITY: #B
+:FILES: crates/sakya-sync-client/src/
+:TEST_PLAN: compile, test-rust
+:END:
+
+**** Description
+Recovery from extended network partitions. Detect large divergence (>5000 pending updates). Handle server-side update pruning gracefully.
+
+**** Acceptance Criteria
+- [ ] Large divergence detection
+- [ ] User notification for large syncs
+- [ ] Graceful pruning handling
+- [ ] ~3 unit tests passing
+
+*** ITEM Performance profiling + optimization
+:PROPERTIES:
+:CUSTOM_ID: ITEM-184
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #C
+:FILES: -
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Profile: CRDT operation latency (<1ms/keystroke), encryption overhead (<5%), WebSocket throughput (>1000 updates/sec), memory (<50MB for 100-chapter project).
+
+**** Acceptance Criteria
+- [ ] CRDT latency benchmarks
+- [ ] Encryption overhead measurement
+- [ ] Memory usage profiling
+- [ ] Performance targets documented
+
+*** ITEM Security audit
+:PROPERTIES:
+:CUSTOM_ID: ITEM-185
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:FILES: -
+:TEST_PLAN: test-rust
+:END:
+
+**** Description
+Audit: no plaintext key leakage in logs, AEAD nonce uniqueness, side-channel protection, input validation on all server endpoints.
+
+**** Acceptance Criteria
+- [ ] No key leakage in logs or errors
+- [ ] Nonce uniqueness verification
+- [ ] Input validation on all endpoints
+- [ ] Security findings documented and resolved
