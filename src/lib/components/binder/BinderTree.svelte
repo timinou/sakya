@@ -5,6 +5,7 @@
     Star, Heart, Sword, Shield, Crown, Flame, Globe, BookOpen, Scroll,
     Gem, Skull, Wand2, Castle, Compass, Anchor, Feather, Zap, Clock,
     Eye, Key, Map, Music, Palette, Puzzle, Target, TreePine, Mountain,
+    EllipsisVertical,
   } from 'lucide-svelte';
   import { entityStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
@@ -195,6 +196,12 @@
   function handleEntityContextMenu(e: MouseEvent, schemaType: string, slug: string, title: string): void {
     e.preventDefault();
     entityContextMenu = { x: e.clientX, y: e.clientY, slug, title, schemaType };
+  }
+
+  function handleEntityMenuButtonClick(e: MouseEvent, schemaType: string, slug: string, title: string): void {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    entityContextMenu = { x: rect.right, y: rect.top, slug, title, schemaType };
   }
 
   function closeEntityContextMenu(): void {
@@ -439,16 +446,26 @@
             />
           </div>
         {:else}
-          <BinderItem
-            label={entity.title}
-            icon={getIconForType(entityType)}
-            color={getColorForType(entityType)}
-            isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
-            isActive={entityStore.currentEntity?.slug === entity.slug}
-            onclick={() => handleSelectEntity(entityType, entity.slug)}
-            oncontextmenu={(e) => handleEntityContextMenu(e, entityType, entity.slug, entity.title)}
-            indent={1}
-          />
+          <div class="entity-row">
+            <BinderItem
+              label={entity.title}
+              icon={getIconForType(entityType)}
+              color={getColorForType(entityType)}
+              isSelected={selectedItem?.type === entityType && selectedItem?.slug === entity.slug}
+              isActive={entityStore.currentEntity?.slug === entity.slug}
+              onclick={() => handleSelectEntity(entityType, entity.slug)}
+              oncontextmenu={(e) => handleEntityContextMenu(e, entityType, entity.slug, entity.title)}
+              indent={1}
+            />
+            <button
+              class="item-action-btn"
+              type="button"
+              title="More actions"
+              onclick={(e) => handleEntityMenuButtonClick(e, entityType, entity.slug, entity.title)}
+            >
+              <EllipsisVertical size={14} />
+            </button>
+          </div>
         {/if}
       {/each}
 
@@ -590,6 +607,47 @@
   .rename-input {
     border-color: var(--accent-primary, #7c4dbd);
     box-shadow: 0 0 0 1px var(--accent-primary, #7c4dbd);
+  }
+
+  .entity-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .entity-row :global(button:first-child) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .item-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .entity-row:hover .item-action-btn,
+  .entity-row:focus-within .item-action-btn {
+    opacity: 1;
+  }
+
+  .item-action-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .loading-indicator {

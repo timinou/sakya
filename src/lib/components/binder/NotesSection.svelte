@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { StickyNote, FileText, Plus, Pencil, Trash2 } from 'lucide-svelte';
+  import { StickyNote, FileText, Plus, Pencil, Trash2, EllipsisVertical } from 'lucide-svelte';
   import { notesStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -84,6 +84,12 @@
   function handleContextMenu(e: MouseEvent, slug: string, title: string): void {
     e.preventDefault();
     contextMenu = { x: e.clientX, y: e.clientY, slug, title };
+  }
+
+  function handleMenuButtonClick(e: MouseEvent, slug: string, title: string): void {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    contextMenu = { x: rect.right, y: rect.top, slug, title };
   }
 
   function closeContextMenu(): void {
@@ -231,6 +237,14 @@
             style:background-color={note.color}
           ></span>
         {/if}
+        <button
+          class="item-action-btn"
+          type="button"
+          title="More actions"
+          onclick={(e) => handleMenuButtonClick(e, note.slug, note.title)}
+        >
+          <EllipsisVertical size={14} />
+        </button>
       </div>
     {/if}
   {/each}
@@ -323,6 +337,36 @@
     border-radius: var(--radius-full);
     flex-shrink: 0;
     pointer-events: none;
+  }
+
+  .item-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .note-row:hover .item-action-btn,
+  .note-row:focus-within .item-action-btn {
+    opacity: 1;
+  }
+
+  .item-action-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .inline-input-wrapper {

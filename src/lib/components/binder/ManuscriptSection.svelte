@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-svelte';
+  import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown, EllipsisVertical } from 'lucide-svelte';
   import { manuscriptStore, editorState, projectState } from '$lib/stores';
   import type { ChapterStatus } from '$lib/types/manuscript';
   import BinderSection from './BinderSection.svelte';
@@ -99,6 +99,12 @@
   function handleContextMenu(e: MouseEvent, slug: string, title: string, status: ChapterStatus, index: number): void {
     e.preventDefault();
     contextMenu = { x: e.clientX, y: e.clientY, slug, title, status, index };
+  }
+
+  function handleMenuButtonClick(e: MouseEvent, slug: string, title: string, status: ChapterStatus, index: number): void {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    contextMenu = { x: rect.right, y: rect.top, slug, title, status, index };
   }
 
   function closeContextMenu(): void {
@@ -353,6 +359,14 @@
           style:background-color={statusColors[chapter.status]}
           title={chapter.status}
         ></span>
+        <button
+          class="item-action-btn"
+          type="button"
+          title="More actions"
+          onclick={(e) => handleMenuButtonClick(e, chapter.slug, chapter.title, chapter.status, idx)}
+        >
+          <EllipsisVertical size={14} />
+        </button>
       </div>
     {/if}
   {/each}
@@ -454,6 +468,36 @@
     border-radius: var(--radius-full);
     flex-shrink: 0;
     pointer-events: none;
+  }
+
+  .item-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .chapter-row:hover .item-action-btn,
+  .chapter-row:focus-within .item-action-btn {
+    opacity: 1;
+  }
+
+  .item-action-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .inline-input-wrapper {
