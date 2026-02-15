@@ -9,7 +9,7 @@ use sakya_sync_protocol::{ErrorCode, SyncMessage};
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tokio::time::{interval, Instant};
+use tokio::time::Instant;
 use uuid::Uuid;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
@@ -41,7 +41,8 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     // Phase 2: Message loop
     let mut joined_rooms: HashSet<Uuid> = HashSet::new();
     let mut room_rx: Option<broadcast::Receiver<BroadcastMsg>> = None;
-    let mut heartbeat_timer = interval(HEARTBEAT_INTERVAL);
+    let mut heartbeat_timer =
+        tokio::time::interval_at(Instant::now() + HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
     let mut last_pong = Instant::now();
 
     loop {

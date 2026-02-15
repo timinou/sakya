@@ -643,13 +643,13 @@ Property tests: serialize-deserialize identity for any SyncMessage. Fragment-rea
 :END:
 
 *** Gate Conditions
-- [ ] Auth HTTP endpoints work
-- [ ] WebSocket upgrade with JWT auth works
-- [ ] Room join/leave/broadcast works
-- [ ] Encrypted updates stored and retrievable
-- [ ] Integration tests pass with test clients
+- [X] Auth HTTP endpoints work
+- [X] WebSocket upgrade with JWT auth works
+- [X] Room join/leave/broadcast works
+- [X] Encrypted updates stored and retrievable
+- [X] Integration tests pass with test clients
 
-*** ITEM Axum HTTP routes (auth endpoints)
+*** DONE Axum HTTP routes (auth endpoints)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-147
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -669,7 +669,7 @@ HTTP routes: POST /auth/magic-link, POST /auth/verify, GET /devices, POST /devic
 - [ ] Proper error responses
 - [ ] ~8 unit tests passing
 
-*** ITEM WebSocket handler + JWT authentication
+*** DONE WebSocket handler + JWT authentication
 :PROPERTIES:
 :CUSTOM_ID: ITEM-148
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -690,7 +690,7 @@ WebSocket upgrade at GET /sync. First message must be Auth { jwt }. Heartbeat pi
 - [ ] Clean disconnect handling
 - [ ] ~6 unit tests passing
 
-*** ITEM RoomManager (project rooms + broadcast)
+*** DONE RoomManager (project rooms + broadcast)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-149
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -710,7 +710,7 @@ RoomManager maintains HashMap<ProjectId, HashSet<DeviceConnection>>. JoinRoom ad
 - [ ] Disconnect cleanup
 - [ ] ~8 unit tests passing
 
-*** ITEM SQLite storage for encrypted updates/snapshots
+*** DONE SQLite storage for encrypted updates/snapshots
 :PROPERTIES:
 :CUSTOM_ID: ITEM-150
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -730,7 +730,7 @@ SQLite tables: encrypted_updates and encrypted_snapshots. Store relayed updates 
 - [ ] Query by version/sequence
 - [ ] ~6 unit tests passing
 
-*** ITEM Socket activation + graceful shutdown
+*** DONE Socket activation + graceful shutdown
 :PROPERTIES:
 :CUSTOM_ID: ITEM-151
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -749,7 +749,7 @@ Socket activation via listenfd for zero-downtime deploys. Graceful shutdown on S
 - [ ] Graceful shutdown with connection draining
 - [ ] ~4 unit tests passing
 
-*** ITEM Server integration tests with test client
+*** DONE Server integration tests with test client
 :PROPERTIES:
 :CUSTOM_ID: ITEM-152
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]

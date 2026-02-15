@@ -3,16 +3,9 @@
 //! An Axum-based WebSocket relay server that stores and relays
 //! encrypted CRDT updates between Sakya clients.
 
-pub mod error;
-pub mod room;
-pub mod routes;
-pub mod state;
-pub mod storage;
-pub mod ws;
-
-use crate::routes::build_router;
-use crate::state::AppState;
 use listenfd::ListenFd;
+use sakya_sync_server::routes::build_router;
+use sakya_sync_server::state::AppState;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;

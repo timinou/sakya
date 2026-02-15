@@ -52,8 +52,8 @@ impl AppState {
     }
 }
 
-/// Test utilities (only available in test builds).
-#[cfg(test)]
+/// Test utilities (available in test builds and when test-utils feature is enabled).
+#[cfg(any(test, feature = "test-utils"))]
 impl AppState {
     /// Create an AppState backed by temp files (for testing).
     ///
