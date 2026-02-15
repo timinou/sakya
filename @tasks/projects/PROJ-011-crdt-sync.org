@@ -112,13 +112,13 @@ Run the full test suite (cargo test, bun run test:e2e) to verify the workspace m
 :END:
 
 *** Gate Conditions
-- [ ] XChaCha20-Poly1305 AEAD encrypt/decrypt works
-- [ ] Ed25519 sign/verify works
-- [ ] X25519 key exchange derives shared secrets
-- [ ] Hash chain integrity verification works
+- [X] XChaCha20-Poly1305 AEAD encrypt/decrypt works
+- [X] Ed25519 sign/verify works
+- [X] X25519 key exchange derives shared secrets
+- [X] Hash chain integrity verification works
 - [ ] Property-based tests pass for all primitives
 
-*** ITEM Implement Encryptor trait + XChaCha20Poly1305
+*** DONE Implement Encryptor trait + XChaCha20Poly1305
 :PROPERTIES:
 :CUSTOM_ID: ITEM-124
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -132,14 +132,14 @@ Run the full test suite (cargo test, bun run test:e2e) to verify the workspace m
 Define Encryptor trait with encrypt/decrypt methods. Implement XChaCha20Encryptor using chacha20poly1305 crate. XChaCha20 chosen for 192-bit nonce (safe random generation, no nonce reuse risk). Include AEAD associated data for context binding.
 
 **** Acceptance Criteria
-- [ ] Encryptor trait defined with encrypt/decrypt methods
-- [ ] XChaCha20Encryptor implementation using RustCrypto
-- [ ] 24-byte random nonce generation
-- [ ] Associated data (AAD) support
-- [ ] Unit tests: encrypt-decrypt round trip, wrong key fails, tampered ciphertext fails, wrong AAD fails
-- [ ] ~8 unit tests passing
+- [X] Encryptor trait defined with encrypt/decrypt methods
+- [X] XChaCha20Encryptor implementation using RustCrypto
+- [X] 24-byte random nonce generation
+- [X] Associated data (AAD) support
+- [X] Unit tests: encrypt-decrypt round trip, wrong key fails, tampered ciphertext fails, wrong AAD fails
+- [X] ~8 unit tests passing (8 passing)
 
-*** ITEM Implement Signer trait + Ed25519Signer
+*** DONE Implement Signer trait + Ed25519Signer
 :PROPERTIES:
 :CUSTOM_ID: ITEM-125
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -153,14 +153,14 @@ Define Encryptor trait with encrypt/decrypt methods. Implement XChaCha20Encrypto
 Define Signer trait with sign/verify methods. Implement Ed25519Signer using ed25519-dalek. Include keypair generation, public key extraction, and serialization.
 
 **** Acceptance Criteria
-- [ ] Signer trait with sign/verify methods
-- [ ] Ed25519Signer implementation
-- [ ] Keypair generation from CSPRNG
-- [ ] Public key serialization (32 bytes)
-- [ ] Unit tests: sign-verify round trip, wrong key rejects, tampered message rejects
-- [ ] ~6 unit tests passing
+- [X] Signer trait with sign/verify methods
+- [X] Ed25519Signer implementation
+- [X] Keypair generation from CSPRNG
+- [X] Public key serialization (32 bytes)
+- [X] Unit tests: sign-verify round trip, wrong key rejects, tampered message rejects
+- [X] ~6 unit tests passing (6 passing)
 
-*** ITEM Implement EphemeralKeyPair (X25519 key exchange)
+*** DONE Implement EphemeralKeyPair (X25519 key exchange)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-126
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -174,14 +174,14 @@ Define Signer trait with sign/verify methods. Implement Ed25519Signer using ed25
 Implement X25519 Diffie-Hellman key exchange for device pairing. EphemeralKeyPair generates a temporary X25519 keypair, performs key agreement with a remote public key, and derives a shared secret used to encrypt provisioning payloads.
 
 **** Acceptance Criteria
-- [ ] EphemeralKeyPair struct with generate() method
-- [ ] derive_shared_secret(remote_pubkey) -> SharedSecret
-- [ ] Shared secret to encryption key derivation (HKDF or BLAKE2b)
-- [ ] Public key encoding for QR/string transfer
-- [ ] Unit tests: two keypairs derive same shared secret, serialization round trip
-- [ ] ~5 unit tests passing
+- [X] EphemeralKeyPair struct with generate() method
+- [X] derive_shared_secret(remote_pubkey) -> SharedSecret
+- [X] Shared secret to encryption key derivation (HKDF-SHA256)
+- [X] Public key encoding for QR/string transfer (public_key_bytes)
+- [X] Unit tests: two keypairs derive same shared secret, serialization round trip
+- [X] ~5 unit tests passing (5 passing)
 
-*** ITEM Implement HashChain for integrity verification
+*** DONE Implement HashChain for integrity verification
 :PROPERTIES:
 :CUSTOM_ID: ITEM-127
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -195,13 +195,13 @@ Implement X25519 Diffie-Hellman key exchange for device pairing. EphemeralKeyPai
 Implement hash chain for tamper-evident operation logging. Each entry: proof_n = BLAKE2b(proof_{n-1} || ciphertext_hash). Used to detect if the server drops or reorders encrypted updates.
 
 **** Acceptance Criteria
-- [ ] HashChain struct with append(data) -> proof and verify(data, proof, prev_proof) -> bool
-- [ ] BLAKE2b hashing via blake2 crate
-- [ ] Chain initialization with known genesis proof
-- [ ] Unit tests: chain grows correctly, tampered entry detected, fork detection
-- [ ] ~5 unit tests passing
+- [X] HashChain struct with append(data) -> proof and verify(data, proof, prev_proof) -> bool
+- [X] BLAKE2b hashing via blake2 crate
+- [X] Chain initialization with known genesis proof
+- [X] Unit tests: chain grows correctly, tampered entry detected, fork detection
+- [X] ~5 unit tests passing (5 passing)
 
-*** ITEM Implement DocumentKey with Zeroize + key derivation
+*** DONE Implement DocumentKey with Zeroize + key derivation
 :PROPERTIES:
 :CUSTOM_ID: ITEM-128
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -215,12 +215,12 @@ Implement hash chain for tamper-evident operation logging. Each entry: proof_n =
 DocumentKey wraps a 256-bit symmetric key for encrypting CRDT updates per project. Implements Zeroize for secure memory cleanup. Includes generate() from CSPRNG and derive_from_master() for deterministic derivation.
 
 **** Acceptance Criteria
-- [ ] DocumentKey struct implementing Zeroize and ZeroizeOnDrop
-- [ ] generate() -> DocumentKey from OsRng
-- [ ] derive_from_master(master, context) -> DocumentKey via HKDF
-- [ ] Serialization to/from bytes
-- [ ] Unit tests: generation, derivation determinism, zeroize behavior
-- [ ] ~6 unit tests passing
+- [X] DocumentKey struct implementing Zeroize and ZeroizeOnDrop
+- [X] generate() -> DocumentKey from OsRng
+- [X] derive_from_master(master, context) -> DocumentKey via HKDF
+- [X] Serialization to/from bytes
+- [X] Unit tests: generation, derivation determinism, zeroize behavior
+- [X] ~6 unit tests passing (6 passing)
 
 *** ITEM Property-based tests for crypto primitives
 :PROPERTIES:
