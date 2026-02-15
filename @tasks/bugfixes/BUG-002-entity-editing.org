@@ -1,0 +1,62 @@
+#+TITLE: BUG-002 Entity Editing — Can't edit entities
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-002 Entity Editing — Can't edit entities
+:PROPERTIES:
+:CUSTOM_ID: BUG-002
+:GOAL: Clicking an entity in the binder opens an entity tab with EntityForm; search palette entity navigation also works.
+:COMPLETION: Entity editing works end-to-end: binder click, search navigate, form renders, auto-save fires.
+:END:
+
+** DONE E2E tests for entity editing (RED)
+:PROPERTIES:
+:CUSTOM_ID: ITEM-115
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/entity-editing.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Write failing E2E tests that verify entity editing works: binder click opens tab, EntityForm renders with title/fields, field editing triggers save_entity IPC, search palette opens entity tab, closing entity tab removes it.
+
+*** Acceptance Criteria
+- [X] Test: clicking entity in binder opens entity tab
+- [X] Test: entity tab shows EntityForm with title and fields
+- [X] Test: entity field editing triggers save_entity IPC
+- [X] Test: search palette entity navigation opens entity tab
+- [X] Test: closing entity tab removes it
+- [X] All tests fail (RED) before implementation
+
+** DONE Wire entity editing in EditorArea + AppShell + fix tab ID format
+:PROPERTIES:
+:CUSTOM_ID: ITEM-116
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-115
+:FILES: src/lib/components/layout/EditorArea.svelte, src/lib/components/layout/AppShell.svelte, src/lib/components/binder/BinderTree.svelte, src/lib/components/layout/EditorTabs.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Three root causes:
+1. AppShell renders =<Binder />= WITHOUT =onSelectEntity= prop — entity clicks are no-ops
+2. EditorArea has no =entity= branch in the ={#if}= chain — entity tabs render blank
+3. BinderTree uses 2-part tab ID =entity:${slug}= in delete/rename but AppShell uses 3-part =entity:${entityType}:${slug}=
+
+Fix all three:
+- Add =handleSelectEntity= in AppShell, pass to =<Binder />=
+- Add entity cache, $effect, and EntityForm rendering in EditorArea
+- Fix tab ID format in BinderTree delete/rename handlers
+- Add entity tab close cleanup in EditorTabs and AppShell Cmd+W
+
+*** Acceptance Criteria
+- [X] =onSelectEntity= passed from AppShell -> Binder -> BinderTree
+- [X] EditorArea renders EntityForm for entity tabs
+- [X] Entity auto-save (1.5s debounce) calls =entityStore.saveEntity=
+- [X] Tab ID format consistent: =entity:{schemaType}:{slug}=
+- [X] BinderTree delete/rename use 3-part tab ID
+- [X] All ITEM-115 E2E tests pass (GREEN)

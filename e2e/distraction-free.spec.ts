@@ -678,6 +678,103 @@ test.describe("Mode Persistence", () => {
 });
 
 // =============================================================================
+// Focus Mode Visibility (BUG-004)
+// =============================================================================
+
+test.describe("Focus Mode Visibility", () => {
+  test.beforeEach(async ({ page }) => {
+    await openMockProject(page);
+  });
+
+  test("focus mode without selection highlights first block (not blank screen)", async ({
+    page,
+  }) => {
+    // Open a chapter to get editor content
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    // Enable focus mode WITHOUT clicking into the editor (no selection)
+    await page.evaluate(async () => {
+      const { uiState } = await import("/src/lib/stores/index.ts");
+      uiState.focusMode = true;
+    });
+
+    // Wait for focus mode to apply
+    await page.waitForTimeout(500);
+
+    // The editor root should have focus-enabled class
+    const editorRoot = page.locator(".editor-focus-enabled");
+    await expect(editorRoot).toBeVisible({ timeout: 3000 });
+
+    // At least one child should have editor-focus-active class (not all dimmed)
+    const activeElement = page.locator(".editor-focus-active");
+    await expect(activeElement.first()).toBeVisible({ timeout: 3000 });
+  });
+
+  test("focus mode with selection highlights selected block at full opacity", async ({
+    page,
+  }) => {
+    // Open a chapter
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    // Click into the editor to create a selection
+    const editorContent = page.locator('[contenteditable="true"]');
+    await editorContent.click();
+    await page.waitForTimeout(200);
+
+    // Enable focus mode
+    await page.keyboard.press("Control+Shift+.");
+
+    // Wait for focus mode to apply
+    await page.waitForTimeout(500);
+
+    // The active element should be at full opacity
+    const activeElement = page.locator(".editor-focus-active");
+    await expect(activeElement.first()).toBeVisible({ timeout: 3000 });
+    await expect(activeElement.first()).toHaveCSS("opacity", "1");
+  });
+
+  test("editor content not blank when focus mode activated in distraction-free mode", async ({
+    page,
+  }) => {
+    // Open a chapter
+    await page.getByTitle("1. The Awakening").click();
+    await page.waitForTimeout(500);
+
+    // Click into the editor to create a selection first
+    const editorContent = page.locator('[contenteditable="true"]');
+    await editorContent.click();
+    await page.waitForTimeout(200);
+
+    // Enable focus mode first, then distraction-free
+    await page.keyboard.press("Control+Shift+.");
+    await page.keyboard.press("Control+Shift+F");
+
+    await page.waitForTimeout(500);
+
+    // Both modes should be active
+    const state = await page.evaluate(async () => {
+      const { uiState } = await import("/src/lib/stores/index.ts");
+      return {
+        focus: uiState.focusMode,
+        distractionFree: uiState.distractionFreeMode,
+      };
+    });
+    expect(state.focus).toBe(true);
+    expect(state.distractionFree).toBe(true);
+
+    // The focus-enabled class should exist in the DOM
+    const focusEnabled = await page.locator(".editor-focus-enabled").count();
+    expect(focusEnabled).toBeGreaterThan(0);
+
+    // At least one element should have the active class
+    const activeCount = await page.locator(".editor-focus-active").count();
+    expect(activeCount).toBeGreaterThan(0);
+  });
+});
+
+// =============================================================================
 // Edge Cases
 // =============================================================================
 

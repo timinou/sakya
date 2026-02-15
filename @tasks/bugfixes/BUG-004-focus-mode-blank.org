@@ -1,0 +1,33 @@
+#+TITLE: BUG-004 Blank screen in focus mode
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-004 Blank screen in focus mode
+:PROPERTIES:
+:CUSTOM_ID: BUG-004
+:GOAL: Focus mode always shows at least one block at full opacity, even without an active selection.
+:COMPLETION: Activating focus mode without cursor in editor highlights first block; content never appears blank.
+:END:
+
+** DONE E2E tests for focus mode visibility + fix FocusPlugin
+:PROPERTIES:
+:CUSTOM_ID: ITEM-117
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/editor/plugins/FocusPlugin.svelte, e2e/distraction-free.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Root cause: =updateFocusHighlight()= returns early when no range selection. When focus mode activates without cursor, NO element gets =.editor-focus-active=, so all content is at 0.3 opacity.
+
+Fix: After clearing active elements, if no range selection exists, find the first child of the editor root element and mark it as =.editor-focus-active= as a fallback.
+
+Also add E2E tests verifying focus mode content visibility.
+
+*** Acceptance Criteria
+- [X] Test: editor content is visible (opacity > 0.3) in focus mode without selection
+- [X] Test: focus mode with selection highlights selected block
+- [X] FocusPlugin falls back to first block when no selection
+- [X] All focus mode tests pass
