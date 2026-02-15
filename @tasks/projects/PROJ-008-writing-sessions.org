@@ -311,7 +311,7 @@ The list is sorted newest-first. It shows the 20 most recent sprints by default 
 - [ ] Component receives sessions as props (presentational)
 - [ ] Dates formatted in human-readable locale format
 
-*** ITEM E2E tests for writing sessions
+*** DONE E2E tests for writing sessions
 :PROPERTIES:
 :CUSTOM_ID: ITEM-093
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]

@@ -336,6 +336,8 @@ export const MOCK_SESSIONS = [
   { id: "2026-02-14T09:00:00Z", start: "2026-02-14T09:00:00Z", end: "2026-02-14T09:45:00Z", durationMinutes: 45, wordsWritten: 950, chapterSlug: "the-siege" },
   // Feb 13
   { id: "2026-02-13T11:00:00Z", start: "2026-02-13T11:00:00Z", end: "2026-02-13T11:25:00Z", durationMinutes: 25, wordsWritten: 600, chapterSlug: "the-awakening" },
+  // Feb 12
+  { id: "2026-02-12T13:00:00Z", start: "2026-02-12T13:00:00Z", end: "2026-02-12T13:25:00Z", durationMinutes: 25, wordsWritten: 500, chapterSlug: "the-siege" },
   // Feb 11
   { id: "2026-02-11T08:00:00Z", start: "2026-02-11T08:00:00Z", end: "2026-02-11T08:30:00Z", durationMinutes: 30, wordsWritten: 800, chapterSlug: "into-the-woods" },
   // Feb 10
