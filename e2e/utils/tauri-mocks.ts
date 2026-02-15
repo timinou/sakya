@@ -603,10 +603,22 @@ export async function setupDefaultTauriMocks(
     save_notes_config: null,
 
     // --- Session commands ---
+    // start_session and end_session can resolve synchronously (no reactive loop)
     start_session: "2026-02-15T16:00:00Z",
     end_session: null,
-    get_sessions: MOCK_SESSIONS,
-    get_session_stats: MOCK_SESSION_STATS,
+    // IMPORTANT: get_sessions and get_session_stats MUST resolve asynchronously
+    // (via setTimeout) to prevent Svelte 5 $effect infinite loops when
+    // WritingStats mounts. The $effect tracks sessionsStore.isLoading, and
+    // synchronous mock resolution causes isLoading to toggle in the same
+    // microtask batch, re-triggering the effect endlessly.
+    get_sessions: new Function(
+      "args",
+      `return new Promise(function(r) { setTimeout(function() { r(${JSON.stringify(MOCK_SESSIONS)}); }, 10); });`,
+    ) as MockHandler,
+    get_session_stats: new Function(
+      "args",
+      `return new Promise(function(r) { setTimeout(function() { r(${JSON.stringify(MOCK_SESSION_STATS)}); }, 10); });`,
+    ) as MockHandler,
 
     // --- Search commands ---
     search_project: MOCK_SEARCH_RESULTS,
