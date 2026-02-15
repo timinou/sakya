@@ -4373,7 +4373,11 @@ name = "sakya-auth"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
+ "blake2",
  "chrono",
+ "http",
+ "hyper",
  "jsonwebtoken",
  "lettre",
  "rand 0.8.5",
@@ -4384,6 +4388,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tower",
  "uuid",
 ]
 
@@ -4399,6 +4404,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "slug",
  "tempfile",
  "thiserror 2.0.18",
  "uuid",

@@ -7,6 +7,9 @@ description = "Authentication for Sakya sync server"
 [dependencies]
 sakya-crypto = { path = "../sakya-crypto" }
 axum = "0.8"
+blake2 = "0.10"
+base64 = "0.22"
+http = "1"
 jsonwebtoken = "9"
 lettre = { version = "0.11", features = ["tokio1-native-tls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -20,3 +23,6 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { workspace = true }
+tower = { version = "0.5", features = ["util"] }
+hyper = "1"
