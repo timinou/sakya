@@ -1,0 +1,115 @@
+#+TITLE: IMP-003 CRUD Discoverability — Visible Affordances for All Operations
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-003 CRUD Discoverability — Visible Affordances
+:PROPERTIES:
+:CUSTOM_ID: IMP-003
+:GOAL: Make all CRUD operations discoverable without right-click by adding hover action buttons, clickable status dots, gear buttons on section headers, and corkboard tooltips.
+:COMPLETION: All binder items show three-dot menu on hover, chapter status dot is clickable, entity sections have gear button, "New Entity Type" button is always visible, corkboard has tooltips. 12 E2E tests pass.
+:END:
+
+** DONE Add three-dot menu buttons to all binder items
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-110
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/BinderTree.svelte, src/lib/components/binder/NotesSection.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add a hover-visible =⋮= (EllipsisVertical) button to every chapter, entity, and note row in the binder. Clicking it opens the same context menu as right-click, positioned at the button.
+
+*** Acceptance Criteria
+- [X] Chapter rows show three-dot button on hover
+- [X] Entity rows show three-dot button on hover
+- [X] Note rows show three-dot button on hover
+- [X] Clicking the button opens the context menu
+- [X] Right-click still works as secondary path
+
+** DONE Add clickable status dot dropdown for chapters
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-111
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/ManuscriptSection.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Transform the passive 6px status dot on chapter rows into an interactive button. On hover, the dot grows slightly and a chevron appears. Clicking opens a mini-dropdown with Draft/Revised/Final options, each with its status color. Selecting an option changes the chapter status immediately.
+
+*** Acceptance Criteria
+- [X] Status dot becomes a clickable button
+- [X] Chevron appears on chapter row hover
+- [X] Dropdown shows three status options with colored dots
+- [X] Clicking an option changes the chapter status
+- [X] Dropdown closes after selection or outside click
+
+** DONE Add gear button and "New Entity Type" to entity sections
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-112
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/BinderSection.svelte, src/lib/components/binder/BinderTree.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add a gear (Settings) icon button to entity section headers via a new =onSettings= prop on =BinderSection=. The button appears on hover and opens the section context menu (Edit Type, New Entity Type, Delete Type). Add a persistent "New Entity Type" text button below all entity sections.
+
+*** Acceptance Criteria
+- [X] BinderSection supports optional onSettings prop
+- [X] Gear button appears on entity section header hover
+- [X] Clicking gear opens section context menu
+- [X] "New Entity Type" button visible below entity sections
+- [X] Clicking "New Entity Type" dispatches sakya:new-schema event
+
+** DONE Add corkboard tooltips and edit affordances
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-113
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:FILES: src/lib/components/notes/NoteCard.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Ensure corkboard card buttons have proper title tooltips (already present from prior implementation). Add a "Click to edit..." hint that appears on hover when a card has no excerpt, plus a =cursor: text= style on the excerpt area to indicate editability.
+
+*** Acceptance Criteria
+- [X] Color button has title="Change color"
+- [X] Label button has dynamic title (Add label / Edit label)
+- [X] Empty cards show "Click to edit..." on hover
+- [X] Card excerpt area has cursor: text
+
+** DONE E2E tests for discoverability
+CLOSED: [2026-02-15 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-114
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: e2e/crud-discoverability.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Write 12 Playwright E2E tests covering all discoverability features: three-dot menus on chapters/entities/notes, status dot dropdown, gear button, "New Entity Type" button, and corkboard tooltips.
+
+*** Acceptance Criteria
+- [X] 12 E2E tests written and passing
+- [X] Tests cover hover-reveal of three-dot buttons
+- [X] Tests cover status dropdown open/close/select
+- [X] Tests cover gear button and section context menu
+- [X] Tests cover "New Entity Type" visibility
+- [X] Tests cover corkboard tooltip attributes
