@@ -216,7 +216,16 @@
     ];
   }
 
-  // --- Section header context menu ---
+  // --- Section header context menu (via gear button or right-click) ---
+  function handleSectionSettingsClick(schemaType: string, sectionTitle: string): void {
+    // Open context menu near the section header
+    const header = document.querySelector(`[data-entity-section="${schemaType}"]`);
+    if (header) {
+      const rect = header.getBoundingClientRect();
+      sectionContextMenu = { x: rect.right - 40, y: rect.bottom, schemaType, sectionTitle };
+    }
+  }
+
   function handleSectionContextMenu(e: MouseEvent, schemaType: string, sectionTitle: string): void {
     e.preventDefault();
     sectionContextMenu = { x: e.clientX, y: e.clientY, schemaType, sectionTitle };
@@ -416,6 +425,8 @@
   {#each entityStore.schemaSummaries as schema (schema.entityType)}
     {@const entityType = schema.entityType}
     {@const entities = entityStore.entitiesByType[entityType] ?? []}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div data-entity-section={entityType}>
     <BinderSection
       title={getSectionTitle(schema)}
       icon={getIconForType(entityType)}
@@ -423,6 +434,7 @@
       count={entities.length}
       isOpen={isSectionOpen(entityType)}
       onAdd={() => startCreateEntity(entityType)}
+      onSettings={() => handleSectionSettingsClick(entityType, getSectionTitle(schema))}
       ontoggle={() => toggleSection(entityType)}
       oncontextmenu={(e) => handleSectionContextMenu(e, entityType, getSectionTitle(schema))}
     >
@@ -483,7 +495,19 @@
         </div>
       {/if}
     </BinderSection>
+    </div>
   {/each}
+
+  <!-- "New Entity Type" button below all entity sections -->
+  {#if entityStore.schemasLoaded}
+    <button
+      class="new-entity-type-btn"
+      type="button"
+      onclick={() => handleNewType()}
+    >
+      <Plus size={12} /> New Entity Type
+    </button>
+  {/if}
 
   <!-- Notes section -->
   <NotesSection {onSelectNote} />
@@ -648,6 +672,37 @@
   .item-action-btn:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+  }
+
+  .new-entity-type-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    padding-left: calc(var(--spacing-sm) + 14px);
+    border: none;
+    background: transparent;
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background-color var(--transition-fast);
+  }
+
+  .new-entity-type-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+  }
+
+  .new-entity-type-btn :global(svg) {
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+  }
+
+  .new-entity-type-btn:hover :global(svg) {
+    opacity: 1;
   }
 
   .loading-indicator {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet, ComponentType } from 'svelte';
-  import { ChevronRight, Plus } from 'lucide-svelte';
+  import { ChevronRight, Plus, Settings } from 'lucide-svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -12,6 +12,7 @@
     count?: number;
     isOpen: boolean;
     onAdd?: () => void;
+    onSettings?: () => void;
     ontoggle?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
     children: Snippet;
@@ -24,6 +25,7 @@
     count,
     isOpen = $bindable(),
     onAdd,
+    onSettings,
     ontoggle,
     oncontextmenu,
     children,
@@ -50,6 +52,17 @@
     <span class="section-title">{title}</span>
     {#if count !== undefined}
       <span class="section-count">{count}</span>
+    {/if}
+    {#if onSettings}
+      <button
+        class="section-action"
+        type="button"
+        onclick={(e) => { e.stopPropagation(); onSettings?.(); }}
+        aria-label="Settings for {title}"
+        title="Type settings"
+      >
+        <Settings size={14} />
+      </button>
     {/if}
     {#if onAdd}
       <button
@@ -134,6 +147,34 @@
     min-width: 18px;
     text-align: center;
     line-height: 18px;
+  }
+
+  .section-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .section-header:hover .section-action {
+    opacity: 1;
+  }
+
+  .section-action:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .section-add {
