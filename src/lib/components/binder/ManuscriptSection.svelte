@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown, EllipsisVertical } from 'lucide-svelte';
+  import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown, EllipsisVertical, ChevronDown } from 'lucide-svelte';
   import { manuscriptStore, editorState, projectState } from '$lib/stores';
   import type { ChapterStatus } from '$lib/types/manuscript';
   import BinderSection from './BinderSection.svelte';
@@ -28,6 +28,9 @@
   let renamingSlug = $state<string | null>(null);
   let renameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
+
+  // Status dropdown state
+  let statusDropdownSlug = $state<string | null>(null);
 
   // Drag state
   let dragSlug = $state<string | null>(null);
@@ -175,9 +178,35 @@
     return manuscriptStore.chapters.find(c => c.slug === slug)?.title ?? '';
   }
 
+  // Status dropdown handlers
+  function toggleStatusDropdown(e: MouseEvent, slug: string): void {
+    e.stopPropagation();
+    statusDropdownSlug = statusDropdownSlug === slug ? null : slug;
+  }
+
+  function closeStatusDropdown(): void {
+    statusDropdownSlug = null;
+  }
+
+  // Close status dropdown on outside click
+  $effect(() => {
+    if (!statusDropdownSlug) return;
+    function handleClick() {
+      statusDropdownSlug = null;
+    }
+    const timeout = setTimeout(() => {
+      document.addEventListener('click', handleClick);
+    }, 0);
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener('click', handleClick);
+    };
+  });
+
   // Status change handler
   async function handleStatusChange(slug: string, newStatus: ChapterStatus): Promise<void> {
     closeContextMenu();
+    closeStatusDropdown();
     if (!projectState.projectPath) return;
     const chapter = manuscriptStore.chapters.find(c => c.slug === slug);
     if (!chapter) return;
@@ -354,11 +383,32 @@
           oncontextmenu={(e) => handleContextMenu(e, chapter.slug, chapter.title, chapter.status, idx)}
           indent={1}
         />
-        <span
-          class="status-dot"
-          style:background-color={statusColors[chapter.status]}
-          title={chapter.status}
-        ></span>
+        <button
+          class="status-dot-btn"
+          type="button"
+          title="Change status"
+          onclick={(e) => toggleStatusDropdown(e, chapter.slug)}
+        >
+          <span class="status-dot-circle" style:background-color={statusColors[chapter.status]}></span>
+          <span class="status-chevron"><ChevronDown size={8} /></span>
+        </button>
+        {#if statusDropdownSlug === chapter.slug}
+          <div class="status-dropdown" role="listbox" aria-label="Chapter status">
+            {#each (['draft', 'revised', 'final'] as const) as status}
+              <button
+                class="status-option"
+                class:active={chapter.status === status}
+                type="button"
+                role="option"
+                aria-selected={chapter.status === status}
+                onclick={(e) => { e.stopPropagation(); handleStatusChange(chapter.slug, status); }}
+              >
+                <span class="status-option-dot" style:background-color={statusColors[status]}></span>
+                <span class="status-option-label">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
         <button
           class="item-action-btn"
           type="button"
@@ -447,7 +497,7 @@
     transition: opacity var(--transition-fast);
   }
 
-  .chapter-row :global(button) {
+  .chapter-row > :global(button.item) {
     flex: 1;
     min-width: 0;
   }
@@ -460,14 +510,103 @@
     border-top: 2px solid var(--accent-primary);
   }
 
-  .status-dot {
+  .status-dot-btn {
     position: absolute;
-    left: 14px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    z-index: 1;
+    transition: background-color var(--transition-fast);
+  }
+
+  .status-dot-btn:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .status-dot-circle {
+    display: block;
     width: 6px;
     height: 6px;
     border-radius: var(--radius-full);
     flex-shrink: 0;
-    pointer-events: none;
+    transition: width var(--transition-fast), height var(--transition-fast);
+  }
+
+  .status-dot-btn:hover .status-dot-circle {
+    width: 8px;
+    height: 8px;
+  }
+
+  .status-chevron {
+    display: flex;
+    align-items: center;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+
+  .chapter-row:hover .status-chevron {
+    opacity: 1;
+  }
+
+  .status-dropdown {
+    position: absolute;
+    left: 8px;
+    top: 100%;
+    z-index: 100;
+    min-width: 100px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-xs) 0;
+    animation: menu-appear var(--transition-fast) forwards;
+  }
+
+  @keyframes menu-appear {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .status-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: none;
+    background: transparent;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--transition-fast);
+  }
+
+  .status-option:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .status-option.active {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .status-option-dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .status-option-label {
+    flex: 1;
   }
 
   .item-action-btn {
