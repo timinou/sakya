@@ -183,9 +183,11 @@
       {/if}
     </div>
 
-    <!-- Excerpt -->
+    <!-- Excerpt / Edit hint -->
     {#if excerpt}
       <p class="card-excerpt">{excerpt}</p>
+    {:else}
+      <p class="card-excerpt card-edit-hint">Click to edit...</p>
     {/if}
 
     <!-- Footer actions -->
@@ -334,6 +336,17 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     margin: 0;
+    cursor: text;
+  }
+
+  .card-edit-hint {
+    font-style: italic;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+
+  .note-card:hover .card-edit-hint {
+    opacity: 0.6;
   }
 
   .card-footer {
