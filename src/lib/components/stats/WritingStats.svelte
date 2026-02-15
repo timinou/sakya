@@ -1,14 +1,17 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { sessionsStore, projectState } from '$lib/stores';
   import CalendarHeatmap from './CalendarHeatmap.svelte';
   import SprintHistory from './SprintHistory.svelte';
   import { Flame, Award, PenTool, Clock, Calendar, TrendingUp, Trophy, Star } from 'lucide-svelte';
 
-  // Load sessions when the component mounts
+  // Load sessions when the component mounts.
+  // IMPORTANT: untrack the loadSessions call to avoid tracking sessionsStore.$state
+  // (isLoading), which would create an infinite $effect loop as isLoading toggles.
   $effect(() => {
     const path = projectState.projectPath;
     if (!path) return;
-    sessionsStore.loadSessions(path);
+    untrack(() => sessionsStore.loadSessions(path));
   });
 
   /** Format total minutes as "Xh Ym" or just "Xm" */
