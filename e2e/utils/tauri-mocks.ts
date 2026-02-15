@@ -327,6 +327,71 @@ export const MOCK_NOTE_CONTENT: Record<string, unknown> = {
   },
 };
 
+/** Writing sessions returned by get_sessions */
+export const MOCK_SESSIONS = [
+  // Today (Feb 15) — two sessions
+  { id: "2026-02-15T14:00:00Z", start: "2026-02-15T14:00:00Z", end: "2026-02-15T14:30:00Z", durationMinutes: 30, wordsWritten: 750, chapterSlug: "the-awakening", sprintGoal: 500 },
+  { id: "2026-02-15T10:00:00Z", start: "2026-02-15T10:00:00Z", end: "2026-02-15T10:25:00Z", durationMinutes: 25, wordsWritten: 420, chapterSlug: "into-the-woods", sprintGoal: 600 },
+  // Feb 14
+  { id: "2026-02-14T09:00:00Z", start: "2026-02-14T09:00:00Z", end: "2026-02-14T09:45:00Z", durationMinutes: 45, wordsWritten: 950, chapterSlug: "the-siege" },
+  // Feb 13
+  { id: "2026-02-13T11:00:00Z", start: "2026-02-13T11:00:00Z", end: "2026-02-13T11:25:00Z", durationMinutes: 25, wordsWritten: 600, chapterSlug: "the-awakening" },
+  // Feb 11
+  { id: "2026-02-11T08:00:00Z", start: "2026-02-11T08:00:00Z", end: "2026-02-11T08:30:00Z", durationMinutes: 30, wordsWritten: 800, chapterSlug: "into-the-woods" },
+  // Feb 10
+  { id: "2026-02-10T15:00:00Z", start: "2026-02-10T15:00:00Z", end: "2026-02-10T15:25:00Z", durationMinutes: 25, wordsWritten: 550, chapterSlug: "the-awakening" },
+  // Feb 9
+  { id: "2026-02-09T12:00:00Z", start: "2026-02-09T12:00:00Z", end: "2026-02-09T12:15:00Z", durationMinutes: 15, wordsWritten: 300, chapterSlug: "the-siege" },
+  // Feb 8
+  { id: "2026-02-08T10:00:00Z", start: "2026-02-08T10:00:00Z", end: "2026-02-08T10:45:00Z", durationMinutes: 45, wordsWritten: 1100, chapterSlug: "the-awakening" },
+  // Feb 7
+  { id: "2026-02-07T09:30:00Z", start: "2026-02-07T09:30:00Z", end: "2026-02-07T10:00:00Z", durationMinutes: 30, wordsWritten: 700, chapterSlug: "into-the-woods" },
+  // Feb 6
+  { id: "2026-02-06T14:00:00Z", start: "2026-02-06T14:00:00Z", end: "2026-02-06T14:25:00Z", durationMinutes: 25, wordsWritten: 450, chapterSlug: "the-siege", sprintGoal: 400 },
+  // Feb 5
+  { id: "2026-02-05T11:00:00Z", start: "2026-02-05T11:00:00Z", end: "2026-02-05T11:30:00Z", durationMinutes: 30, wordsWritten: 650, chapterSlug: "the-awakening" },
+  // Feb 4
+  { id: "2026-02-04T08:00:00Z", start: "2026-02-04T08:00:00Z", end: "2026-02-04T08:15:00Z", durationMinutes: 15, wordsWritten: 200, chapterSlug: "into-the-woods" },
+  // Feb 3
+  { id: "2026-02-03T16:00:00Z", start: "2026-02-03T16:00:00Z", end: "2026-02-03T16:45:00Z", durationMinutes: 45, wordsWritten: 1200, chapterSlug: "the-siege" },
+  // Feb 2
+  { id: "2026-02-02T10:00:00Z", start: "2026-02-02T10:00:00Z", end: "2026-02-02T10:25:00Z", durationMinutes: 25, wordsWritten: 500, chapterSlug: "the-awakening" },
+  // Feb 1
+  { id: "2026-02-01T09:00:00Z", start: "2026-02-01T09:00:00Z", end: "2026-02-01T09:30:00Z", durationMinutes: 30, wordsWritten: 350, chapterSlug: "into-the-woods" },
+  // Jan 31
+  { id: "2026-01-31T12:00:00Z", start: "2026-01-31T12:00:00Z", end: "2026-01-31T12:25:00Z", durationMinutes: 25, wordsWritten: 480, chapterSlug: "the-siege" },
+  // Jan 30
+  { id: "2026-01-30T14:00:00Z", start: "2026-01-30T14:00:00Z", end: "2026-01-30T14:30:00Z", durationMinutes: 30, wordsWritten: 700, chapterSlug: "the-awakening" },
+  // Jan 29
+  { id: "2026-01-29T10:00:00Z", start: "2026-01-29T10:00:00Z", end: "2026-01-29T10:15:00Z", durationMinutes: 15, wordsWritten: 250, chapterSlug: "into-the-woods" },
+  // Jan 28
+  { id: "2026-01-28T08:00:00Z", start: "2026-01-28T08:00:00Z", end: "2026-01-28T08:45:00Z", durationMinutes: 45, wordsWritten: 900, chapterSlug: "the-siege" },
+  // Jan 27
+  { id: "2026-01-27T11:00:00Z", start: "2026-01-27T11:00:00Z", end: "2026-01-27T11:25:00Z", durationMinutes: 25, wordsWritten: 550, chapterSlug: "the-awakening" },
+  // Jan 26
+  { id: "2026-01-26T09:00:00Z", start: "2026-01-26T09:00:00Z", end: "2026-01-26T09:30:00Z", durationMinutes: 30, wordsWritten: 400, chapterSlug: "into-the-woods" },
+  // Jan 25
+  { id: "2026-01-25T15:00:00Z", start: "2026-01-25T15:00:00Z", end: "2026-01-25T15:25:00Z", durationMinutes: 25, wordsWritten: 600, chapterSlug: "the-siege" },
+  // Jan 24
+  { id: "2026-01-24T10:00:00Z", start: "2026-01-24T10:00:00Z", end: "2026-01-24T10:15:00Z", durationMinutes: 15, wordsWritten: 150, chapterSlug: "the-awakening" },
+  // Jan 23
+  { id: "2026-01-23T12:00:00Z", start: "2026-01-23T12:00:00Z", end: "2026-01-23T12:30:00Z", durationMinutes: 30, wordsWritten: 100, chapterSlug: "into-the-woods" },
+];
+
+/** Pre-computed session stats matching MOCK_SESSIONS */
+export const MOCK_SESSION_STATS = {
+  totalSessions: 25,
+  totalWords: 12650,
+  totalMinutes: 680,
+  currentStreak: 3,
+  longestStreak: 5,
+  dailyAverage: 506,
+  weeklyAverage: 3543,
+  monthlyAverage: 15180,
+  bestDayWords: 1200,
+  bestDayDate: "2026-02-03",
+};
+
 /** Search results returned by search_project */
 export const MOCK_SEARCH_RESULTS = [
   {
@@ -356,6 +421,25 @@ export const MOCK_SEARCH_RESULTS = [
     lineNumber: 4,
     contextBefore: "",
     contextAfter: "",
+  },
+];
+
+/** Recent projects returned by list_recent_projects */
+export const MOCK_RECENT_PROJECTS = [
+  {
+    name: "The Warmth of Distant Things",
+    path: "/home/user/projects/warmth-of-distant-things",
+    lastOpened: "2026-02-15T10:00:00Z",
+  },
+  {
+    name: "Midnight in Paris",
+    path: "/home/user/projects/midnight-in-paris",
+    lastOpened: "2026-02-14T08:30:00Z",
+  },
+  {
+    name: "Old Forgotten Novel",
+    path: "/home/user/projects/old-forgotten-novel",
+    lastOpened: "2026-01-01T00:00:00Z",
   },
 ];
 
@@ -518,10 +602,21 @@ export async function setupDefaultTauriMocks(
     })) as MockHandler,
     save_notes_config: null,
 
+    // --- Session commands ---
+    start_session: "2026-02-15T16:00:00Z",
+    end_session: null,
+    get_sessions: MOCK_SESSIONS,
+    get_session_stats: MOCK_SESSION_STATS,
+
     // --- Search commands ---
     search_project: MOCK_SEARCH_RESULTS,
     resolve_wiki_link: null,
     find_backlinks: [],
+
+    // --- Recent projects commands ---
+    list_recent_projects: [],
+    add_recent_project: [],
+    remove_recent_project: [],
 
     // --- FS plugin commands ---
     "plugin:fs|read_text_file": "{}",
