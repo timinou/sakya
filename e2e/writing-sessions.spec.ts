@@ -452,10 +452,10 @@ test.describe("Stats View", () => {
       .filter({ hasText: "Total Words" });
     await expect(wordsCard.locator(".stat-value")).toHaveText("12,650");
 
-    // Sessions count
+    // Sessions count — use the label text to find the card
     const sessionsCard = page
       .locator(".stat-card")
-      .filter({ hasText: /^Sessions/ });
+      .filter({ has: page.locator(".stat-label", { hasText: "Sessions" }) });
     await expect(sessionsCard.locator(".stat-value")).toHaveText("25");
 
     // Best Day — value and date
