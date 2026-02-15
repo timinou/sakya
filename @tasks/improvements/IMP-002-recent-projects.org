@@ -9,7 +9,8 @@
 :COMPLETION: Rust backend stores/retrieves recent projects in app data dir, launcher UI shows recent list, E2E tests cover all flows.
 :END:
 
-** TODO Add RecentProject model and Rust commands
+** DONE Add RecentProject model and Rust commands
+CLOSED: [2026-02-15 Sat]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-107-recent-projects-rust
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -29,14 +30,15 @@ Storage: =recent-projects.json= in Tauri app data dir (=~/.local/share/com.undef
 Helper functions accept =PathBuf= for testability (no =AppHandle= needed in unit tests).
 
 *** Acceptance Criteria
-- [ ] RecentProject model with name, path, lastOpened fields
-- [ ] list_recent_projects reads, validates, prunes stale entries
-- [ ] add_recent_project upserts and caps at 10
-- [ ] remove_recent_project removes by path
-- [ ] Edge cases: missing file, corrupt JSON, stale paths
-- [ ] Commands registered in lib.rs
+- [X] RecentProject model with name, path, lastOpened fields
+- [X] list_recent_projects reads, validates, prunes stale entries
+- [X] add_recent_project upserts and caps at 10
+- [X] remove_recent_project removes by path
+- [X] Edge cases: missing file, corrupt JSON, stale paths
+- [X] Commands registered in lib.rs
 
-** TODO Add frontend store and launcher UI
+** DONE Add frontend store and launcher UI
+CLOSED: [2026-02-15 Sat]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-108-recent-projects-ui
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -52,11 +54,11 @@ Update launcher =+page.svelte= to show recent projects list between header and a
 Hook into =open()= and =create()= to call =add_recent_project= after success.
 
 *** Acceptance Criteria
-- [ ] projectState has recentProjects array and load/remove methods
-- [ ] Launcher shows recent projects when list is non-empty
-- [ ] Each entry shows name, truncated path, click to open, X to remove
-- [ ] Opening/creating a project adds it to recent list
-- [ ] Empty state (no recent projects) shows just Create/Open buttons
+- [X] projectState has recentProjects array and load/remove methods
+- [X] Launcher shows recent projects when list is non-empty
+- [X] Each entry shows name, truncated path, click to open, X to remove
+- [X] Opening a project adds it to recent list (via fire-and-forget add_recent_project)
+- [X] Empty state (no recent projects) shows just Create/Open buttons
 
 ** DONE Write E2E tests for recent projects
 CLOSED: [2026-02-15 Sat]
