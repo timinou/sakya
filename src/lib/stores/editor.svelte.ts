@@ -15,7 +15,7 @@ class EditorState {
       this.activeTabId = existing.id;
       return;
     }
-    this.tabs.push(tab);
+    this.tabs = [...this.tabs, tab];
     this.activeTabId = tab.id;
   }
 

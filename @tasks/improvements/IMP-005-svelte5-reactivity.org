@@ -259,7 +259,8 @@ CLOSED: [2026-02-18 Tue]
 - [ ] Explicit field reads replaced with derived snapshots
 - [ ] svelte-check passes with 0 warnings
 
-** ITEM Extract shared entity icon/color utility
+** DONE Extract shared entity icon/color utility
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-201
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -278,7 +279,8 @@ Extract duplicated entity icon mapping (=character->Users=, =place->MapPin=, etc
 - [ ] No duplicated icon/color maps remain
 - [ ] E2E tests pass
 
-** ITEM Unify $state array mutation style + add reactivity JSDoc
+** DONE Unify $state array mutation style + add reactivity JSDoc
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-202
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

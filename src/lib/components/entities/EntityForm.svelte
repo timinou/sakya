@@ -29,6 +29,7 @@
   // in untrack() so this effect never re-runs because of its own writes.
   $effect(() => {
     const snap = entitySnapshot;
+    // Untrack: localEntity, lastSyncedSnapshot, and isDirty writes must not re-subscribe this sync effect
     untrack(() => {
       if (snap !== lastSyncedSnapshot) {
         localEntity = JSON.parse(snap);
@@ -48,6 +49,7 @@
     // Read localEntity here (outside untrack) so the effect tracks it.
     const snapshot = JSON.stringify(localEntity);
 
+    // Untrack: saveTimer scheduling and lastSyncedSnapshot/isDirty writes must not re-trigger the auto-save effect
     untrack(() => {
       if (snapshot === lastSyncedSnapshot) {
         isDirty = false;

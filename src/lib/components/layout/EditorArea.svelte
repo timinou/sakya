@@ -47,6 +47,7 @@
 
     // Load content if not cached
     if (!contentCache[tabId]) {
+      // Untrack: prevent contentCache writes during async load from re-triggering this effect
       untrack(() => loadContent(path, slug, tabId));
     }
   });
@@ -70,6 +71,7 @@
     });
 
     if (!contentCache[tabId]) {
+      // Untrack: prevent contentCache writes during async load from re-triggering this effect
       untrack(() => loadNoteContent(path, slug, tabId));
     }
   });
@@ -101,6 +103,7 @@
     const schemaType = parts[1];
     const slug = parts.slice(2).join(':');
 
+    // Untrack: prevent entityCache writes during async load from re-triggering this effect
     untrack(() => loadEntity(path, schemaType, slug, tab.id));
   });
 

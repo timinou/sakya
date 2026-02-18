@@ -177,6 +177,7 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && !hasRestored) {
+      // Untrack: hasRestored write inside the callback would create a circular dependency with this effect
       untrack(() => {
         uiState.restore(path).then(() => {
           hasRestored = true;

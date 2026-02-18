@@ -187,6 +187,7 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== loadedPath && !notesStore.isLoading) {
+      // Untrack: loadedPath and notes mutations from loadConfig must not re-trigger this effect
       untrack(() => {
         loadedPath = path;
         notesStore.loadConfig(path).catch((e) => {

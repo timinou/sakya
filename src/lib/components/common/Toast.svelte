@@ -13,7 +13,7 @@
 
     show(message: string, type: 'success' | 'error' | 'info' = 'info', duration: number = 3000): void {
       const id = nextId++;
-      this.toasts.push({ id, message, type, duration });
+      this.toasts = [...this.toasts, { id, message, type, duration }];
     }
 
     dismiss(id: number): void {

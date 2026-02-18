@@ -328,6 +328,7 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== loadedPath && !manuscriptStore.isLoading) {
+      // Untrack: loadedPath and chapters mutations from loadConfig must not re-trigger this effect
       untrack(() => {
         loadedPath = path;
         manuscriptStore.loadConfig(path).catch((e) => {
