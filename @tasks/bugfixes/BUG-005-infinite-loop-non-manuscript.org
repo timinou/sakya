@@ -35,6 +35,7 @@ Write Vitest unit tests that expose the infinite loop bugs before fixing them.
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
 :EFFORT: 2h
 :PRIORITY: #A
+:DEPENDS: ITEM-186
 :FILES: src/lib/stores/entities.svelte.ts
 :TEST_PLAN: test-svelte
 :END:

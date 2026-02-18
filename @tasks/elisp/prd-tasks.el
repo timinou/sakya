@@ -721,9 +721,8 @@ Returns list of cycles, each cycle is a list of ITEM IDs."
 
 (defun prd--validate-file-impl (file)
   "Validate FILE and return list of errors."
-  ;; Ensure item index is built for dependency validation
-  (unless prd--item-index
-    (prd--build-item-index))
+  ;; Always rebuild item index for fresh dependency validation
+  (prd--build-item-index)
   (with-temp-buffer
     (insert-file-contents file)
     (let ((buffer-file-name file))
@@ -746,8 +745,7 @@ FORMAT can be `plain' (default) or `json'."
    (list (read-file-name "Validate file: "
                          (prd--tasks-directory))
          'plain))
-  (unless prd--item-index
-    (prd--build-item-index))
+  (prd--build-item-index)
   (let ((errors (prd--validate-file-impl file))
         (format (or format 'plain)))
     (prd--display-validation-results errors format file)))
