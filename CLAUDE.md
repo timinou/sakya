@@ -21,6 +21,9 @@ Sakya is a writing application built with Tauri 2.x (Rust backend) and SvelteKit
 - Cite your research, and do more research if needed
 - Use tasks to encapsulate the work, as much as possible.
 
+
+- NEVER drop a stash. Do NOT use `git stash` in general. You must not encroach on any possibly running parallel agent
+
 ## Commands
 - `bun run tauri dev` -> development server
 - `bun run build` -> production build
