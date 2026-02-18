@@ -10,6 +10,8 @@ sakya-crdt = { path = "../sakya-crdt" }
 sakya-crypto = { path = "../sakya-crypto" }
 tokio = { workspace = true }
 tokio-tungstenite = "0.26"
+futures-util = "0.3"
+rand = "0.8"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -18,3 +20,8 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+sakya-sync-server = { path = "../sakya-sync-server", features = ["test-utils"] }
+sakya-auth = { path = "../sakya-auth" }
+tower-http = { version = "0.6", features = ["cors"] }
+axum = { version = "0.8", features = ["ws"] }
+reqwest = { version = "0.12", features = ["json"] }

@@ -805,7 +805,7 @@ SyncEngine manages per-project sync sessions. Public API: connect, enable_projec
 - [ ] Status reporting
 - [ ] ~6 unit tests passing
 
-*** ITEM Reconnection logic (exponential backoff)
+*** DONE Reconnection logic (exponential backoff)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-154
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -820,11 +820,11 @@ SyncEngine manages per-project sync sessions. Public API: connect, enable_projec
 Exponential backoff (1s, 2s, 4s, 8s, max 60s) with jitter (+/-25%). Reset on success. Report status changes.
 
 **** Acceptance Criteria
-- [ ] Exponential backoff with jitter
-- [ ] Max backoff cap (60s)
-- [ ] Reset on successful reconnection
+- [X] Exponential backoff with jitter
+- [X] Max backoff cap (60s)
+- [X] Reset on successful reconnection
 - [ ] Status change notifications
-- [ ] ~5 unit tests passing
+- [X] ~5 unit tests passing (12 unit + 1 doc-test)
 
 *** ITEM Sync flow (auth -> join -> encrypt/send -> decrypt/apply)
 :PROPERTIES:
