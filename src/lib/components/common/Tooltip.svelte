@@ -16,6 +16,16 @@
   let visible = $state(false);
   let showTimeout: ReturnType<typeof setTimeout> | undefined;
 
+  // Clean up show timeout on unmount
+  $effect(() => {
+    return () => {
+      if (showTimeout) {
+        clearTimeout(showTimeout);
+        showTimeout = undefined;
+      }
+    };
+  });
+
   function handleMouseEnter() {
     showTimeout = setTimeout(() => {
       visible = true;

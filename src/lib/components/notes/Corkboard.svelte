@@ -19,6 +19,13 @@
   // Debounce timer for position saves
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Clean up save timeout on unmount
+  $effect(() => {
+    return () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+    };
+  });
+
   function debouncedSave(): void {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {

@@ -73,6 +73,13 @@
     const _fm = config.frontMatter;
 
     schedulePreview();
+
+    return () => {
+      if (previewTimer) {
+        clearTimeout(previewTimer);
+        previewTimer = null;
+      }
+    };
   });
 
   function schedulePreview() {

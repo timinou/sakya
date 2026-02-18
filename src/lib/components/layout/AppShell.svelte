@@ -267,6 +267,21 @@
     }
   });
 
+  // Clean up peek timers on unmount
+  $effect(() => {
+    return () => {
+      if (peekBinderTimer) clearTimeout(peekBinderTimer);
+      if (peekInspectorTimer) clearTimeout(peekInspectorTimer);
+    };
+  });
+
+  // Clean up metadataSaveTimer on unmount
+  $effect(() => {
+    return () => {
+      if (metadataSaveTimer) clearTimeout(metadataSaveTimer);
+    };
+  });
+
   function handleKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
 

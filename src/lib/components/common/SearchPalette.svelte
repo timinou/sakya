@@ -39,7 +39,7 @@
   let selectedIndex = $state(0);
   let searchInputEl = $state<HTMLInputElement | null>(null);
   let resultsContainerEl = $state<HTMLDivElement | null>(null);
-  let debounceTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -218,6 +218,13 @@
       }
     });
   }
+
+  // Clean up debounce timer on unmount
+  $effect(() => {
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  });
 
   // Focus the input when modal opens
   $effect(() => {

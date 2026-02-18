@@ -16,7 +16,7 @@
 
   let localEntity = $state<EntityInstance>(undefined as unknown as EntityInstance);
   let isDirty = $state(false);
-  let saveTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSyncedSnapshot = $state('');
 
   let tagsInput = $derived(localEntity?.tags?.join(', ') ?? '');
