@@ -7,6 +7,7 @@
     Eye, Key, Map, Music, Palette, Puzzle, Target, TreePine, Mountain,
     EllipsisVertical,
   } from 'lucide-svelte';
+  import { untrack } from 'svelte';
   import { entityStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -384,10 +385,10 @@
     };
   });
 
-  // Auto-load schemas on mount if not loaded
+  // Auto-load schemas on mount if not loaded (path-based guard, Bug 1 fix)
   $effect(() => {
     const path = projectState.projectPath;
-    if (path && !entityStore.schemasLoaded && !entityStore.isLoading) {
+    if (path && path !== entityStore.schemasLoadedPath && !entityStore.isLoadingSchemas) {
       entityStore.loadSchemas(path).catch((e) => {
         console.error('Failed to load entity schemas:', e);
       });
@@ -403,17 +404,20 @@
     }
   });
 
-  // Load entities when schemas are available
+  // Load entities when schemas are available (untrack to prevent reactive cascade, Bug 2 fix)
   $effect(() => {
     const schemas = entityStore.schemaSummaries;
     const path = projectState.projectPath;
     if (!path || schemas.length === 0) return;
 
-    for (const schema of schemas) {
-      if (!entityStore.entitiesByType[schema.entityType]) {
-        entityStore.loadEntities(path, schema.entityType);
+    // Capture the schema types reactively, then load in untrack to avoid
+    // re-triggering when entitiesByType changes during concurrent loads
+    const types = schemas.map((s) => s.entityType);
+    untrack(() => {
+      for (const type of types) {
+        entityStore.loadEntities(path, type);
       }
-    }
+    });
   });
 </script>
 

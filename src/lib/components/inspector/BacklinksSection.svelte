@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { Users, MapPin, Package, Lightbulb, File, Link } from 'lucide-svelte';
   import type { ComponentType } from 'svelte';
@@ -88,9 +89,11 @@
     onNavigate?.(result.slug, result.fileType, result.entityType);
   }
 
-  // Fetch backlinks when title or projectPath changes
+  // Fetch backlinks when title or projectPath changes (Bug 5 fix: untrack async call)
   $effect(() => {
-    fetchBacklinks(title, projectPath);
+    const t = title;
+    const p = projectPath;
+    untrack(() => fetchBacklinks(t, p));
   });
 </script>
 
