@@ -926,7 +926,7 @@ E2E test: start in-process server, two SyncEngines connect, Client A creates cha
 - [ ] Cursor position preserved during remote updates
 - [ ] Markdown fallback still works when sync disabled
 
-*** ITEM LoroSyncPlugin.svelte -- Lexical -> Loro
+*** DONE LoroSyncPlugin.svelte -- Lexical -> Loro
 :PROPERTIES:
 :CUSTOM_ID: ITEM-159
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -947,7 +947,7 @@ Svelte 5 Lexical plugin that intercepts editor changes and translates to Loro op
 - [ ] WikiLinkNode support
 - [ ] ~8 unit tests passing
 
-*** ITEM Loro -> Lexical change application
+*** DONE Loro -> Lexical change application
 :PROPERTIES:
 :CUSTOM_ID: ITEM-160
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]
@@ -967,7 +967,7 @@ Subscribe to LoroDoc change events. On remote change, compute delta and apply to
 - [ ] Lexical state update via editor.update()
 - [ ] ~6 unit tests passing
 
-*** ITEM Cursor position preservation during remote updates
+*** DONE Cursor position preservation during remote updates
 :PROPERTIES:
 :CUSTOM_ID: ITEM-161
 :AGENT: [[file:../agents/lexical-specialist.org::#core][lexical-specialist:core]]

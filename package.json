@@ -33,6 +33,7 @@
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-opener": "^2",
     "lexical": "^0.40.0",
+    "loro-crdt": "^1.10.6",
     "lucide-svelte": "^0.564.0",
     "svelte-lexical": "^0.6.4",
     "yaml": "^2.8.2"
