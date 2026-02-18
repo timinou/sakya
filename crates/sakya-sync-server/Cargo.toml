@@ -31,6 +31,7 @@ tempfile = { version = "3", optional = true }
 test-utils = ["dep:tempfile"]
 
 [dev-dependencies]
+sakya-sync-server = { path = ".", features = ["test-utils"] }
 tempfile = "3"
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
