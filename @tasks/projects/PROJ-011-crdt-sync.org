@@ -1139,7 +1139,7 @@ Store Ed25519 keypair, DocumentKeys, account credentials in platform keychain vi
 - [ ] Keys never stored in plain text
 - [ ] ~4 unit tests passing
 
-*** ITEM Tauri commands for pairing flow
+*** DONE Tauri commands for pairing flow
 :PROPERTIES:
 :CUSTOM_ID: ITEM-169
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

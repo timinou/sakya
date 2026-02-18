@@ -20,6 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(commands::sync::SyncState::default())
+        .manage(commands::pairing::PairingState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::project::create_project,
@@ -67,6 +68,10 @@ pub fn run() {
             commands::sync::sync_enable_project,
             commands::sync::sync_disable_project,
             commands::sync::sync_send_update,
+            commands::pairing::generate_pairing_code,
+            commands::pairing::complete_pairing,
+            commands::pairing::list_paired_devices,
+            commands::pairing::remove_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
