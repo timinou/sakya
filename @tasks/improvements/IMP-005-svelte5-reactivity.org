@@ -1,0 +1,303 @@
+#+TITLE: IMP-005 Svelte 5 Reactivity Excellence
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-005 Svelte 5 Reactivity Excellence
+:PROPERTIES:
+:CUSTOM_ID: IMP-005
+:GOAL: Make Sakya's reactivity layer a reference-quality implementation of Svelte 5 best practices — zero race conditions, zero timer leaks, zero untracked async effects.
+:COMPLETION: All async store methods guard against stale responses; all timers cleaned up on unmount; all async effect calls use untrack(); E2E + Vitest pass; svelte-check clean.
+:END:
+
+** ITEM Create StaleGuard utility and apply to project.svelte.ts
+:PROPERTIES:
+:CUSTOM_ID: ITEM-191
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/stale-guard.ts, src/lib/stores/project.svelte.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Create a reusable =StaleGuard= class that stores implement. Pattern: capture path before await, compare after await, skip write if stale. Apply to =projectState.open()= (HIGH risk). Add Vitest unit tests for the guard utility itself.
+
+*** Acceptance Criteria
+- [ ] StaleGuard utility created with version-based staleness detection
+- [ ] Unit tests written and passing for StaleGuard (TDD: RED then GREEN)
+- [ ] project.svelte.ts open() uses stale guard to prevent stale writes
+- [ ] project.svelte.ts create() uses stale guard to prevent stale writes
+
+** ITEM Apply race guards to manuscript.svelte.ts and notes.svelte.ts
+:PROPERTIES:
+:CUSTOM_ID: ITEM-192
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-191
+:FILES: src/lib/stores/manuscript.svelte.ts, src/lib/stores/notes.svelte.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Apply =StaleGuard= pattern to all async methods across manuscript and notes stores. HIGH-risk methods: =loadConfig()=, =loadChapterContent()=, =loadNoteContent()=. Also clear content caches on stale detection.
+
+*** Acceptance Criteria
+- [ ] All async methods in manuscript.svelte.ts guard against stale responses
+- [ ] All async methods in notes.svelte.ts guard against stale responses
+- [ ] Content caches cleared on stale detection
+
+** ITEM Apply race guards to entities.svelte.ts, sessions.svelte.ts, ui.svelte.ts
+:PROPERTIES:
+:CUSTOM_ID: ITEM-193
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-191
+:FILES: src/lib/stores/entities.svelte.ts, src/lib/stores/sessions.svelte.ts, src/lib/stores/ui.svelte.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Apply =StaleGuard= pattern to all async methods. HIGH-risk: =loadSchemas()=, =reloadEntities()=, =getEntity()=, =ui.restore()=. Clarify that =schemasLoadedPath= is a load-deduplication tracker, NOT a stale guard.
+
+*** Acceptance Criteria
+- [ ] All async methods in entities.svelte.ts guard against stale responses
+- [ ] sessions.svelte.ts loadSessions() guards against stale responses
+- [ ] ui.svelte.ts restore() guards against stale responses
+- [ ] schemasLoadedPath role documented with comment
+
+** ITEM Add project-switch orchestration layer
+:PROPERTIES:
+:CUSTOM_ID: ITEM-194
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-191
+:FILES: src/lib/stores/project.svelte.ts, src/routes/+page.svelte
+:TEST_PLAN: test-svelte, e2e
+:END:
+
+*** Description
+Before =projectState.open(newPath)=, call =reset()= on all subordinate stores (manuscript, notes, entities, sessions, ui, editor). Ensure =reset()= methods exist and clear all cached data + loading flags.
+
+*** Acceptance Criteria
+- [ ] projectState.open() calls reset on all subordinate stores before loading
+- [ ] All stores have reset() methods that clear cached data
+- [ ] editor.svelte.ts has reset() alias or uses existing closeAll()
+
+** CHECKPOINT Race Condition Guards Complete
+:PROPERTIES:
+:CUSTOM_ID: CHK-005-01
+:CRITERIA: All async store methods guard against stale responses; project switch resets all stores; E2E tests pass for rapid switching.
+:VERIFY: bun vitest run && bun run test:e2e
+:REVIEW_BY: svelte-developer, testing-engineer
+:END:
+
+*** Gate Conditions
+- [ ] All async store methods have stale guards
+- [ ] Project switch resets all stores before loading new data
+- [ ] E2E tests pass for rapid project switching
+- [ ] No regressions in existing E2E tests
+
+** ITEM E2E tests for rapid project switching
+:PROPERTIES:
+:CUSTOM_ID: ITEM-195
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-192, ITEM-193, ITEM-194
+:FILES: e2e/project-switch.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Tests that open Project A, immediately open Project B, and verify only B's data is displayed. Test: chapters, notes, entities, UI state. Test the orchestration reset (no stale data visible). Mock two distinct projects with different data shapes.
+
+*** Acceptance Criteria
+- [ ] E2E test for rapid project switching: A -> B shows only B's data
+- [ ] E2E test for store reset: no chapters/notes/entities from A visible after switch
+- [ ] Tests pass consistently (no flake from timing)
+
+** ITEM Fix timer cleanup in AppShell.svelte
+:PROPERTIES:
+:CUSTOM_ID: ITEM-196
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/layout/AppShell.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+1. =metadataSaveTimer=: Add =$effect= cleanup that clears on unmount
+2. =peekBinderTimer= / =peekInspectorTimer=: Add standalone =$effect(() => () => { clearTimeout(...) })=
+3. Verify =persistTimer= cleanup (already correct)
+
+*** Acceptance Criteria
+- [ ] metadataSaveTimer cleaned up on component unmount
+- [ ] peekBinderTimer and peekInspectorTimer cleaned up on unmount
+- [ ] All existing distraction-free E2E tests still pass
+
+** ITEM Fix timer cleanup in CompileDialog, SearchPalette, Corkboard, Tooltip
+:PROPERTIES:
+:CUSTOM_ID: ITEM-197
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-196
+:FILES: src/lib/components/compile/CompileDialog.svelte, src/lib/components/common/SearchPalette.svelte, src/lib/components/notes/Corkboard.svelte, src/lib/components/common/Tooltip.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+1. CompileDialog: Both =$effect= blocks that set =previewTimer= must return cleanup
+2. SearchPalette: Add =$effect= cleanup for =debounceTimer=; change from =$state= to plain =let=
+3. Corkboard: Add =$effect= cleanup for =saveTimeout=
+4. Tooltip: Add =$effect= cleanup for =showTimeout=
+5. EntityForm: Change =saveTimer= from =$state= to plain =let= (cleanup already correct)
+
+*** Acceptance Criteria
+- [ ] All timer IDs that are not directly reactive have plain let (not $state)
+- [ ] All components return cleanup from $effect for timers
+- [ ] Existing E2E tests pass
+
+** CHECKPOINT Timer Cleanup Complete
+:PROPERTIES:
+:CUSTOM_ID: CHK-005-02
+:CRITERIA: All timers cleaned up on component unmount; no timer IDs stored as $state.
+:VERIFY: bun run test:e2e
+:REVIEW_BY: svelte-developer
+:END:
+
+*** Gate Conditions
+- [ ] All timers cleaned up on unmount
+- [ ] No timer IDs stored as $state
+- [ ] E2E tests pass
+
+** ITEM Add missing untrack() calls across components
+:PROPERTIES:
+:CUSTOM_ID: ITEM-198
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/layout/EditorArea.svelte, src/lib/components/layout/AppShell.svelte, src/lib/components/binder/BinderTree.svelte, src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/NotesSection.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+1. EditorArea: Wrap =loadContent()=, =loadNoteContent()=, =loadEntity()= in =untrack()=
+2. AppShell: Wrap =uiState.restore(path).then(...)= in =untrack()=
+3. BinderTree: Wrap =entityStore.loadSchemas()= in =untrack()=; wrap entitySectionsOpen init writes in =untrack()=
+4. ManuscriptSection/NotesSection: Wrap =loadConfig()= calls in =untrack()=
+
+*** Acceptance Criteria
+- [ ] All async calls in $effects wrapped in untrack()
+- [ ] All state writes in $effects that are side-effects wrapped in untrack()
+- [ ] Existing E2E tests pass
+
+** ITEM Refactor EntityForm dual-effect coupling
+:PROPERTIES:
+:CUSTOM_ID: ITEM-199
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/entities/EntityForm.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Consolidate the two coupled effects (sync from prop + auto-save) that share =isDirty=/=lastSyncedSnapshot=. Either merge into one effect with clear branching, or use =untrack()= around all writes to shared state. Ensure the save timer cleanup remains correct.
+
+*** Acceptance Criteria
+- [ ] EntityForm effects are decoupled or merged cleanly
+- [ ] No untracked writes to shared state between effects
+- [ ] Entity CRUD E2E tests pass
+
+** ITEM Convert explicit field reads to $derived snapshots
+:PROPERTIES:
+:CUSTOM_ID: ITEM-200
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/components/compile/CompileDialog.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+1. AppShell persist effect: Replace 9 explicit reactive reads with a single =$derived= snapshot
+2. CompileDialog config watcher: Replace explicit config field reads with =$derived(JSON.stringify(config))=
+3. Remove redundant sprint panel =$effect= (template already guards)
+
+*** Acceptance Criteria
+- [ ] AppShell persist effect uses $derived snapshot
+- [ ] CompileDialog uses $derived snapshot for config watching
+- [ ] Redundant sprint panel effect removed
+- [ ] E2E tests pass
+
+** CHECKPOINT Effect Patterns Refined
+:PROPERTIES:
+:CUSTOM_ID: CHK-005-03
+:CRITERIA: All async effect calls use untrack(), no coupled dual-effect patterns, explicit field reads replaced with derived snapshots.
+:VERIFY: bun run test:e2e && bunx svelte-check
+:REVIEW_BY: svelte-developer
+:END:
+
+*** Gate Conditions
+- [ ] All async effect calls use untrack()
+- [ ] No coupled dual-effect patterns
+- [ ] Explicit field reads replaced with derived snapshots
+- [ ] svelte-check passes with 0 warnings
+
+** ITEM Extract shared entity icon/color utility
+:PROPERTIES:
+:CUSTOM_ID: ITEM-201
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #C
+:FILES: src/lib/utils/entity-display.ts, src/lib/components/binder/BinderTree.svelte, src/lib/components/inspector/BacklinksSection.svelte, src/lib/components/common/SearchPalette.svelte, src/lib/editor/plugins/WikiLinkPlugin.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Extract duplicated entity icon mapping (=character->Users=, =place->MapPin=, etc.) and color mapping into a single utility module. Update all 4+ consumer components to import from it.
+
+*** Acceptance Criteria
+- [ ] entity-display.ts utility module created
+- [ ] All consumer components import from utility
+- [ ] No duplicated icon/color maps remain
+- [ ] E2E tests pass
+
+** ITEM Unify $state array mutation style + add reactivity JSDoc
+:PROPERTIES:
+:CUSTOM_ID: ITEM-202
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #C
+:FILES: src/lib/components/common/Toast.svelte, src/lib/stores/editor.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+1. Unify =.push()= vs =.filter()= inconsistency — use immutable style consistently
+2. Add brief JSDoc comments to every =untrack()= call explaining WHY
+3. Add a =// STALE GUARD= comment pattern to race-guarded methods for searchability
+
+*** Acceptance Criteria
+- [ ] Consistent immutable array mutation style
+- [ ] All untrack() calls have JSDoc explaining purpose
+- [ ] All stale-guarded methods have // STALE GUARD comment
+
+** CHECKPOINT Code Quality Complete
+:PROPERTIES:
+:CUSTOM_ID: CHK-005-04
+:CRITERIA: No duplicated icon/color maps, consistent array mutation style, all untrack() calls documented.
+:VERIFY: bun run test:e2e && bunx svelte-check && cargo clippy
+:REVIEW_BY: svelte-developer
+:END:
+
+*** Gate Conditions
+- [ ] No duplicated icon/color maps
+- [ ] Consistent array mutation style
+- [ ] All untrack() calls documented
+- [ ] svelte-check passes
