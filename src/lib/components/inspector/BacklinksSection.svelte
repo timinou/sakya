@@ -1,8 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { Users, MapPin, Package, Lightbulb, File, Link } from 'lucide-svelte';
+  import { Link } from 'lucide-svelte';
   import type { ComponentType } from 'svelte';
+  import { getEntityIcon, getEntityColor } from '$lib/utils/entity-display';
 
   interface BacklinkResult {
     title: string;
@@ -28,31 +29,13 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
 
-  const entityIcons: Record<string, IconComponent> = {
-    character: Users,
-    place: MapPin,
-    item: Package,
-    idea: Lightbulb,
-  };
-
-  const entityColors: Record<string, string> = {
-    character: '#7c4dbd',
-    place: '#2e8b57',
-    item: '#c28a1e',
-    idea: '#3a7bd5',
-  };
-
   function getIcon(result: BacklinkResult): IconComponent {
-    if (result.entityType && entityIcons[result.entityType]) {
-      return entityIcons[result.entityType];
-    }
-    return File;
+    if (result.entityType) return getEntityIcon(result.entityType);
+    return getEntityIcon('');
   }
 
   function getColor(result: BacklinkResult): string | undefined {
-    if (result.entityType && entityColors[result.entityType]) {
-      return entityColors[result.entityType];
-    }
+    if (result.entityType) return getEntityColor(result.entityType);
     return undefined;
   }
 

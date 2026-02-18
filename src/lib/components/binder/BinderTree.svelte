@@ -9,6 +9,7 @@
   } from 'lucide-svelte';
   import { untrack } from 'svelte';
   import { entityStore, editorState, projectState } from '$lib/stores';
+  import { ENTITY_ICONS, ENTITY_COLORS } from '$lib/utils/entity-display';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
   import ManuscriptSection from './ManuscriptSection.svelte';
@@ -59,22 +60,6 @@
   let renameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
-  // Icon mapping for known entity types (hardcoded fallbacks)
-  const entityIcons: Record<string, IconComponent> = {
-    character: Users,
-    place: MapPin,
-    item: Package,
-    idea: Lightbulb,
-  };
-
-  // Color mapping for known entity types (hardcoded fallbacks)
-  const entityColors: Record<string, string> = {
-    character: '#7c4dbd',
-    place: '#2e8b57',
-    item: '#c28a1e',
-    idea: '#3a7bd5',
-  };
-
   // Map schema icon strings to Lucide components
   const iconStringMap: Record<string, IconComponent> = {
     users: Users,
@@ -122,16 +107,16 @@
       const mapped = iconStringMap[cached.icon];
       if (mapped) return mapped;
     }
-    // Fall back to hardcoded map
-    return entityIcons[entityType] ?? File;
+    // Fall back to shared entity-display map
+    return ENTITY_ICONS[entityType] ?? File;
   }
 
   function getColorForType(entityType: string): string | undefined {
     // Check schema cache for dynamic color
     const cached = entityStore.schemaCache[entityType];
     if (cached?.color) return cached.color;
-    // Fall back to hardcoded map
-    return entityColors[entityType];
+    // Fall back to shared entity-display map
+    return ENTITY_COLORS[entityType];
   }
 
   function getSectionTitle(schema: { name: string; entityType: string }): string {
@@ -389,6 +374,7 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== entityStore.schemasLoadedPath && !entityStore.isLoadingSchemas) {
+      // Untrack: schemasLoadedPath and schemaSummaries mutations during load must not re-trigger this effect
       untrack(() => {
         entityStore.loadSchemas(path).catch((e) => {
           console.error('Failed to load entity schemas:', e);
@@ -400,6 +386,7 @@
   // Initialize section open states for new schemas
   $effect(() => {
     const schemas = entityStore.schemaSummaries;
+    // Untrack: entitySectionsOpen writes must not re-subscribe this effect to entitySectionsOpen mutations
     untrack(() => {
       for (const schema of schemas) {
         if (entitySectionsOpen[schema.entityType] === undefined) {
@@ -418,6 +405,7 @@
     // Capture the schema types reactively, then load in untrack to avoid
     // re-triggering when entitiesByType changes during concurrent loads
     const types = schemas.map((s) => s.entityType);
+    // Untrack: entitiesByType mutations during concurrent loads must not cascade back into this effect
     untrack(() => {
       for (const type of types) {
         entityStore.loadEntities(path, type);

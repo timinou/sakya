@@ -14,9 +14,9 @@
 	} from 'lexical';
 	import { $isWikiLinkNode as isWikiLinkNode, $createWikiLinkNode as createWikiLinkNode } from '../nodes/WikiLinkNode';
 	import { entityStore } from '$lib/stores';
-	import { Users, MapPin, Package, Lightbulb, File } from 'lucide-svelte';
 	import type { ComponentType } from 'svelte';
 	import type { EntitySummary } from '$lib/types';
+	import { getEntityIcon, getEntityColor } from '$lib/utils/entity-display';
 
 	interface Props {
 		onNavigate?: (target: string) => void;
@@ -37,20 +37,6 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type IconComponent = ComponentType<any>;
 
-	const entityIcons: Record<string, IconComponent> = {
-		character: Users,
-		place: MapPin,
-		item: Package,
-		idea: Lightbulb,
-	};
-
-	const entityColors: Record<string, string> = {
-		character: '#7c4dbd',
-		place: '#2e8b57',
-		item: '#c28a1e',
-		idea: '#3a7bd5',
-	};
-
 	// Collect all entities from all types and filter by query
 	let allEntities = $derived<EntitySummary[]>(
 		Object.values(entityStore.entitiesByType).flat()
@@ -66,11 +52,11 @@
 	});
 
 	function getIconForType(entityType: string): IconComponent {
-		return entityIcons[entityType] ?? File;
+		return getEntityIcon(entityType);
 	}
 
 	function getColorForType(entityType: string): string | undefined {
-		return entityColors[entityType];
+		return getEntityColor(entityType);
 	}
 
 	function closeAutocomplete() {

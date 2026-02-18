@@ -5,14 +5,11 @@
     Search,
     BookOpen,
     StickyNote,
-    Users,
-    MapPin,
-    Package,
-    Lightbulb,
     File,
     Loader2,
   } from 'lucide-svelte';
   import { projectState } from '$lib/stores';
+  import { getEntityIcon, getEntityColor } from '$lib/utils/entity-display';
 
   interface SearchResult {
     title: string;
@@ -44,34 +41,18 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
 
-  // Entity type icon mapping
-  const entityIcons: Record<string, IconComponent> = {
-    character: Users,
-    place: MapPin,
-    item: Package,
-    idea: Lightbulb,
-  };
-
-  // Entity type color mapping
-  const entityColors: Record<string, string> = {
-    character: 'var(--color-entity-character)',
-    place: 'var(--color-entity-place)',
-    item: 'var(--color-entity-item)',
-    idea: 'var(--color-entity-idea)',
-  };
-
   function getIconForResult(result: SearchResult): IconComponent {
     if (result.fileType === 'chapter') return BookOpen;
     if (result.fileType === 'note') return StickyNote;
     if (result.fileType === 'entity' && result.entityType) {
-      return entityIcons[result.entityType] ?? File;
+      return getEntityIcon(result.entityType);
     }
     return File;
   }
 
   function getColorForResult(result: SearchResult): string | undefined {
     if (result.fileType === 'entity' && result.entityType) {
-      return entityColors[result.entityType];
+      return getEntityColor(result.entityType);
     }
     return undefined;
   }
