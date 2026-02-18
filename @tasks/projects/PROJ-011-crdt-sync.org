@@ -986,7 +986,7 @@ Use Loro's cursor API to store cursor as CRDT-aware position that survives remot
 - [ ] Remote changes don't disrupt local cursor
 - [ ] ~4 unit tests passing
 
-*** ITEM Editor integration (loroDoc prop, fallback modes)
+*** DONE Editor integration (loroDoc prop, fallback modes)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-162
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

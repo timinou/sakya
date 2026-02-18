@@ -22,6 +22,8 @@
   import WikiLinkPlugin from './plugins/WikiLinkPlugin.svelte';
   import TypewriterPlugin from './plugins/TypewriterPlugin.svelte';
   import FocusPlugin from './plugins/FocusPlugin.svelte';
+  import LoroSyncPlugin from './plugins/LoroSyncPlugin.svelte';
+  import type { LoroDoc } from 'loro-crdt';
   import '$lib/editor/editor.css';
 
   interface Props {
@@ -34,9 +36,24 @@
     }) => void;
     onNavigateWikiLink?: (target: string) => void;
     readonly?: boolean;
+    /** Loro CRDT document for real-time sync. When provided, LoroSyncPlugin is used instead of AutoSavePlugin. */
+    loroDoc?: LoroDoc;
+    /** Container ID within the Loro doc (e.g., chapter slug). Required when loroDoc is set. */
+    containerId?: string;
+    /** Callback with binary CRDT updates for sync transport. */
+    onLocalUpdate?: (update: Uint8Array) => void;
   }
 
-  let { content = '', onSave, onCountChange, onNavigateWikiLink, readonly = false }: Props = $props();
+  let {
+    content = '',
+    onSave,
+    onCountChange,
+    onNavigateWikiLink,
+    readonly = false,
+    loroDoc,
+    containerId,
+    onLocalUpdate,
+  }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   const initialConfig = {
@@ -80,7 +97,9 @@
     {#if !readonly}
       <WikiLinkPlugin onNavigate={onNavigateWikiLink} />
     {/if}
-    {#if !readonly && onSave}
+    {#if !readonly && loroDoc && containerId}
+      <LoroSyncPlugin {loroDoc} {containerId} {onLocalUpdate} />
+    {:else if !readonly && onSave}
       <AutoSavePlugin {onSave} />
     {/if}
     {#if onCountChange}
