@@ -23,6 +23,9 @@ pub enum AppError {
 
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("Sync error: {0}")]
+    Sync(String),
 }
 
 // Serialize AppError for Tauri IPC (Tauri requires this)

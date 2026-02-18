@@ -30,7 +30,9 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 slug = "0.1"
 pulldown-cmark = "0.12"
+tokio = { workspace = true }
+sakya-sync-client = { path = "../crates/sakya-sync-client" }
+uuid = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
 tempfile = "3"

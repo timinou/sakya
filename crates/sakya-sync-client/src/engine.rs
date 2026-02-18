@@ -31,14 +31,9 @@ pub enum EngineCommand {
     /// Send a raw SyncMessage over the WebSocket.
     SendMessage(SyncMessage),
     /// Enable sync for a project — join room + set up encryption.
-    EnableProject {
-        project_id: Uuid,
-        doc_key: [u8; 32],
-    },
+    EnableProject { project_id: Uuid, doc_key: [u8; 32] },
     /// Disable sync for a project — leave room.
-    DisableProject {
-        project_id: Uuid,
-    },
+    DisableProject { project_id: Uuid },
     /// Graceful shutdown.
     Shutdown,
 }
@@ -56,10 +51,7 @@ pub enum SyncEvent {
     /// A project room was joined successfully.
     ProjectJoined { project_id: Uuid },
     /// Error related to a specific project.
-    ProjectError {
-        project_id: Uuid,
-        message: String,
-    },
+    ProjectError { project_id: Uuid, message: String },
 }
 
 /// Per-project sync session state.
@@ -225,12 +217,7 @@ async fn engine_loop(
             Err(e) => {
                 tracing::warn!("WebSocket connection failed: {e}");
                 let attempt = reconnect.attempt_count();
-                set_status(
-                    &status,
-                    &event_tx,
-                    SyncStatus::Reconnecting { attempt },
-                )
-                .await;
+                set_status(&status, &event_tx, SyncStatus::Reconnecting { attempt }).await;
                 let delay = reconnect.next_delay();
 
                 // Wait for reconnect delay, but check for shutdown commands
@@ -274,11 +261,8 @@ async fn engine_loop(
         }
 
         // Wait for AuthOk
-        let auth_response = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            ws_read.next(),
-        )
-        .await;
+        let auth_response =
+            tokio::time::timeout(std::time::Duration::from_secs(10), ws_read.next()).await;
 
         match auth_response {
             Ok(Some(Ok(WsMessage::Text(text)))) => {
@@ -311,11 +295,13 @@ async fn engine_loop(
             if let Ok(json) = join_msg.to_json() {
                 let _ = ws_write.send(WsMessage::Text(json.into())).await;
             }
-            sessions.entry(project_id).or_insert_with(|| ProjectSession {
-                project_id,
-                encryptor: sakya_crypto::XChaCha20Encryptor::new(doc_key),
-                local_sequence: 0,
-            });
+            sessions
+                .entry(project_id)
+                .or_insert_with(|| ProjectSession {
+                    project_id,
+                    encryptor: sakya_crypto::XChaCha20Encryptor::new(doc_key),
+                    local_sequence: 0,
+                });
         }
 
         // Main message loop
@@ -403,12 +389,7 @@ async fn engine_loop(
 
         // Connection lost — loop back to reconnect
         let attempt = reconnect.attempt_count();
-        set_status(
-            &status,
-            &event_tx,
-            SyncStatus::Reconnecting { attempt },
-        )
-        .await;
+        set_status(&status, &event_tx, SyncStatus::Reconnecting { attempt }).await;
         let delay = reconnect.next_delay();
 
         tokio::select! {
@@ -455,10 +436,7 @@ async fn handle_incoming_message(
             if let Some(session) = sessions.get(&project_id) {
                 // Convert protocol envelope to crypto envelope
                 let crypto_envelope = sakya_crypto::EncryptedEnvelope {
-                    nonce: envelope
-                        .nonce
-                        .try_into()
-                        .unwrap_or([0u8; 24]),
+                    nonce: envelope.nonce.try_into().unwrap_or([0u8; 24]),
                     ciphertext: envelope.ciphertext,
                     aad: envelope.aad,
                 };
@@ -488,10 +466,7 @@ async fn handle_incoming_message(
                 if let Some(snapshot_msg) = latest_snapshot {
                     if let SyncMessage::EncryptedSnapshot { envelope, .. } = *snapshot_msg {
                         let crypto_envelope = sakya_crypto::EncryptedEnvelope {
-                            nonce: envelope
-                                .nonce
-                                .try_into()
-                                .unwrap_or([0u8; 24]),
+                            nonce: envelope.nonce.try_into().unwrap_or([0u8; 24]),
                             ciphertext: envelope.ciphertext,
                             aad: envelope.aad,
                         };
@@ -507,10 +482,7 @@ async fn handle_incoming_message(
                 for update in updates {
                     if let SyncMessage::EncryptedUpdate { envelope, .. } = update {
                         let crypto_envelope = sakya_crypto::EncryptedEnvelope {
-                            nonce: envelope
-                                .nonce
-                                .try_into()
-                                .unwrap_or([0u8; 24]),
+                            nonce: envelope.nonce.try_into().unwrap_or([0u8; 24]),
                             ciphertext: envelope.ciphertext,
                             aad: envelope.aad,
                         };

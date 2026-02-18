@@ -18,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(commands::sync::SyncState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::project::create_project,
@@ -59,6 +60,12 @@ pub fn run() {
             commands::sessions::get_sessions,
             commands::sessions::get_session_stats,
             commands::compile::compile_manuscript,
+            commands::sync::sync_connect,
+            commands::sync::sync_disconnect,
+            commands::sync::sync_status,
+            commands::sync::sync_enable_project,
+            commands::sync::sync_disable_project,
+            commands::sync::sync_send_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

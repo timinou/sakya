@@ -826,7 +826,7 @@ Exponential backoff (1s, 2s, 4s, 8s, max 60s) with jitter (+/-25%). Reset on suc
 - [ ] Status change notifications
 - [X] ~5 unit tests passing (12 unit + 1 doc-test)
 
-*** ITEM Sync flow (auth -> join -> encrypt/send -> decrypt/apply)
+*** DONE Sync flow (auth -> join -> encrypt/send -> decrypt/apply)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-155
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -841,12 +841,12 @@ Exponential backoff (1s, 2s, 4s, 8s, max 60s) with jitter (+/-25%). Reset on suc
 Full sync flow: connect -> Auth -> JoinRoom -> SyncRequest -> receive missing updates -> decrypt -> apply to CrdtProject -> export to files. On local change: encrypt -> send EncryptedUpdate.
 
 **** Acceptance Criteria
-- [ ] Auth + JoinRoom sequence
-- [ ] SyncRequest/SyncResponse handling
-- [ ] Encrypt outgoing updates
-- [ ] Decrypt and apply incoming updates
-- [ ] Export to files after remote changes
-- [ ] ~8 unit tests passing
+- [X] Auth + JoinRoom sequence
+- [X] SyncRequest/SyncResponse handling
+- [X] Encrypt outgoing updates
+- [X] Decrypt and apply incoming updates
+- [X] Export to files after remote changes
+- [X] ~8 unit tests passing (10 tests)
 
 *** DONE Offline queue (persist pending updates to disk)
 :PROPERTIES:
@@ -868,7 +868,7 @@ Queue encrypted updates locally when offline. Drain on reconnection. Handle larg
 - [X] Snapshot fallback for large queues
 - [X] ~5 unit tests passing (9 tests)
 
-*** ITEM Tauri commands for sync operations
+*** DONE Tauri commands for sync operations
 :PROPERTIES:
 :CUSTOM_ID: ITEM-157
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -883,10 +883,10 @@ Queue encrypted updates locally when offline. Drain on reconnection. Handle larg
 Tauri IPC commands: sync_connect, sync_disconnect, sync_status, sync_enable_project, sync_disable_project. Wire to SyncEngine.
 
 **** Acceptance Criteria
-- [ ] All sync commands registered in lib.rs
-- [ ] Wire to SyncEngine methods
-- [ ] Proper error handling
-- [ ] ~4 unit tests passing
+- [X] All sync commands registered in lib.rs (6 commands)
+- [X] Wire to SyncEngine methods
+- [X] Proper error handling (AppError::Sync variant)
+- [X] ~4 unit tests passing (4 tests)
 
 *** ITEM E2E test -- two instances syncing through server
 :PROPERTIES:

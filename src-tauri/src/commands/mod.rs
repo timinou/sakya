@@ -5,3 +5,4 @@ pub mod notes;
 pub mod project;
 pub mod search;
 pub mod sessions;
+pub mod sync;
