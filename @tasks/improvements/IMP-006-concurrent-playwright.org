@@ -1,0 +1,37 @@
+#+TITLE: IMP-006 Safe N-Process Concurrent Playwright Execution
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-006 Safe N-Process Concurrent Playwright Execution
+:PROPERTIES:
+:CUSTOM_ID: IMP-006
+:GOAL: Allow multiple concurrent `bunx playwright test` processes without port conflicts or server teardown races.
+:COMPLETION: globalSetup with flock coordination replaces webServer config. Concurrent processes share a detached dev server. All existing E2E tests pass.
+:END:
+
+** DONE Replace Playwright webServer with detached globalSetup
+:PROPERTIES:
+:CUSTOM_ID: ITEM-203
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:FILES: e2e/global-setup.ts, playwright.config.ts, package.json
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Replace Playwright's built-in =webServer= config with a =globalSetup= script that:
+1. Checks if port 1420 is already listening (fast path for pre-existing =bun run dev=)
+2. Uses =flock= to serialize startup across concurrent processes
+3. Starts =bun run dev= as a detached process (=nohup ... &=) that survives Playwright teardown
+4. Writes PID to =/tmp/sakya-playwright-dev-server.pid= for manual cleanup
+5. Waits for the server to respond before returning
+
+Also adds =test:e2e:stop-server= convenience script to =package.json=.
+
+*** Acceptance Criteria
+- [X] =e2e/global-setup.ts= created with flock-based server coordination
+- [X] =playwright.config.ts= uses =globalSetup= instead of =webServer=
+- [X] =package.json= has =test:e2e:stop-server= script
+- [X] Single-process =bun run test:e2e= passes all existing tests
+- [X] Multiple concurrent =bunx playwright test= processes don't crash
