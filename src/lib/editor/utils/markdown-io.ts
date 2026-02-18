@@ -1,5 +1,6 @@
 import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
 import type { LexicalEditor } from 'lexical';
+import type { LoroDoc } from 'loro-crdt';
 import { SAKYA_TRANSFORMERS } from '../transformers';
 
 /**
@@ -25,4 +26,13 @@ export function editorStateToMarkdown(editor: LexicalEditor): string {
     markdown = $convertToMarkdownString(SAKYA_TRANSFORMERS);
   });
   return markdown;
+}
+
+/**
+ * Exports the current CRDT text content as a markdown string.
+ * Since LoroSyncPlugin stores content as markdown in LoroText,
+ * this is a direct read of the text container.
+ */
+export function exportCrdtToMarkdown(loroDoc: LoroDoc, containerId: string): string {
+  return loroDoc.getText(containerId).toString();
 }

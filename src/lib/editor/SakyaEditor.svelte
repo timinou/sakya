@@ -98,7 +98,7 @@
       <WikiLinkPlugin onNavigate={onNavigateWikiLink} />
     {/if}
     {#if !readonly && loroDoc && containerId}
-      <LoroSyncPlugin {loroDoc} {containerId} {onLocalUpdate} />
+      <LoroSyncPlugin {loroDoc} {containerId} {onLocalUpdate} {onSave} />
     {:else if !readonly && onSave}
       <AutoSavePlugin {onSave} />
     {/if}

@@ -18,6 +18,10 @@
     onLocalUpdate?: (update: Uint8Array) => void;
     /** Debounce interval for Lexical → Loro sync (ms). */
     debounceMs?: number;
+    /** Background save callback — called with current markdown when content stabilizes. Keeps .md files in sync with CRDT state. */
+    onSave?: (markdown: string) => void;
+    /** Debounce interval for background .md save (ms). */
+    saveDebounceMs?: number;
   }
 
   let {
@@ -25,6 +29,8 @@
     containerId,
     onLocalUpdate,
     debounceMs = 300,
+    onSave,
+    saveDebounceMs = 2000,
   }: Props = $props();
 
   const editor = getEditor();
@@ -34,7 +40,22 @@
     let isApplyingRemote = false;
     let isApplyingLocal = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let saveTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let lastLocalMarkdown = '';
+    let lastSavedMarkdown = '';
+
+    // ─── Background .md save ───────────────────────────────
+    // Debounced save to disk so .md files stay in sync with CRDT state.
+    function scheduleSave(markdown: string) {
+      if (!onSave || markdown === lastSavedMarkdown) return;
+      if (saveTimeoutId) clearTimeout(saveTimeoutId);
+      saveTimeoutId = setTimeout(() => {
+        if (markdown !== lastSavedMarkdown) {
+          lastSavedMarkdown = markdown;
+          onSave(markdown);
+        }
+      }, saveDebounceMs);
+    }
 
     // ─── Lexical → Loro ──────────────────────────────────────
     // When the editor changes locally, export markdown and update
@@ -54,6 +75,7 @@
             // Only sync if content actually changed
             if (markdown === lastLocalMarkdown) return;
             lastLocalMarkdown = markdown;
+            scheduleSave(markdown);
 
             // Replace the entire Loro text with the new markdown
             isApplyingLocal = true;
@@ -102,6 +124,7 @@
       // Skip if content is the same (avoids unnecessary editor updates)
       if (remoteMarkdown === lastLocalMarkdown) return;
       lastLocalMarkdown = remoteMarkdown;
+      scheduleSave(remoteMarkdown);
 
       // Apply to Lexical editor
       isApplyingRemote = true;
@@ -130,6 +153,7 @@
     if (existingContent.length > 0) {
       // Loro has content — apply to editor
       lastLocalMarkdown = existingContent;
+      scheduleSave(existingContent);
       isApplyingRemote = true;
       editor.update(
         () => {
@@ -165,6 +189,11 @@
     // ─── Cleanup ─────────────────────────────────────────────
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
+      if (saveTimeoutId) clearTimeout(saveTimeoutId);
+      // Flush any pending save on cleanup
+      if (onSave && lastLocalMarkdown !== lastSavedMarkdown && lastLocalMarkdown.length > 0) {
+        onSave(lastLocalMarkdown);
+      }
       removeUpdateListener();
       unsubscribeDoc();
       unsubscribeLocalUpdates?.();

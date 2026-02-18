@@ -1007,7 +1007,7 @@ Modify SakyaEditor.svelte to accept optional loroDoc prop. When provided: use Lo
 - [ ] EditorArea integration
 - [ ] ~4 unit tests passing
 
-*** ITEM Background markdown export from CRDT state
+*** DONE Background markdown export from CRDT state
 :PROPERTIES:
 :CUSTOM_ID: ITEM-163
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
