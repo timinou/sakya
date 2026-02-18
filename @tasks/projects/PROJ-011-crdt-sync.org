@@ -1027,7 +1027,7 @@ Even with sync enabled, keep on-disk Markdown files updated by periodically expo
 - [ ] Git diff works on exported files
 - [ ] ~3 unit tests passing
 
-*** ITEM E2E tests for real-time editing sync
+*** DONE E2E tests for real-time editing sync
 :PROPERTIES:
 :CUSTOM_ID: ITEM-164
 :AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]

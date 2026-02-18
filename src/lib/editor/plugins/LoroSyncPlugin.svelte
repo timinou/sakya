@@ -7,7 +7,7 @@
   } from '@lexical/markdown';
   import { $getRoot as getRoot } from 'lexical';
   import { SAKYA_TRANSFORMERS } from '../transformers';
-  import type { LoroDoc, LoroText, Subscription } from 'loro-crdt';
+  import type { LoroDoc, LoroText, Subscription } from 'loro-crdt/base64';
 
   interface Props {
     /** The Loro CRDT document to sync with. */

@@ -23,7 +23,7 @@
   import TypewriterPlugin from './plugins/TypewriterPlugin.svelte';
   import FocusPlugin from './plugins/FocusPlugin.svelte';
   import LoroSyncPlugin from './plugins/LoroSyncPlugin.svelte';
-  import type { LoroDoc } from 'loro-crdt';
+  import type { LoroDoc } from 'loro-crdt/base64';
   import '$lib/editor/editor.css';
 
   interface Props {

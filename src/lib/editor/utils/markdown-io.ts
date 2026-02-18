@@ -1,6 +1,6 @@
 import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
 import type { LexicalEditor } from 'lexical';
-import type { LoroDoc } from 'loro-crdt';
+import type { LoroDoc } from 'loro-crdt/base64';
 import { SAKYA_TRANSFORMERS } from '../transformers';
 
 /**
