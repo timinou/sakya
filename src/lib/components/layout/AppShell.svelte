@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { Snippet } from 'svelte';
   import type { Chapter, ChapterStatus } from '$lib/types';
   import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore, entityStore } from '$lib/stores';
@@ -176,8 +177,10 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && !hasRestored) {
-      uiState.restore(path).then(() => {
-        hasRestored = true;
+      untrack(() => {
+        uiState.restore(path).then(() => {
+          hasRestored = true;
+        });
       });
     }
     if (!path) {
@@ -185,21 +188,26 @@
     }
   });
 
+  // Snapshot of all UI state fields — used by the persist effect to track changes
+  let uiSnapshot = $derived(JSON.stringify({
+    theme: uiState.theme,
+    viewMode: uiState.viewMode,
+    binderWidth: uiState.panes.binderWidth,
+    inspectorWidth: uiState.panes.inspectorWidth,
+    binderVisible: uiState.panes.binderVisible,
+    inspectorVisible: uiState.panes.inspectorVisible,
+    distractionFree: uiState.distractionFreeMode,
+    typewriter: uiState.typewriterMode,
+    focus: uiState.focusMode,
+  }));
+
   // Persist UI state on changes (debounced 1s)
   $effect(() => {
     const path = projectState.projectPath;
     if (!path || !hasRestored) return;
 
-    // Read reactive state to track changes
-    const _theme = uiState.theme;
-    const _viewMode = uiState.viewMode;
-    const _binderWidth = uiState.panes.binderWidth;
-    const _inspectorWidth = uiState.panes.inspectorWidth;
-    const _binderVisible = uiState.panes.binderVisible;
-    const _inspectorVisible = uiState.panes.inspectorVisible;
-    const _distractionFree = uiState.distractionFreeMode;
-    const _typewriter = uiState.typewriterMode;
-    const _focus = uiState.focusMode;
+    // Track all UI state changes via snapshot
+    const _snap = uiSnapshot;
 
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {

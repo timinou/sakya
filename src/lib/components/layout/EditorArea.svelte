@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { manuscriptStore, notesStore, editorState, projectState, entityStore } from '$lib/stores';
   import type { EntitySchema, EntityInstance } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
@@ -46,7 +47,7 @@
 
     // Load content if not cached
     if (!contentCache[tabId]) {
-      loadContent(path, slug, tabId);
+      untrack(() => loadContent(path, slug, tabId));
     }
   });
 
@@ -69,7 +70,7 @@
     });
 
     if (!contentCache[tabId]) {
-      loadNoteContent(path, slug, tabId);
+      untrack(() => loadNoteContent(path, slug, tabId));
     }
   });
 
@@ -100,7 +101,7 @@
     const schemaType = parts[1];
     const slug = parts.slice(2).join(':');
 
-    loadEntity(path, schemaType, slug, tab.id);
+    untrack(() => loadEntity(path, schemaType, slug, tab.id));
   });
 
   async function loadEntity(projectPath: string, schemaType: string, slug: string, tabId: string) {

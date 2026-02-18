@@ -1,5 +1,6 @@
 <script lang="ts">
   import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown, EllipsisVertical, ChevronDown } from 'lucide-svelte';
+  import { untrack } from 'svelte';
   import { manuscriptStore, editorState, projectState } from '$lib/stores';
   import type { ChapterStatus } from '$lib/types/manuscript';
   import BinderSection from './BinderSection.svelte';
@@ -327,9 +328,11 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== loadedPath && !manuscriptStore.isLoading) {
-      loadedPath = path;
-      manuscriptStore.loadConfig(path).catch((e) => {
-        console.error('Failed to load manuscript config:', e);
+      untrack(() => {
+        loadedPath = path;
+        manuscriptStore.loadConfig(path).catch((e) => {
+          console.error('Failed to load manuscript config:', e);
+        });
       });
     }
   });

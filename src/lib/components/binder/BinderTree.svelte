@@ -389,19 +389,24 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== entityStore.schemasLoadedPath && !entityStore.isLoadingSchemas) {
-      entityStore.loadSchemas(path).catch((e) => {
-        console.error('Failed to load entity schemas:', e);
+      untrack(() => {
+        entityStore.loadSchemas(path).catch((e) => {
+          console.error('Failed to load entity schemas:', e);
+        });
       });
     }
   });
 
   // Initialize section open states for new schemas
   $effect(() => {
-    for (const schema of entityStore.schemaSummaries) {
-      if (entitySectionsOpen[schema.entityType] === undefined) {
-        entitySectionsOpen[schema.entityType] = true;
+    const schemas = entityStore.schemaSummaries;
+    untrack(() => {
+      for (const schema of schemas) {
+        if (entitySectionsOpen[schema.entityType] === undefined) {
+          entitySectionsOpen[schema.entityType] = true;
+        }
       }
-    }
+    });
   });
 
   // Load entities when schemas are available (untrack to prevent reactive cascade, Bug 2 fix)

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { StickyNote, FileText, Plus, Pencil, Trash2, EllipsisVertical } from 'lucide-svelte';
+  import { untrack } from 'svelte';
   import { notesStore, editorState, projectState } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -186,9 +187,11 @@
   $effect(() => {
     const path = projectState.projectPath;
     if (path && path !== loadedPath && !notesStore.isLoading) {
-      loadedPath = path;
-      notesStore.loadConfig(path).catch((e) => {
-        console.error('Failed to load notes config:', e);
+      untrack(() => {
+        loadedPath = path;
+        notesStore.loadConfig(path).catch((e) => {
+          console.error('Failed to load notes config:', e);
+        });
       });
     }
   });
