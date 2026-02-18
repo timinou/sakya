@@ -1195,7 +1195,7 @@ Sync store following class-based runes pattern. Connection status, account, devi
 - [X] login/logout/reset methods
 - [X] svelte-check passes with 0 errors
 
-*** ITEM SyncStatusIndicator.svelte
+*** DONE SyncStatusIndicator.svelte
 :PROPERTIES:
 :CUSTOM_ID: ITEM-170
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -1214,7 +1214,7 @@ Status bar component (bottom-right). States: synced (green), syncing (yellow pul
 - [ ] Reactive to sync store changes
 - [ ] ~3 E2E tests
 
-*** ITEM AccountSettings.svelte (magic link login)
+*** DONE AccountSettings.svelte (magic link login)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-171
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -1234,7 +1234,7 @@ Settings panel for account management. States: logged out (email input), waiting
 - [ ] Logout button
 - [ ] ~4 E2E tests
 
-*** ITEM DeviceManager.svelte
+*** DONE DeviceManager.svelte
 :PROPERTIES:
 :CUSTOM_ID: ITEM-172
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -1254,7 +1254,7 @@ List paired devices with name, type icon, last seen, "This device" badge. Add De
 - [ ] Remove with confirmation
 - [ ] ~3 E2E tests
 
-*** ITEM PairingDialog.svelte (QR + one-time string)
+*** DONE PairingDialog.svelte (QR + one-time string)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-173
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -1273,7 +1273,7 @@ Dialog with two tabs: QR Code (SVG display) and Pairing String (copyable). Also 
 - [ ] Remote pairing input
 - [ ] ~3 E2E tests
 
-*** ITEM ProjectSyncSettings.svelte
+*** DONE ProjectSyncSettings.svelte
 :PROPERTIES:
 :CUSTOM_ID: ITEM-174
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

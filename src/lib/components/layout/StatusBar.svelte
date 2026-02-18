@@ -1,5 +1,6 @@
 <script lang="ts">
   import { editorState } from '$lib/stores';
+  import SyncStatusIndicator from '$lib/components/sync/SyncStatusIndicator.svelte';
 </script>
 
 <footer class="status-bar">
@@ -7,6 +8,7 @@
     <span class="word-count">{editorState.wordCount.words} words</span>
   </div>
   <div class="status-right">
+    <SyncStatusIndicator />
     <span class="save-status" class:saving={editorState.isSaving}>
       {editorState.isSaving ? 'Saving...' : 'Saved'}
     </span>
