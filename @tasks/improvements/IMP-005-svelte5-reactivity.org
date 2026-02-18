@@ -182,7 +182,8 @@ CLOSED: [2026-02-18 Tue]
 - [ ] No timer IDs stored as $state
 - [ ] E2E tests pass
 
-** ITEM Add missing untrack() calls across components
+** DONE Add missing untrack() calls across components
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-198
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -203,7 +204,8 @@ CLOSED: [2026-02-18 Tue]
 - [ ] All state writes in $effects that are side-effects wrapped in untrack()
 - [ ] Existing E2E tests pass
 
-** ITEM Refactor EntityForm dual-effect coupling
+** DONE Refactor EntityForm dual-effect coupling
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-199
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -221,7 +223,8 @@ Consolidate the two coupled effects (sync from prop + auto-save) that share =isD
 - [ ] No untracked writes to shared state between effects
 - [ ] Entity CRUD E2E tests pass
 
-** ITEM Convert explicit field reads to $derived snapshots
+** DONE Convert explicit field reads to $derived snapshots
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-200
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

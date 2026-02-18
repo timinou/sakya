@@ -59,18 +59,15 @@
     }
   });
 
+  // Snapshot of all config fields — used by the config watcher effect to track changes
+  let configSnapshot = $derived(JSON.stringify(config));
+
   // Watch config changes for preview updates
   $effect(() => {
     if (!isOpen) return;
-    // Read all config fields to track reactively
-    const _fmt = config.outputFormat;
-    const _tp = config.includeTitlePage;
-    const _title = config.title;
-    const _author = config.author;
-    const _header = config.chapterHeaderStyle;
-    const _sep = config.chapterSeparator;
-    const _syn = config.includeSynopsis;
-    const _fm = config.frontMatter;
+
+    // Track all config changes via snapshot
+    const _snap = configSnapshot;
 
     schedulePreview();
 
