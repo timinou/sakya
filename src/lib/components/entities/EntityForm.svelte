@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { EntitySchema, EntityInstance } from '$lib/types';
   import FieldRenderer from './FieldRenderer.svelte';
   import SpiderChart from '$lib/components/charts/SpiderChart.svelte';
@@ -23,35 +24,46 @@
 
   let hasSpiderAxes = $derived(schema.spiderAxes.length > 0);
 
-  // Sync external entity changes into local state (including initial mount)
+  // Sync external entity changes into local state (including initial mount).
+  // Reads only entitySnapshot as a reactive dependency; all writes are wrapped
+  // in untrack() so this effect never re-runs because of its own writes.
   $effect(() => {
-    if (entitySnapshot !== lastSyncedSnapshot) {
-      localEntity = JSON.parse(entitySnapshot);
-      lastSyncedSnapshot = entitySnapshot;
-      isDirty = false;
-    }
+    const snap = entitySnapshot;
+    untrack(() => {
+      if (snap !== lastSyncedSnapshot) {
+        localEntity = JSON.parse(snap);
+        lastSyncedSnapshot = snap;
+        isDirty = false;
+      }
+    });
   });
 
-  // Debounced auto-save
+  // Debounced auto-save.
+  // Reactive dependencies: isDirty, readonly, onSave, localEntity (via JSON.stringify).
+  // All side-effecting writes are wrapped in untrack() so scheduling the timer
+  // does not re-trigger this effect.
   $effect(() => {
     if (!isDirty || readonly || !onSave || !localEntity) return;
 
-    // Access localEntity to track it as a dependency
+    // Read localEntity here (outside untrack) so the effect tracks it.
     const snapshot = JSON.stringify(localEntity);
-    if (snapshot === lastSyncedSnapshot) {
-      isDirty = false;
-      return;
-    }
 
-    if (saveTimer) clearTimeout(saveTimer);
+    untrack(() => {
+      if (snapshot === lastSyncedSnapshot) {
+        isDirty = false;
+        return;
+      }
 
-    const entityToSave = JSON.parse(snapshot) as EntityInstance;
-    saveTimer = setTimeout(() => {
-      onSave(entityToSave);
-      lastSyncedSnapshot = snapshot;
-      isDirty = false;
-      saveTimer = null;
-    }, 1500);
+      if (saveTimer) clearTimeout(saveTimer);
+
+      const entityToSave = JSON.parse(snapshot) as EntityInstance;
+      saveTimer = setTimeout(() => {
+        onSave(entityToSave);
+        lastSyncedSnapshot = snapshot;
+        isDirty = false;
+        saveTimer = null;
+      }, 1500);
+    });
 
     return () => {
       if (saveTimer) clearTimeout(saveTimer);
