@@ -4545,6 +4545,8 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "pulldown-cmark",
+ "rand 0.8.5",
+ "sakya-crypto",
  "sakya-sync-client",
  "serde",
  "serde_json",

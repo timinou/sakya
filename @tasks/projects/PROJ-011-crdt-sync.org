@@ -1081,7 +1081,7 @@ Generate QR code containing { device_id, x25519_public_key, server_url } as JSON
 - [ ] Encode/decode round-trip
 - [ ] ~5 unit tests passing
 
-*** ITEM Provisioning payload encrypt/decrypt
+*** DONE Provisioning payload encrypt/decrypt
 :PROPERTIES:
 :CUSTOM_ID: ITEM-166
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -1120,7 +1120,7 @@ On device removal: generate new DocumentKeys for all projects, encrypt for remai
 - [ ] Old keys invalidated
 - [ ] ~4 unit tests passing
 
-*** ITEM Secure local key storage (Tauri keychain)
+*** DONE Secure local key storage (Tauri keychain)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-168
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

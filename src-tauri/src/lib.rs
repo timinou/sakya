@@ -1,5 +1,6 @@
 mod commands;
 mod error;
+pub mod keystore;
 mod models;
 mod services;
 
