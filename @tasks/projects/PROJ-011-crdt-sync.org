@@ -1062,7 +1062,7 @@ E2E tests simulating two editors on same CRDT document. Type in A -> appears in 
 - [ ] Provisioning payload encrypt/decrypt works
 - [ ] Key rotation on device removal works
 
-*** ITEM QR code generation + one-time string encoding
+*** DONE QR code generation + one-time string encoding
 :PROPERTIES:
 :CUSTOM_ID: ITEM-165
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -1101,7 +1101,7 @@ Provisioning payload: { account_id, ed25519_keypair, document_keys, server_auth_
 - [ ] Decrypt on receiving device
 - [ ] ~4 unit tests passing
 
-*** ITEM Key rotation on device removal
+*** DONE Key rotation on device removal
 :PROPERTIES:
 :CUSTOM_ID: ITEM-167
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]

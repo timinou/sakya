@@ -14,6 +14,7 @@ zeroize = { version = "1", features = ["derive"] }
 hkdf = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
+qrcode = "0.14"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
