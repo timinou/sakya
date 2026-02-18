@@ -104,7 +104,8 @@ Before =projectState.open(newPath)=, call =reset()= on all subordinate stores (m
 - [ ] E2E tests pass for rapid project switching
 - [ ] No regressions in existing E2E tests
 
-** ITEM E2E tests for rapid project switching
+** DONE E2E tests for rapid project switching
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-195
 :AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
@@ -123,7 +124,8 @@ Tests that open Project A, immediately open Project B, and verify only B's data 
 - [ ] E2E test for store reset: no chapters/notes/entities from A visible after switch
 - [ ] Tests pass consistently (no flake from timing)
 
-** ITEM Fix timer cleanup in AppShell.svelte
+** DONE Fix timer cleanup in AppShell.svelte
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-196
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -143,7 +145,8 @@ Tests that open Project A, immediately open Project B, and verify only B's data 
 - [ ] peekBinderTimer and peekInspectorTimer cleaned up on unmount
 - [ ] All existing distraction-free E2E tests still pass
 
-** ITEM Fix timer cleanup in CompileDialog, SearchPalette, Corkboard, Tooltip
+** DONE Fix timer cleanup in CompileDialog, SearchPalette, Corkboard, Tooltip
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-197
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
