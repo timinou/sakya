@@ -7,3 +7,4 @@ export type { Theme, ViewMode, PaneConfig, UIState } from './ui';
 export type { WritingSession, SessionStats } from './session';
 export type { ChapterHeaderStyle, ChapterSeparator, OutputFormat, CompileConfig, CompileOutput } from './compile';
 export { defaultCompileConfig } from './compile';
+export type { SyncConnectionStatus, AccountInfo, DeviceInfo, SyncProjectState, PairingCode, SyncStatus } from './sync';

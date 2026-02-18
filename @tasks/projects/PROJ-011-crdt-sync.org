@@ -1174,6 +1174,27 @@ Tauri commands: generate_pairing_code, complete_pairing, list_paired_devices, re
 - [ ] Project sync toggle works
 - [ ] E2E tests cover all sync UI flows
 
+*** DONE sync.svelte.ts store
+:PROPERTIES:
+:CUSTOM_ID: ITEM-175
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/sync.svelte.ts, src/lib/types/sync.ts
+:TEST_PLAN: svelte-check
+:END:
+
+**** Description
+Sync store following class-based runes pattern. Connection status, account, devices, project sync state. Methods wrapping Tauri invoke() calls.
+
+**** Acceptance Criteria
+- [X] SyncStore class with $state/$derived
+- [X] connect/disconnect/refreshStatus methods
+- [X] enableProjectSync/disableProjectSync methods
+- [X] Pairing methods (generatePairingCode, completePairing, listDevices, removeDevice)
+- [X] login/logout/reset methods
+- [X] svelte-check passes with 0 errors
+
 *** ITEM SyncStatusIndicator.svelte
 :PROPERTIES:
 :CUSTOM_ID: ITEM-170
