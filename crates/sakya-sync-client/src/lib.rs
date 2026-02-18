@@ -5,7 +5,10 @@
 
 pub mod engine;
 pub mod error;
+pub mod offline;
 pub mod reconnect;
+pub mod sync_flow;
 
 pub use engine::{EngineCommand, SyncEngine, SyncEvent, SyncStatus};
 pub use error::SyncClientError;
+pub use offline::OfflineQueue;

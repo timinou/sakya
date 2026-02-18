@@ -848,7 +848,7 @@ Full sync flow: connect -> Auth -> JoinRoom -> SyncRequest -> receive missing up
 - [ ] Export to files after remote changes
 - [ ] ~8 unit tests passing
 
-*** ITEM Offline queue (persist pending updates to disk)
+*** DONE Offline queue (persist pending updates to disk)
 :PROPERTIES:
 :CUSTOM_ID: ITEM-156
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -863,10 +863,10 @@ Full sync flow: connect -> Auth -> JoinRoom -> SyncRequest -> receive missing up
 Queue encrypted updates locally when offline. Drain on reconnection. Handle large queue (>1000 updates) by creating snapshot instead.
 
 **** Acceptance Criteria
-- [ ] Append-only queue to local storage
-- [ ] Drain on reconnection in order
-- [ ] Snapshot fallback for large queues
-- [ ] ~5 unit tests passing
+- [X] Append-only queue to local storage
+- [X] Drain on reconnection in order
+- [X] Snapshot fallback for large queues
+- [X] ~5 unit tests passing (9 tests)
 
 *** ITEM Tauri commands for sync operations
 :PROPERTIES:
