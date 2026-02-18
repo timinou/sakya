@@ -785,7 +785,7 @@ Integration tests with in-process server. Auth flow, room join/leave/broadcast, 
 - [ ] Offline queue works
 - [ ] Two-client E2E test passes
 
-*** ITEM SyncEngine struct + WebSocket connection
+*** DONE SyncEngine struct + WebSocket connection
 :PROPERTIES:
 :CUSTOM_ID: ITEM-153
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -799,11 +799,11 @@ Integration tests with in-process server. Auth flow, room join/leave/broadcast, 
 SyncEngine manages per-project sync sessions. Public API: connect, enable_project, disable_project, status. Internal: message send/receive loop on tokio task.
 
 **** Acceptance Criteria
-- [ ] SyncEngine struct with connect/disconnect
-- [ ] Per-project session management
-- [ ] Message send/receive loop
-- [ ] Status reporting
-- [ ] ~6 unit tests passing
+- [X] SyncEngine struct with connect/disconnect
+- [X] Per-project session management
+- [X] Message send/receive loop
+- [X] Status reporting
+- [X] ~6 unit tests passing (7 unit tests passing)
 
 *** DONE Reconnection logic (exponential backoff)
 :PROPERTIES:
