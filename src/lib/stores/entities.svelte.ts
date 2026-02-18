@@ -6,21 +6,35 @@ class EntityStore {
   schemaCache = $state<Record<string, EntitySchema>>({});
   entitiesByType = $state<Record<string, EntitySummary[]>>({});
   currentEntity = $state<EntityInstance | null>(null);
-  isLoading = $state(false);
   error = $state<string | null>(null);
 
-  schemasLoaded = $derived(this.schemaSummaries.length > 0);
+  // --- Granular loading flags (Bug 4 fix) ---
+  isLoadingSchemas = $state(false);
+  isLoadingEntities = $state<Record<string, boolean>>({});
+  isSaving = $state(false);
+
+  // Convenience derived that ORs all sub-flags
+  isLoading = $derived(
+    this.isLoadingSchemas ||
+    this.isSaving ||
+    Object.values(this.isLoadingEntities).some(Boolean),
+  );
+
+  // --- Path-based loaded tracking (Bug 1 fix) ---
+  schemasLoadedPath = $state<string | null>(null);
+  schemasLoaded = $derived(this.schemasLoadedPath !== null);
 
   async loadSchemas(projectPath: string): Promise<void> {
-    this.isLoading = true;
+    this.isLoadingSchemas = true;
     this.error = null;
     try {
       this.schemaSummaries = await invoke<SchemaSummary[]>('list_schemas', { projectPath });
+      this.schemasLoadedPath = projectPath;
     } catch (e) {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isLoadingSchemas = false;
     }
   }
 
@@ -38,7 +52,7 @@ class EntityStore {
   }
 
   async saveSchema(projectPath: string, schema: EntitySchema): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       await invoke('save_schema', { projectPath, schema });
@@ -49,12 +63,12 @@ class EntityStore {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
   async deleteSchema(projectPath: string, schemaType: string): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       await invoke('delete_schema', { projectPath, schemaType });
@@ -64,15 +78,18 @@ class EntityStore {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
-  // Entity instance methods (ITEM-013 - commands not yet implemented)
+  // --- Per-type loading guard (Bug 2 fix) ---
   async loadEntities(projectPath: string, schemaType: string): Promise<void> {
+    // Skip if already loading this type
+    if (this.isLoadingEntities[schemaType]) return;
+    // Skip if already loaded
     if (this.entitiesByType[schemaType]) return;
 
-    this.isLoading = true;
+    this.isLoadingEntities[schemaType] = true;
     this.error = null;
     try {
       const entities = await invoke<EntitySummary[]>('list_entities', {
@@ -84,7 +101,25 @@ class EntityStore {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isLoadingEntities[schemaType] = false;
+    }
+  }
+
+  // Force-refetch entities for a type (used after create/delete/rename)
+  async reloadEntities(projectPath: string, schemaType: string): Promise<void> {
+    this.isLoadingEntities[schemaType] = true;
+    this.error = null;
+    try {
+      const entities = await invoke<EntitySummary[]>('list_entities', {
+        projectPath,
+        schemaType,
+      });
+      this.entitiesByType[schemaType] = entities;
+    } catch (e) {
+      this.error = String(e);
+      throw e;
+    } finally {
+      this.isLoadingEntities[schemaType] = false;
     }
   }
 
@@ -93,7 +128,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<EntityInstance> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       const entity = await invoke<EntityInstance>('get_entity', {
@@ -107,7 +142,7 @@ class EntityStore {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
@@ -116,7 +151,7 @@ class EntityStore {
     schemaType: string,
     title: string,
   ): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       await invoke('create_entity', {
@@ -124,17 +159,18 @@ class EntityStore {
         schemaType,
         title,
       });
-      this.invalidateType(schemaType);
+      await this.reloadEntities(projectPath, schemaType);
     } catch (e) {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
+  // --- In-place update for saves (Bug 3 fix) ---
   async saveEntity(projectPath: string, entity: EntityInstance): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       await invoke('save_entity', {
@@ -142,12 +178,13 @@ class EntityStore {
         entity,
       });
       this.currentEntity = entity;
-      this.invalidateType(entity.schemaSlug);
+      // Update in-place instead of invalidating the whole type
+      this.updateEntityInList(entity.schemaSlug, entity);
     } catch (e) {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
@@ -157,7 +194,7 @@ class EntityStore {
     oldSlug: string,
     newTitle: string,
   ): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       const updated = await invoke<EntityInstance>('rename_entity', {
@@ -167,12 +204,12 @@ class EntityStore {
         newTitle,
       });
       this.currentEntity = updated;
-      this.invalidateType(schemaType);
+      await this.reloadEntities(projectPath, schemaType);
     } catch (e) {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
@@ -181,7 +218,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<void> {
-    this.isLoading = true;
+    this.isSaving = true;
     this.error = null;
     try {
       await invoke('delete_entity', {
@@ -189,7 +226,7 @@ class EntityStore {
         schemaType,
         slug,
       });
-      this.invalidateType(schemaType);
+      await this.reloadEntities(projectPath, schemaType);
       if (this.currentEntity?.slug === slug) {
         this.currentEntity = null;
       }
@@ -197,12 +234,23 @@ class EntityStore {
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      this.isSaving = false;
     }
   }
 
-  invalidateType(schemaType: string): void {
-    delete this.entitiesByType[schemaType];
+  /** Update title/tags in the existing entitiesByType array without full reload. */
+  private updateEntityInList(schemaType: string, entity: EntityInstance): void {
+    const list = this.entitiesByType[schemaType];
+    if (!list) return;
+    const idx = list.findIndex((e) => e.slug === entity.slug);
+    if (idx !== -1) {
+      list[idx] = {
+        title: entity.title,
+        slug: entity.slug,
+        schemaType: entity.schemaSlug,
+        tags: entity.tags,
+      };
+    }
   }
 
   reset(): void {
@@ -210,7 +258,10 @@ class EntityStore {
     this.schemaCache = {};
     this.entitiesByType = {};
     this.currentEntity = null;
-    this.isLoading = false;
+    this.isLoadingSchemas = false;
+    this.isLoadingEntities = {};
+    this.isSaving = false;
+    this.schemasLoadedPath = null;
     this.error = null;
   }
 }

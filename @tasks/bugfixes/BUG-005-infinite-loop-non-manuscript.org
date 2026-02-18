@@ -1,0 +1,121 @@
+#+TITLE: BUG-005 Fix Infinite Loop Bugs in Non-Manuscript Pages
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-005 Fix Infinite Loop Bugs in Non-Manuscript Pages
+:PROPERTIES:
+:CUSTOM_ID: BUG-005
+:GOAL: Eliminate infinite loop bugs in entity/schema/backlinks $effect blocks that cause excessive IPC calls and UI freezes.
+:COMPLETION: No infinite IPC calls on empty-schema projects; entity save does not trigger full list reload; per-type loading prevents duplicate fetches.
+:END:
+
+** ITEM Write failing unit tests for EntityStore infinite loop guards
+:PROPERTIES:
+:CUSTOM_ID: ITEM-186
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/stores/entities.test.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Write Vitest unit tests that expose the infinite loop bugs before fixing them.
+
+*** Acceptance Criteria
+- [ ] Test: ~schemasLoaded~ is true after loading empty schema list (not based on array length)
+- [ ] Test: per-type loading flags prevent concurrent duplicate loads
+- [ ] Test: ~saveEntity~ does NOT delete ~entitiesByType[type]~ (no invalidation)
+- [ ] Test: ~isLoading~ derived flag reflects all sub-flags correctly
+- [ ] All new tests FAIL (RED phase) before store refactor
+
+** ITEM Refactor EntityStore: loadedPath, per-type loading, in-place save
+:PROPERTIES:
+:CUSTOM_ID: ITEM-187
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:FILES: src/lib/stores/entities.svelte.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Refactor EntityStore to fix bugs 1-4:
+- Replace ~schemasLoaded~ with ~schemasLoadedPath~ pattern (path-based tracking)
+- Split ~isLoading~ into ~isLoadingSchemas~, ~isLoadingEntities~ (per-type Record), ~isSaving~
+- Add per-type loading guard in ~loadEntities~
+- Replace ~invalidateType~ with ~updateEntityInList~ for saves, ~reloadEntities~ for creates/deletes
+
+*** Acceptance Criteria
+- [ ] ~schemasLoadedPath~ tracks which project's schemas are loaded
+- [ ] ~isLoadingSchemas~, ~isLoadingEntities~, ~isSaving~ are independent flags
+- [ ] ~isLoading~ is a convenience derived that ORs all sub-flags
+- [ ] ~loadEntities~ checks per-type loading guard before fetching
+- [ ] ~saveEntity~ updates in-place without deleting type cache
+- [ ] ~createEntity~, ~deleteEntity~, ~renameEntity~ call ~reloadEntities~
+- [ ] All ITEM-186 tests pass (GREEN)
+
+** ITEM Write failing E2E tests for infinite loop regression
+:PROPERTIES:
+:CUSTOM_ID: ITEM-188
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/infinite-loop-guards.spec.ts, e2e/utils/tauri-mocks.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Write E2E tests + helpers that catch infinite loops via IPC call counting and console error monitoring.
+
+*** Acceptance Criteria
+- [ ] Helper: ~assertMaxIpcCalls(page, command, maxCount)~
+- [ ] Helper: ~collectConsoleErrors(page)~
+- [ ] Test: empty schema project (~list_schemas~ returns ~[]~), assert called exactly once
+- [ ] Test: idle IPC audit (no IPC calls in 3s idle period after settle)
+- [ ] Test: entity save does NOT trigger ~list_entities~
+- [ ] Test: multi-type load (3+ schemas), each ~list_entities~ called once per type
+- [ ] Tests FAIL before component fixes (RED)
+
+** ITEM Fix BinderTree + BacklinksSection effects
+:PROPERTIES:
+:CUSTOM_ID: ITEM-189
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/components/inspector/BacklinksSection.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Fix component-level ~$effect~ blocks:
+- BinderTree schema effect: use ~schemasLoadedPath~ guard
+- BinderTree entity effect: use ~untrack()~ + per-type loading guards
+- BacklinksSection: wrap ~fetchBacklinks~ in ~untrack()~
+
+*** Acceptance Criteria
+- [ ] Schema loading effect uses path-based guard, not array length
+- [ ] Entity loading effect uses ~untrack()~ to prevent reactive cascade
+- [ ] BacklinksSection captures reactive props then calls async in ~untrack()~
+- [ ] All ITEM-188 E2E tests pass (GREEN)
+- [ ] All existing E2E tests pass (regression)
+
+** ITEM Full regression verification
+:PROPERTIES:
+:CUSTOM_ID: ITEM-190
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:FILES: (verification only)
+:TEST_PLAN: compile, test-rust, test-svelte, e2e
+:END:
+
+*** Description
+Run full test suite and linting to verify no regressions.
+
+*** Acceptance Criteria
+- [ ] ~bun run test~ passes (Vitest)
+- [ ] ~bun run test:e2e~ passes (all E2E)
+- [ ] ~cargo test~ passes (Rust)
+- [ ] ~cargo clippy~ has 0 warnings
+- [ ] ~bun run check~ passes (svelte-check)
