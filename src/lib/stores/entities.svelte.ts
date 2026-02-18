@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { EntitySchema, SchemaSummary, EntityInstance, EntitySummary } from '$lib/types';
+import { StaleGuard } from './stale-guard';
 
 class EntityStore {
   schemaSummaries = $state<SchemaSummary[]>([]);
@@ -20,21 +21,29 @@ class EntityStore {
     Object.values(this.isLoadingEntities).some(Boolean),
   );
 
-  // --- Path-based loaded tracking (Bug 1 fix) ---
+  // schemasLoadedPath is a load-deduplication tracker (prevents re-fetching on re-mount), NOT a stale guard
   schemasLoadedPath = $state<string | null>(null);
   schemasLoaded = $derived(this.schemasLoadedPath !== null);
 
+  private guard = new StaleGuard();
+
   async loadSchemas(projectPath: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoadingSchemas = true;
     this.error = null;
     try {
-      this.schemaSummaries = await invoke<SchemaSummary[]>('list_schemas', { projectPath });
+      const summaries = await invoke<SchemaSummary[]>('list_schemas', { projectPath });
+      if (this.guard.isStale(token)) return; // STALE GUARD
+      this.schemaSummaries = summaries;
       this.schemasLoadedPath = projectPath;
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoadingSchemas = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoadingSchemas = false;
+      }
     }
   }
 
@@ -43,42 +52,55 @@ class EntityStore {
     const cached = this.schemaCache[schemaType];
     if (cached) return cached;
 
+    const token = this.guard.begin(); // STALE GUARD
     const schema = await invoke<EntitySchema>('get_schema', {
       projectPath,
       schemaType,
     });
+    if (this.guard.isStale(token)) return schema; // STALE GUARD — return result but skip cache write
     this.schemaCache[schemaType] = schema;
     return schema;
   }
 
   async saveSchema(projectPath: string, schema: EntitySchema): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
       await invoke('save_schema', { projectPath, schema });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       delete this.schemaCache[schema.entityType];
-      // Reload summaries
+      // Reload summaries (inner call creates its own guard token)
       await this.loadSchemas(projectPath);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
   async deleteSchema(projectPath: string, schemaType: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
       await invoke('delete_schema', { projectPath, schemaType });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       delete this.schemaCache[schemaType];
+      // Reload summaries (inner call creates its own guard token)
       await this.loadSchemas(projectPath);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
@@ -89,6 +111,7 @@ class EntityStore {
     // Skip if already loaded
     if (this.entitiesByType[schemaType]) return;
 
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoadingEntities[schemaType] = true;
     this.error = null;
     try {
@@ -96,17 +119,22 @@ class EntityStore {
         projectPath,
         schemaType,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.entitiesByType[schemaType] = entities;
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoadingEntities[schemaType] = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoadingEntities[schemaType] = false;
+      }
     }
   }
 
   // Force-refetch entities for a type (used after create/delete/rename)
   async reloadEntities(projectPath: string, schemaType: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoadingEntities[schemaType] = true;
     this.error = null;
     try {
@@ -114,12 +142,16 @@ class EntityStore {
         projectPath,
         schemaType,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.entitiesByType[schemaType] = entities;
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoadingEntities[schemaType] = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoadingEntities[schemaType] = false;
+      }
     }
   }
 
@@ -128,6 +160,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<EntityInstance> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -136,13 +169,17 @@ class EntityStore {
         schemaType,
         slug,
       });
+      if (this.guard.isStale(token)) return entity; // STALE GUARD — return result but skip state write
       this.currentEntity = entity;
       return entity;
     } catch (e) {
+      if (this.guard.isStale(token)) throw e; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
@@ -151,6 +188,7 @@ class EntityStore {
     schemaType: string,
     title: string,
   ): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -159,17 +197,23 @@ class EntityStore {
         schemaType,
         title,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
+      // Inner call creates its own guard token
       await this.reloadEntities(projectPath, schemaType);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
   // --- In-place update for saves (Bug 3 fix) ---
   async saveEntity(projectPath: string, entity: EntityInstance): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -177,14 +221,18 @@ class EntityStore {
         projectPath,
         entity,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.currentEntity = entity;
       // Update in-place instead of invalidating the whole type
       this.updateEntityInList(entity.schemaSlug, entity);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
@@ -194,6 +242,7 @@ class EntityStore {
     oldSlug: string,
     newTitle: string,
   ): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -203,13 +252,18 @@ class EntityStore {
         oldSlug,
         newTitle,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.currentEntity = updated;
+      // Inner call creates its own guard token
       await this.reloadEntities(projectPath, schemaType);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
@@ -218,6 +272,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -226,15 +281,20 @@ class EntityStore {
         schemaType,
         slug,
       });
+      if (this.guard.isStale(token)) return; // STALE GUARD
+      // Inner call creates its own guard token
       await this.reloadEntities(projectPath, schemaType);
       if (this.currentEntity?.slug === slug) {
         this.currentEntity = null;
       }
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isSaving = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isSaving = false;
+      }
     }
   }
 
@@ -254,6 +314,7 @@ class EntityStore {
   }
 
   reset(): void {
+    this.guard.reset();
     this.schemaSummaries = [];
     this.schemaCache = {};
     this.entitiesByType = {};

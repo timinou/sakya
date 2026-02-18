@@ -1,5 +1,6 @@
 import { writeTextFile, readTextFile, mkdir } from '@tauri-apps/plugin-fs';
 import type { Theme, ViewMode, PaneConfig } from '$lib/types';
+import { StaleGuard } from './stale-guard';
 
 class UIState {
   theme = $state<Theme>('system');
@@ -13,6 +14,8 @@ class UIState {
     binderVisible: true,
     inspectorVisible: true,
   });
+
+  private guard = new StaleGuard();
 
   effectiveTheme = $derived<'light' | 'dark'>(
     this.theme === 'system'
@@ -60,6 +63,7 @@ class UIState {
   }
 
   async persist(projectPath: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     const state = {
       theme: this.theme,
       viewMode: this.viewMode,
@@ -74,13 +78,16 @@ class UIState {
     } catch {
       /* directory may already exist */
     }
+    if (this.guard.isStale(token)) return; // STALE GUARD
     await writeTextFile(`${dir}/ui-state.json`, JSON.stringify(state, null, 2));
   }
 
   async restore(projectPath: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     try {
       const content = await readTextFile(`${projectPath}/.sakya/ui-state.json`);
       const state = JSON.parse(content);
+      if (this.guard.isStale(token)) return; // STALE GUARD
       if (state.theme) this.theme = state.theme;
       if (state.viewMode) this.viewMode = state.viewMode;
       if (state.typewriterMode !== undefined) this.typewriterMode = state.typewriterMode;
@@ -95,6 +102,21 @@ class UIState {
     } catch {
       // File missing or corrupt — use defaults (do nothing)
     }
+  }
+
+  reset(): void {
+    this.guard.reset();
+    this.theme = 'system';
+    this.viewMode = 'editor';
+    this.typewriterMode = false;
+    this.distractionFreeMode = false;
+    this.focusMode = false;
+    this.panes = {
+      binderWidth: 260,
+      inspectorWidth: 300,
+      binderVisible: true,
+      inspectorVisible: true,
+    };
   }
 }
 

@@ -46,6 +46,13 @@ class EditorState {
     this.tabs = [];
     this.activeTabId = null;
   }
+
+  reset(): void {
+    this.tabs = [];
+    this.activeTabId = null;
+    this.wordCount = { words: 0, characters: 0, charactersNoSpaces: 0 };
+    this.isSaving = false;
+  }
 }
 
 export const editorState = new EditorState();

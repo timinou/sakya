@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { WritingSession, SessionStats } from '$lib/types';
+import { StaleGuard } from './stale-guard';
 
 class SessionsStore {
   sessions = $state<WritingSession[]>([]);
@@ -7,6 +8,7 @@ class SessionsStore {
   isLoading = $state(false);
 
   private loadedPath = $state<string | null>(null);
+  private guard = new StaleGuard();
 
   /** Derived Map<"YYYY-MM-DD", number> grouping sessions by date, summing words. */
   dailyWordCounts = $derived.by(() => {
@@ -21,6 +23,7 @@ class SessionsStore {
   /** Fetch sessions and stats from the backend. */
   async loadSessions(projectPath: string): Promise<void> {
     if (this.isLoading) return;
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
 
     try {
@@ -28,13 +31,17 @@ class SessionsStore {
         invoke<WritingSession[]>('get_sessions', { projectPath }),
         invoke<SessionStats>('get_session_stats', { projectPath }),
       ]);
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.sessions = sessions;
       this.stats = stats;
       this.loadedPath = projectPath;
     } catch (err) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       console.error('[SessionsStore] Failed to load sessions:', err);
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
@@ -42,6 +49,14 @@ class SessionsStore {
   async refresh(): Promise<void> {
     if (!this.loadedPath) return;
     await this.loadSessions(this.loadedPath);
+  }
+
+  reset(): void {
+    this.guard.reset();
+    this.sessions = [];
+    this.stats = null;
+    this.isLoading = false;
+    this.loadedPath = null;
   }
 }
 

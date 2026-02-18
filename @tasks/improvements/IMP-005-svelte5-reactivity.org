@@ -9,7 +9,8 @@
 :COMPLETION: All async store methods guard against stale responses; all timers cleaned up on unmount; all async effect calls use untrack(); E2E + Vitest pass; svelte-check clean.
 :END:
 
-** ITEM Create StaleGuard utility and apply to project.svelte.ts
+** DONE Create StaleGuard utility and apply to project.svelte.ts
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-191
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -28,7 +29,8 @@ Create a reusable =StaleGuard= class that stores implement. Pattern: capture pat
 - [ ] project.svelte.ts open() uses stale guard to prevent stale writes
 - [ ] project.svelte.ts create() uses stale guard to prevent stale writes
 
-** ITEM Apply race guards to manuscript.svelte.ts and notes.svelte.ts
+** DONE Apply race guards to manuscript.svelte.ts and notes.svelte.ts
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-192
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -47,7 +49,8 @@ Apply =StaleGuard= pattern to all async methods across manuscript and notes stor
 - [ ] All async methods in notes.svelte.ts guard against stale responses
 - [ ] Content caches cleared on stale detection
 
-** ITEM Apply race guards to entities.svelte.ts, sessions.svelte.ts, ui.svelte.ts
+** DONE Apply race guards to entities.svelte.ts, sessions.svelte.ts, ui.svelte.ts
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-193
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -67,7 +70,8 @@ Apply =StaleGuard= pattern to all async methods. HIGH-risk: =loadSchemas()=, =re
 - [ ] ui.svelte.ts restore() guards against stale responses
 - [ ] schemasLoadedPath role documented with comment
 
-** ITEM Add project-switch orchestration layer
+** DONE Add project-switch orchestration layer
+CLOSED: [2026-02-18 Tue]
 :PROPERTIES:
 :CUSTOM_ID: ITEM-194
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]

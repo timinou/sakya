@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NotesConfig, NoteContent, CorkboardPosition } from '$lib/types';
+import { StaleGuard } from './stale-guard';
 
 class NotesStore {
   config = $state<NotesConfig>({ notes: [] });
@@ -8,66 +9,89 @@ class NotesStore {
   isLoading = $state(false);
   error = $state<string | null>(null);
 
+  private guard = new StaleGuard();
+
   notes = $derived(this.config.notes);
   activeNote = $derived(this.config.notes.find((n) => n.slug === this.activeNoteSlug) ?? null);
   noteCount = $derived(this.config.notes.length);
   hasNotes = $derived(this.config.notes.length > 0);
 
   async loadConfig(projectPath: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
-      this.config = await invoke<NotesConfig>('get_notes_config', { projectPath });
+      const config = await invoke<NotesConfig>('get_notes_config', { projectPath });
+      if (this.guard.isStale(token)) return; // STALE GUARD
+      this.config = config;
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
   async saveConfig(projectPath: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
       await invoke('save_notes_config', { projectPath, config: this.config });
+      if (this.guard.isStale(token)) return; // STALE GUARD
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
   async createNote(projectPath: string, title: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
       await invoke('create_note', { projectPath, title });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       await this.loadConfig(projectPath);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
   async deleteNote(projectPath: string, slug: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
       await invoke('delete_note', { projectPath, slug });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       delete this.noteContent[slug];
       if (this.activeNoteSlug === slug) {
         this.activeNoteSlug = null;
       }
       await this.loadConfig(projectPath);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
@@ -75,9 +99,16 @@ class NotesStore {
     const cached = this.noteContent[slug];
     if (cached) return cached;
 
-    const content = await invoke<NoteContent>('get_note', { projectPath, slug });
-    this.noteContent[slug] = content;
-    return content;
+    const token = this.guard.begin(); // STALE GUARD
+    try {
+      const content = await invoke<NoteContent>('get_note', { projectPath, slug });
+      if (this.guard.isStale(token)) return content; // STALE GUARD — return value but don't cache
+      this.noteContent[slug] = content;
+      return content;
+    } catch (e) {
+      if (this.guard.isStale(token)) throw e; // STALE GUARD
+      throw e;
+    }
   }
 
   async saveNoteContent(
@@ -86,10 +117,12 @@ class NotesStore {
     title: string,
     body: string,
   ): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
       await invoke('save_note', { projectPath, slug, title, body });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.noteContent[slug] = { slug, title, body };
       // Update the title in the config entry if it changed
       this.config = {
@@ -97,10 +130,13 @@ class NotesStore {
         notes: this.config.notes.map((n) => (n.slug === slug ? { ...n, title } : n)),
       };
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
@@ -129,20 +165,25 @@ class NotesStore {
   }
 
   async renameNote(projectPath: string, slug: string, newTitle: string): Promise<void> {
+    const token = this.guard.begin(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
       await invoke('rename_note', { projectPath, slug, newTitle });
+      if (this.guard.isStale(token)) return; // STALE GUARD
       delete this.noteContent[slug];
       if (this.activeNoteSlug === slug) {
         this.activeNoteSlug = null;
       }
       await this.loadConfig(projectPath);
     } catch (e) {
+      if (this.guard.isStale(token)) return; // STALE GUARD
       this.error = String(e);
       throw e;
     } finally {
-      this.isLoading = false;
+      if (!this.guard.isStale(token)) { // STALE GUARD
+        this.isLoading = false;
+      }
     }
   }
 
@@ -156,6 +197,7 @@ class NotesStore {
     this.activeNoteSlug = null;
     this.isLoading = false;
     this.error = null;
+    this.guard.reset();
   }
 }
 

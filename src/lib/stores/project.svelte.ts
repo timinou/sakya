@@ -1,6 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ProjectManifest, RecentProject } from '$lib/types';
 import { StaleGuard } from './stale-guard';
+import { manuscriptStore } from './manuscript.svelte';
+import { notesStore } from './notes.svelte';
+import { entityStore } from './entities.svelte';
+import { sessionsStore } from './sessions.svelte';
+import { uiState } from './ui.svelte';
+import { editorState } from './editor.svelte';
 
 class ProjectState {
   manifest = $state<ProjectManifest | null>(null);
@@ -31,6 +37,8 @@ class ProjectState {
 
   async open(path: string): Promise<void> {
     const token = this.guard.begin(); // STALE GUARD
+    // Reset all subordinate stores to prevent stale data from previous project
+    this.resetSubordinateStores();
     this.isLoading = true;
     this.error = null;
     try {
@@ -87,9 +95,20 @@ class ProjectState {
 
   close(): void {
     this.guard.reset();
+    // Reset all subordinate stores to prevent stale data from previous project
+    this.resetSubordinateStores();
     this.manifest = null;
     this.projectPath = null;
     this.error = null;
+  }
+
+  private resetSubordinateStores(): void {
+    manuscriptStore.reset();
+    notesStore.reset();
+    entityStore.reset();
+    sessionsStore.reset();
+    uiState.reset();
+    editorState.reset();
   }
 }
 
