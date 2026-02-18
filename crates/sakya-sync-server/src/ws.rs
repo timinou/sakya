@@ -8,7 +8,7 @@ use axum::response::IntoResponse;
 use sakya_sync_protocol::{ErrorCode, SyncMessage};
 use std::collections::HashSet;
 use std::time::Duration;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 use tokio::time::Instant;
 use uuid::Uuid;
 
@@ -19,6 +19,32 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// GET /sync — WebSocket upgrade handler.
 pub async fn ws_upgrade(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+/// Spawn a forwarder task that reads from a room's broadcast receiver
+/// and forwards messages to the shared mpsc channel.
+fn spawn_room_forwarder(
+    mut room_rx: broadcast::Receiver<BroadcastMsg>,
+    merged_tx: mpsc::Sender<BroadcastMsg>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            match room_rx.recv().await {
+                Ok(msg) => {
+                    if merged_tx.send(msg).await.is_err() {
+                        break; // Merged channel closed, connection gone
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("Room forwarder lagged by {n} messages");
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    break; // Room closed
+                }
+            }
+        }
+    })
 }
 
 /// Handle an individual WebSocket connection.
@@ -39,8 +65,11 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     );
 
     // Phase 2: Message loop
+    // Use a merged mpsc channel: each room's broadcast receiver is forwarded
+    // into this single channel, so select! only needs one branch for all rooms.
     let mut joined_rooms: HashSet<Uuid> = HashSet::new();
-    let mut room_rx: Option<broadcast::Receiver<BroadcastMsg>> = None;
+    let (merged_tx, mut merged_rx) = mpsc::channel::<BroadcastMsg>(256);
+    let mut _forwarder_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
     let mut heartbeat_timer =
         tokio::time::interval_at(Instant::now() + HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
     let mut last_pong = Instant::now();
@@ -59,7 +88,8 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                             account_id,
                             device_id,
                             &mut joined_rooms,
-                            &mut room_rx,
+                            &merged_tx,
+                            &mut _forwarder_handles,
                         ).await {
                             if should_close {
                                 break;
@@ -80,15 +110,10 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 }
             }
 
-            // Room broadcast messages
-            msg = async {
-                match room_rx.as_mut() {
-                    Some(rx) => rx.recv().await,
-                    None => std::future::pending().await,
-                }
-            } => {
+            // Merged room broadcast messages from all joined rooms
+            msg = merged_rx.recv() => {
                 match msg {
-                    Ok(broadcast_msg) => {
+                    Some(broadcast_msg) => {
                         // Skip messages from ourselves
                         if broadcast_msg.sender_conn_id != conn_id
                             && socket.send(Message::Text(broadcast_msg.json.into())).await.is_err()
@@ -96,11 +121,8 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                             break;
                         }
                     }
-                    Err(broadcast::error::RecvError::Lagged(n)) => {
-                        tracing::warn!(conn_id = %conn_id, "Broadcast lagged by {n} messages");
-                    }
-                    Err(broadcast::error::RecvError::Closed) => {
-                        room_rx = None;
+                    None => {
+                        // All senders dropped (shouldn't happen while we hold merged_tx)
                     }
                 }
             }
@@ -116,6 +138,11 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 }
             }
         }
+    }
+
+    // Abort forwarder tasks on disconnect
+    for handle in _forwarder_handles {
+        handle.abort();
     }
 
     // Cleanup: leave all rooms
@@ -196,7 +223,8 @@ async fn handle_message(
     _account_id: Uuid,
     _device_id: Uuid,
     joined_rooms: &mut HashSet<Uuid>,
-    room_rx: &mut Option<broadcast::Receiver<BroadcastMsg>>,
+    merged_tx: &mpsc::Sender<BroadcastMsg>,
+    forwarder_handles: &mut Vec<tokio::task::JoinHandle<()>>,
 ) -> Result<(), bool> {
     let msg = match SyncMessage::from_json(text) {
         Ok(m) => m,
@@ -214,7 +242,8 @@ async fn handle_message(
     match msg {
         SyncMessage::JoinRoom { project_id } => {
             let rx = state.room_manager.join(project_id);
-            *room_rx = Some(rx);
+            let handle = spawn_room_forwarder(rx, merged_tx.clone());
+            forwarder_handles.push(handle);
             joined_rooms.insert(project_id);
 
             let response = SyncMessage::RoomJoined {
@@ -229,9 +258,8 @@ async fn handle_message(
         SyncMessage::LeaveRoom { project_id } => {
             joined_rooms.remove(&project_id);
             state.room_manager.leave(project_id);
-            if joined_rooms.is_empty() {
-                *room_rx = None;
-            }
+            // Forwarder tasks will naturally stop when the broadcast channel closes
+            // after room cleanup, or they'll be aborted on disconnect.
         }
 
         SyncMessage::EncryptedUpdate {

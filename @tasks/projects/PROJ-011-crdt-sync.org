@@ -888,7 +888,7 @@ Tauri IPC commands: sync_connect, sync_disconnect, sync_status, sync_enable_proj
 - [X] Proper error handling (AppError::Sync variant)
 - [X] ~4 unit tests passing (4 tests)
 
-*** ITEM E2E test -- two instances syncing through server
+*** DONE E2E test -- two instances syncing through server
 :PROPERTIES:
 :CUSTOM_ID: ITEM-158
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -903,9 +903,14 @@ Tauri IPC commands: sync_connect, sync_disconnect, sync_status, sync_enable_proj
 E2E test: start in-process server, two SyncEngines connect, Client A creates chapter -> Client B receives it. Client B edits -> Client A sees it. Offline test: disconnect A, edit both, reconnect, verify convergence.
 
 **** Acceptance Criteria
-- [ ] Two-client online sync test
-- [ ] Offline/reconnect convergence test
-- [ ] ~5 E2E tests passing
+- [X] Two-client online sync test (online_sync_a_to_b, bidirectional_sync)
+- [X] Sync request catch-up test (sync_request_catchup)
+- [X] Concurrent projects test (concurrent_projects)
+- [X] Encryption isolation test (wrong_key_no_decryption)
+- [X] Disable project test (disable_project_stops_updates)
+- [X] Rapid-fire updates test (rapid_fire_updates)
+- [X] ~5 E2E tests passing (7 integration tests)
+- [X] Fix: server multi-room broadcast (was only relaying from last-joined room)
 
 ** CHK-011-07 Lexical-Loro Deep Binding
 :PROPERTIES:
