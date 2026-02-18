@@ -28,7 +28,7 @@ class EntityStore {
   private guard = new StaleGuard();
 
   async loadSchemas(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoadingSchemas = true;
     this.error = null;
     try {
@@ -52,7 +52,7 @@ class EntityStore {
     const cached = this.schemaCache[schemaType];
     if (cached) return cached;
 
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     const schema = await invoke<EntitySchema>('get_schema', {
       projectPath,
       schemaType,
@@ -63,7 +63,7 @@ class EntityStore {
   }
 
   async saveSchema(projectPath: string, schema: EntitySchema): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -84,7 +84,7 @@ class EntityStore {
   }
 
   async deleteSchema(projectPath: string, schemaType: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -111,7 +111,7 @@ class EntityStore {
     // Skip if already loaded
     if (this.entitiesByType[schemaType]) return;
 
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoadingEntities[schemaType] = true;
     this.error = null;
     try {
@@ -134,7 +134,7 @@ class EntityStore {
 
   // Force-refetch entities for a type (used after create/delete/rename)
   async reloadEntities(projectPath: string, schemaType: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoadingEntities[schemaType] = true;
     this.error = null;
     try {
@@ -160,7 +160,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<EntityInstance> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -188,7 +188,7 @@ class EntityStore {
     schemaType: string,
     title: string,
   ): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -213,7 +213,7 @@ class EntityStore {
 
   // --- In-place update for saves (Bug 3 fix) ---
   async saveEntity(projectPath: string, entity: EntityInstance): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -242,7 +242,7 @@ class EntityStore {
     oldSlug: string,
     newTitle: string,
   ): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {
@@ -272,7 +272,7 @@ class EntityStore {
     schemaType: string,
     slug: string,
   ): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isSaving = true;
     this.error = null;
     try {

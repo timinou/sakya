@@ -63,7 +63,7 @@ class UIState {
   }
 
   async persist(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     const state = {
       theme: this.theme,
       viewMode: this.viewMode,
@@ -83,7 +83,7 @@ class UIState {
   }
 
   async restore(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     try {
       const content = await readTextFile(`${projectPath}/.sakya/ui-state.json`);
       const state = JSON.parse(content);

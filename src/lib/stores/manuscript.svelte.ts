@@ -17,7 +17,7 @@ class ManuscriptStore {
   chapterCount = $derived(this.chapters.length);
 
   async loadConfig(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -49,7 +49,7 @@ class ManuscriptStore {
   }
 
   async createChapter(projectPath: string, title: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -68,7 +68,7 @@ class ManuscriptStore {
   }
 
   async deleteChapter(projectPath: string, slug: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -91,7 +91,7 @@ class ManuscriptStore {
   }
 
   async reorderChapters(projectPath: string, chapterSlugs: string[]): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -113,7 +113,7 @@ class ManuscriptStore {
     const cached = this.chapterContent[slug];
     if (cached) return cached;
 
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     try {
       const content = await invoke<ChapterContent>('get_chapter', { projectPath, slug });
       if (this.guard.isStale(token)) return content; // STALE GUARD — return value but don't cache
@@ -131,7 +131,7 @@ class ManuscriptStore {
     chapter: Chapter,
     body: string,
   ): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -151,7 +151,7 @@ class ManuscriptStore {
   }
 
   async renameChapter(projectPath: string, slug: string, newTitle: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {

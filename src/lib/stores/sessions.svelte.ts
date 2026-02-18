@@ -23,7 +23,7 @@ class SessionsStore {
   /** Fetch sessions and stats from the backend. */
   async loadSessions(projectPath: string): Promise<void> {
     if (this.isLoading) return;
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
 
     try {

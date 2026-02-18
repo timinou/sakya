@@ -37,6 +37,9 @@ class ProjectState {
 
   async open(path: string): Promise<void> {
     const token = this.guard.begin(); // STALE GUARD
+    // Clear projectPath FIRST so effects don't fire for the old project during await.
+    // Without this, effects see the old path + reset stores and re-load stale data.
+    this.projectPath = null;
     // Reset all subordinate stores to prevent stale data from previous project
     this.resetSubordinateStores();
     this.isLoading = true;

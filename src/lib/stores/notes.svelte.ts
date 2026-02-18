@@ -17,7 +17,7 @@ class NotesStore {
   hasNotes = $derived(this.config.notes.length > 0);
 
   async loadConfig(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -36,7 +36,7 @@ class NotesStore {
   }
 
   async saveConfig(projectPath: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -54,7 +54,7 @@ class NotesStore {
   }
 
   async createNote(projectPath: string, title: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -73,7 +73,7 @@ class NotesStore {
   }
 
   async deleteNote(projectPath: string, slug: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -99,7 +99,7 @@ class NotesStore {
     const cached = this.noteContent[slug];
     if (cached) return cached;
 
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     try {
       const content = await invoke<NoteContent>('get_note', { projectPath, slug });
       if (this.guard.isStale(token)) return content; // STALE GUARD — return value but don't cache
@@ -117,7 +117,7 @@ class NotesStore {
     title: string,
     body: string,
   ): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
@@ -165,7 +165,7 @@ class NotesStore {
   }
 
   async renameNote(projectPath: string, slug: string, newTitle: string): Promise<void> {
-    const token = this.guard.begin(); // STALE GUARD
+    const token = this.guard.snapshot(); // STALE GUARD
     this.isLoading = true;
     this.error = null;
     try {
