@@ -77,3 +77,33 @@ Migrate all 10 navigation call sites across 6 files to use NavigationStore. Repl
 - [X] EditorArea: 3 effects -> 1 unified content-loading effect
 - [X] 420 E2E tests pass
 - [X] svelte-check: 0 errors
+
+** DONE E2E tests for NavigationStore behavioral gaps
+CLOSED: [2026-02-19 Wed]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-914
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-913
+:FILES: e2e/navigation.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+12 E2E tests in 4 describe groups covering 5 behavioral gaps that only NavigationStore exercises: tab click restores binder highlight (switchToTab fix), cross-type selection clearing, close tab restores fallback binder highlight, full cross-type round-trip, and corkboard "Open in Tab" integration.
+
+*** Acceptance Criteria
+- [X] Tab click restores chapter binder highlight
+- [X] Tab click restores note binder highlight
+- [X] Chapter -> note clears chapter highlight
+- [X] Note -> chapter clears note highlight
+- [X] Chapter -> entity clears chapter highlight
+- [X] Full round-trip: ch -> note -> entity -> ch
+- [X] Ctrl+W clears selection for closed type
+- [X] Close button clears selection for closed type
+- [X] Close tab restores fallback binder highlight
+- [X] Close last tab clears all selections
+- [X] "Open in Editor" opens note tab from corkboard
+- [X] Double-click existing tab switches to it from corkboard
+- [X] 432 E2E tests pass (12 new + 420 existing)
