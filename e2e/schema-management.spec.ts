@@ -493,7 +493,7 @@ test.describe("Schema Management", () => {
     await expect(characterHeader).toBeVisible();
 
     // Click the add button for characters
-    const addBtn = characterHeader.locator(".section-add-btn");
+    const addBtn = characterHeader.locator(".section-add");
     await addBtn.click();
 
     // Type entity name and confirm

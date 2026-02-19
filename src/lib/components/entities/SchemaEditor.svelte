@@ -20,7 +20,8 @@
   let { schema, isNew = false, onSave, onCancel }: Props = $props();
 
   // Deep clone the input schema into local mutable state
-  let localSchema = $state<EntitySchema>(structuredClone(schema));
+  // Use $state.snapshot() to convert the reactive proxy to a plain object before cloning
+  let localSchema = $state<EntitySchema>(structuredClone($state.snapshot(schema)));
 
   // Track which field/axis cards are expanded
   let expandedFields = $state<Set<number>>(new Set());
@@ -178,7 +179,7 @@
 
   // --- Save / Cancel ---
   function handleSave() {
-    onSave?.(structuredClone(localSchema));
+    onSave?.($state.snapshot(localSchema) as EntitySchema);
   }
 
   function handleCancel() {
