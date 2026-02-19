@@ -7,3 +7,4 @@ export { notesStore } from './notes.svelte';
 export { sprintStore } from './sprint.svelte';
 export { sessionsStore } from './sessions.svelte';
 export { syncStore } from './sync.svelte';
+export { navigationStore } from './navigation.svelte';

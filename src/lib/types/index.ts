@@ -4,6 +4,7 @@ export type { ChapterStatus, ManuscriptConfig, Chapter, ChapterContent } from '.
 export type { CorkboardPosition, CorkboardSize, NoteEntry, NotesConfig, NoteContent } from './note';
 export type { EditorTab, DocumentContent, WordCount } from './editor';
 export type { Theme, ViewMode, PaneConfig, UIState } from './ui';
+export type { NavigationTarget } from './navigation';
 export type { WritingSession, SessionStats } from './session';
 export type { ChapterHeaderStyle, ChapterSeparator, OutputFormat, CompileConfig, CompileOutput } from './compile';
 export { defaultCompileConfig } from './compile';
