@@ -1,7 +1,7 @@
 <script lang="ts">
   import { StickyNote, FileText, Plus, Pencil, Trash2, EllipsisVertical } from 'lucide-svelte';
   import { untrack } from 'svelte';
-  import { notesStore, manuscriptStore, editorState, projectState } from '$lib/stores';
+  import { notesStore, manuscriptStore, editorState, projectState, navigationStore } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
   import ContextMenu from '$lib/components/common/ContextMenu.svelte';
@@ -77,8 +77,7 @@
   }
 
   function handleNoteClick(slug: string): void {
-    manuscriptStore.selectChapter('');
-    notesStore.selectNote(slug);
+    navigationStore.navigateTo({ type: 'note', slug });
     onSelectNote?.(slug);
   }
 

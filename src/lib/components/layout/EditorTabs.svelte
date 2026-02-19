@@ -1,23 +1,14 @@
 <script lang="ts">
-  import { editorState, manuscriptStore, notesStore, entityStore } from '$lib/stores';
+  import { editorState, navigationStore } from '$lib/stores';
   import { X } from 'lucide-svelte';
 
   function switchTab(tabId: string) {
-    editorState.switchTab(tabId);
+    navigationStore.switchToTab(tabId);
   }
 
   function closeTab(tabId: string, event: MouseEvent) {
     event.stopPropagation();
-    const tab = editorState.tabs.find((t) => t.id === tabId);
-    editorState.closeTab(tabId);
-    // Clear store selection to prevent $effect from re-opening the tab
-    if (tab?.documentType === 'chapter') {
-      manuscriptStore.selectChapter('');
-    } else if (tab?.documentType === 'note') {
-      notesStore.selectNote('');
-    } else if (tab?.documentType === 'entity') {
-      entityStore.currentEntity = null;
-    }
+    navigationStore.closeTab(tabId);
   }
 </script>
 

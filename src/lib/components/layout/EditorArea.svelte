@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { manuscriptStore, notesStore, editorState, projectState, entityStore, uiState } from '$lib/stores';
+  import { manuscriptStore, notesStore, editorState, projectState, entityStore } from '$lib/stores';
   import type { EntitySchema, EntityInstance } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import SchemaEditor from '$lib/components/entities/SchemaEditor.svelte';
@@ -26,62 +26,6 @@
     editorState.activeTab ? contentCache[editorState.activeTab.id] ?? null : null
   );
 
-  // When activeChapterSlug changes, open a tab and load content
-  $effect(() => {
-    const slug = manuscriptStore.activeChapterSlug;
-    const path = projectState.projectPath;
-    if (!slug || !path) return;
-
-    const tabId = `chapter:${slug}`;
-    const chapter = manuscriptStore.activeChapter;
-    if (!chapter) return;
-
-    // Open tab (idempotent - if already open, just switches to it)
-    // openDocument is self-protecting via internal untrack() — no wrapper needed
-    editorState.openDocument({
-      id: tabId,
-      title: chapter.title,
-      documentType: 'chapter',
-      documentSlug: slug,
-      isDirty: false,
-    });
-
-    // Load content if not cached
-    if (!contentCache[tabId]) {
-      // Untrack: prevent contentCache writes during async load from re-triggering this effect
-      untrack(() => loadContent(path, slug, tabId));
-    }
-  });
-
-  // When activeNoteSlug changes, open a tab and load content
-  $effect(() => {
-    const slug = notesStore.activeNoteSlug;
-    const path = projectState.projectPath;
-    if (!slug || !path) return;
-
-    // In corkboard mode, selecting a note doesn't auto-open a tab
-    // (inline editing handles note content in the corkboard itself)
-    if (uiState.viewMode === 'corkboard') return;
-
-    const tabId = `note:${slug}`;
-    const note = notesStore.activeNote;
-    if (!note) return;
-
-    // openDocument is self-protecting via internal untrack() — no wrapper needed
-    editorState.openDocument({
-      id: tabId,
-      title: note.title,
-      documentType: 'note',
-      documentSlug: slug,
-      isDirty: false,
-    });
-
-    if (!contentCache[tabId]) {
-      // Untrack: prevent contentCache writes during async load from re-triggering this effect
-      untrack(() => loadNoteContent(path, slug, tabId));
-    }
-  });
-
   // Derive active schema for schema tabs
   let activeSchema = $derived(
     editorState.activeTab?.documentType === 'schema'
@@ -96,21 +40,35 @@
       : null
   );
 
-  // Load entity data when an entity tab becomes active
+  // Unified content-loading effect: watches activeTab and loads content on demand.
+  // Tab opening is handled by NavigationStore — this effect only loads content.
   $effect(() => {
     const tab = editorState.activeTab;
     const path = projectState.projectPath;
-    if (!tab || tab.documentType !== 'entity' || !path) return;
-    if (entityCache[tab.id]) return; // Already loaded
+    if (!tab || !path) return;
 
-    // Parse tab ID: entity:{schemaType}:{slug}
-    const parts = tab.id.split(':');
-    if (parts.length < 3) return;
-    const schemaType = parts[1];
-    const slug = parts.slice(2).join(':');
-
-    // Untrack: prevent entityCache writes during async load from re-triggering this effect
-    untrack(() => loadEntity(path, schemaType, slug, tab.id));
+    switch (tab.documentType) {
+      case 'chapter':
+        if (!contentCache[tab.id]) {
+          untrack(() => loadContent(path, tab.documentSlug, tab.id));
+        }
+        break;
+      case 'note':
+        if (!contentCache[tab.id]) {
+          untrack(() => loadNoteContent(path, tab.documentSlug, tab.id));
+        }
+        break;
+      case 'entity':
+        if (!entityCache[tab.id]) {
+          const parts = tab.id.split(':');
+          if (parts.length >= 3) {
+            const schemaType = parts[1];
+            const slug = parts.slice(2).join(':');
+            untrack(() => loadEntity(path, schemaType, slug, tab.id));
+          }
+        }
+        break;
+    }
   });
 
   async function loadEntity(projectPath: string, schemaType: string, slug: string, tabId: string) {

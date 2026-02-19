@@ -1,7 +1,7 @@
 <script lang="ts">
   import { StickyNote, Plus } from 'lucide-svelte';
   import type { NoteEntry, CorkboardSize } from '$lib/types';
-  import { notesStore, editorState, projectState, uiState } from '$lib/stores';
+  import { notesStore, editorState, projectState, uiState, navigationStore } from '$lib/stores';
   import NoteCard from './NoteCard.svelte';
 
   interface Props {
@@ -86,7 +86,7 @@
     const tabId = `note:${slug}`;
     const existingTab = editorState.tabs.find((t) => t.id === tabId);
     if (existingTab) {
-      editorState.switchTab(tabId);
+      navigationStore.switchToTab(tabId);
       uiState.setViewMode('editor');
       return;
     }
@@ -138,8 +138,8 @@
   function handleOpenInTab(slug: string): void {
     // Exit edit mode first
     editingSlug = null;
-    // Select the note and switch to editor mode
-    notesStore.selectNote(slug);
+    // Navigate to the note (clears cross-type selection) and switch to editor mode
+    navigationStore.navigateTo({ type: 'note', slug });
     uiState.setViewMode('editor');
   }
 

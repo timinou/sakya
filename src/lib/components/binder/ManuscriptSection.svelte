@@ -1,7 +1,7 @@
 <script lang="ts">
   import { BookOpen, FileText, Plus, Pencil, Trash2, ArrowUp, ArrowDown, EllipsisVertical, ChevronDown } from 'lucide-svelte';
   import { untrack } from 'svelte';
-  import { manuscriptStore, notesStore, editorState, projectState } from '$lib/stores';
+  import { manuscriptStore, notesStore, editorState, projectState, navigationStore } from '$lib/stores';
   import type { ChapterStatus } from '$lib/types/manuscript';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
@@ -95,8 +95,7 @@
   }
 
   function handleChapterClick(slug: string): void {
-    notesStore.selectNote('');
-    manuscriptStore.selectChapter(slug);
+    navigationStore.navigateTo({ type: 'chapter', slug });
     onSelectChapter?.(slug);
   }
 

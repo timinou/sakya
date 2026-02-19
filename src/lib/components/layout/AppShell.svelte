@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { Snippet } from 'svelte';
   import type { Chapter, ChapterStatus } from '$lib/types';
-  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore, entityStore } from '$lib/stores';
+  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore, entityStore, navigationStore } from '$lib/stores';
   import { SearchPalette, ToastContainer } from '$lib/components/common';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
   import CompileDialog from '$lib/components/compile/CompileDialog.svelte';
@@ -117,38 +117,21 @@
   }
 
   function handleSelectEntity(schemaType: string, slug: string) {
-    // Clear chapter/note selections so their $effects in EditorArea don't re-activate
-    manuscriptStore.selectChapter('');
-    notesStore.selectNote('');
-
-    // Look up entity title from the store's entity list
-    const entities = entityStore.entitiesByType[schemaType] ?? [];
-    const entity = entities.find((e: { slug: string }) => e.slug === slug);
-    const title = entity?.title ?? slug;
-
-    editorState.openDocument({
-      id: `entity:${schemaType}:${slug}`,
-      title,
-      documentType: 'entity',
-      documentSlug: slug,
-      isDirty: false,
-    });
+    navigationStore.navigateTo({ type: 'entity', schemaType, slug });
   }
 
   function handleSearchNavigate(fileType: string, slug: string, entityType?: string) {
     switch (fileType) {
       case 'chapter':
-        notesStore.selectNote('');
-        manuscriptStore.selectChapter(slug);
+        navigationStore.navigateTo({ type: 'chapter', slug });
         break;
       case 'entity':
         if (entityType) {
-          handleSelectEntity(entityType, slug);
+          navigationStore.navigateTo({ type: 'entity', schemaType: entityType, slug });
         }
         break;
       case 'note':
-        manuscriptStore.selectChapter('');
-        notesStore.selectNote(slug);
+        navigationStore.navigateTo({ type: 'note', slug });
         break;
     }
   }
@@ -177,7 +160,7 @@
   }
 
   function handleInspectorOpenNoteInTab(slug: string) {
-    notesStore.selectNote(slug);
+    navigationStore.navigateTo({ type: 'note', slug });
     uiState.setViewMode('editor');
   }
 
@@ -329,18 +312,9 @@
 
     // Cmd+W: Close active tab
     if (mod && e.key === 'w') {
-      const tab = editorState.activeTab;
-      if (tab) {
+      if (editorState.activeTab) {
         e.preventDefault();
-        editorState.closeTab(tab.id);
-        // Clear store selection to prevent $effect from re-opening the tab
-        if (tab.documentType === 'chapter') {
-          manuscriptStore.selectChapter('');
-        } else if (tab.documentType === 'note') {
-          notesStore.selectNote('');
-        } else if (tab.documentType === 'entity') {
-          entityStore.currentEntity = null;
-        }
+        navigationStore.closeActive();
       }
       return;
     }
