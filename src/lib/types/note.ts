@@ -3,12 +3,18 @@ export interface CorkboardPosition {
   y: number;
 }
 
+export interface CorkboardSize {
+  width: number;
+  height: number;
+}
+
 export interface NoteEntry {
   slug: string;
   title: string;
   color?: string;
   label?: string;
   position?: CorkboardPosition;
+  size?: CorkboardSize;
 }
 
 export interface NotesConfig {

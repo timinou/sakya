@@ -113,6 +113,7 @@ pub fn create_note(project_path: String, title: String) -> Result<NoteContent, A
         color: None,
         label: None,
         position: None,
+        size: None,
     });
     save_notes_config(project_path, config)?;
 
@@ -249,6 +250,7 @@ mod tests {
                     color: Some("#ff0000".to_string()),
                     label: Some("important".to_string()),
                     position: Some(CorkboardPosition { x: 10.0, y: 20.0 }),
+                    size: None,
                 },
                 NoteEntry {
                     slug: "idea-two".to_string(),
@@ -256,6 +258,7 @@ mod tests {
                     color: None,
                     label: None,
                     position: None,
+                    size: None,
                 },
             ],
         };
@@ -291,6 +294,7 @@ mod tests {
                 color: None,
                 label: None,
                 position: None,
+                size: None,
             }],
         };
         save_notes_config(pp.clone(), config).unwrap();
@@ -315,6 +319,7 @@ mod tests {
                     color: Some("blue".to_string()),
                     label: Some("label-a".to_string()),
                     position: Some(CorkboardPosition { x: 100.5, y: 200.3 }),
+                    size: None,
                 },
                 NoteEntry {
                     slug: "b".to_string(),
@@ -322,6 +327,7 @@ mod tests {
                     color: None,
                     label: None,
                     position: None,
+                    size: None,
                 },
             ],
         };
@@ -347,6 +353,7 @@ mod tests {
                 color: None,
                 label: None,
                 position: None,
+                size: None,
             }],
         };
         save_notes_config(pp.clone(), config1).unwrap();
@@ -359,6 +366,7 @@ mod tests {
                     color: None,
                     label: None,
                     position: None,
+                    size: None,
                 },
                 NoteEntry {
                     slug: "new-b".to_string(),
@@ -366,6 +374,7 @@ mod tests {
                     color: None,
                     label: None,
                     position: None,
+                    size: None,
                 },
             ],
         };
@@ -689,6 +698,7 @@ mod tests {
                     color: Some("#abcdef".to_string()),
                     label: Some("plot".to_string()),
                     position: Some(CorkboardPosition { x: 42.5, y: 99.9 }),
+                    size: None,
                 },
                 NoteEntry {
                     slug: "unpositioned".to_string(),
@@ -696,6 +706,7 @@ mod tests {
                     color: None,
                     label: None,
                     position: None,
+                    size: None,
                 },
             ],
         };
@@ -730,6 +741,7 @@ mod tests {
                     x: -100.0,
                     y: -50.5,
                 }),
+                size: None,
             }],
         };
         save_notes_config(pp.clone(), config).unwrap();

@@ -112,3 +112,127 @@ Wire corkboard interactions to persistent storage via notes store and Tauri.
 - [ ] On card label change: save immediately
 - [ ] Load positions from notes.yaml on corkboard mount
 - [ ] Newly created notes get default position (center of visible area)
+
+** CHK-005-05 Corkboard Inline Editing & Card Resize
+:PROPERTIES:
+:CUSTOM_ID: CHK-005-05
+:GOAL: Make corkboard interactive with inline editing, resizable cards, and note inspector.
+:COMPLETION: Double-click expands card with textarea, cards are resizable via drag handles, NoteInspector shows metadata.
+:CRITERIA: ITEM-207, ITEM-208, ITEM-209, ITEM-210, ITEM-211
+:VERIFY: e2e, clippy, svelte-check
+:END:
+
+*** ITEM Add CorkboardSize to data model
+:PROPERTIES:
+:CUSTOM_ID: ITEM-207
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: src-tauri/src/models/notes.rs, src/lib/types/note.ts, src/lib/stores/notes.svelte.ts
+:TEST_PLAN: test-rust, compile
+:END:
+
+**** Description
+Add =CorkboardSize= struct/interface (width, height) to both Rust and TypeScript.
+Add optional =size= field to =NoteEntry=. Add =updateCardSize()= method to notes store.
+
+**** Acceptance Criteria
+- [ ] Rust: =CorkboardSize= struct with =width: f64=, =height: f64=
+- [ ] Rust: =NoteEntry.size= field with =#[serde(default)]=
+- [ ] TS: =CorkboardSize= interface
+- [ ] TS: =NoteEntry.size?= field
+- [ ] Store: =updateCardSize(slug, size)= method
+- [ ] Rust unit tests for round-trip with and without size field
+
+*** ITEM Add resize handle to NoteCard
+:PROPERTIES:
+:CUSTOM_ID: ITEM-208
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 2h
+:PRIORITY: #A
+:DEPENDS: ITEM-207
+:FILES: src/lib/components/notes/NoteCard.svelte, src/lib/components/notes/Corkboard.svelte, e2e/note-resize.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Add resize handle to NoteCard (visible on hover). Drag to resize with minimum 180×120px.
+Wire to Corkboard with debounced save.
+
+**** Acceptance Criteria
+- [ ] Resize handle visible on hover at bottom-right corner
+- [ ] Drag resize changes card dimensions
+- [ ] Resize persists via =save_notes_config= IPC
+- [ ] Minimum size enforced (180×120)
+- [ ] Resize does not trigger card drag
+- [ ] Cards without =size= use default dimensions
+- [ ] E2E tests pass
+
+*** ITEM Add inline textarea editing to NoteCard
+:PROPERTIES:
+:CUSTOM_ID: ITEM-209
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 3h
+:PRIORITY: #A
+:DEPENDS: ITEM-208
+:FILES: src/lib/components/notes/NoteCard.svelte, src/lib/components/notes/Corkboard.svelte, src/lib/components/layout/EditorArea.svelte, e2e/note-inline-editing.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Double-click card to enter edit mode with textarea. Content loaded from backend.
+Escape/click-outside exits and saves. Ctrl+Enter opens in full editor tab.
+
+**** Acceptance Criteria
+- [ ] Double-click shows textarea with loaded content
+- [ ] Single-click selects without editing
+- [ ] Typing triggers debounced =save_note= IPC
+- [ ] Escape exits edit mode and saves
+- [ ] Click outside exits edit mode and saves
+- [ ] "Open in Editor" button opens tab
+- [ ] Ctrl+Enter opens note in tab
+- [ ] EditorArea effect guarded for corkboard mode
+- [ ] E2E tests pass
+
+*** ITEM Create NoteInspector component
+:PROPERTIES:
+:CUSTOM_ID: ITEM-210
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-209
+:FILES: src/lib/components/inspector/NoteInspector.svelte, src/lib/components/layout/AppShell.svelte
+:TEST_PLAN: e2e
+:END:
+
+**** Description
+Simple inspector showing note metadata (color, label, body preview) when a note is selected.
+Wire into AppShell inspector pane.
+
+**** Acceptance Criteria
+- [ ] NoteInspector shows color, label, body preview
+- [ ] "Open in Editor" button
+- [ ] Visible when note tab active or corkboard note selected
+- [ ] Replaces "No inspector available" placeholder for notes
+
+*** ITEM Visual polish and comprehensive testing
+:PROPERTIES:
+:CUSTOM_ID: ITEM-211
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-210
+:FILES: e2e/note-resize.spec.ts, e2e/note-inline-editing.spec.ts
+:TEST_PLAN: e2e, clippy, svelte-check
+:END:
+
+**** Description
+CSS transitions, textarea styling, full E2E suite run, all lints clean.
+
+**** Acceptance Criteria
+- [ ] CSS transitions for card expand/collapse
+- [ ] Textarea monospace styling with proper padding
+- [ ] Full E2E suite passes (no regressions)
+- [ ] =cargo clippy= clean
+- [ ] =cargo fmt --check= clean
+- [ ] =bunx svelte-check= clean

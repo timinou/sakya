@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { NotesConfig, NoteContent, CorkboardPosition } from '$lib/types';
+import type { NotesConfig, NoteContent, CorkboardPosition, CorkboardSize } from '$lib/types';
 import { StaleGuard } from './stale-guard';
 
 class NotesStore {
@@ -161,6 +161,13 @@ class NotesStore {
     this.config = {
       ...this.config,
       notes: this.config.notes.map((n) => (n.slug === slug ? { ...n, label } : n)),
+    };
+  }
+
+  updateCardSize(slug: string, size: CorkboardSize): void {
+    this.config = {
+      ...this.config,
+      notes: this.config.notes.map((n) => (n.slug === slug ? { ...n, size } : n)),
     };
   }
 
