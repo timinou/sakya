@@ -29,6 +29,7 @@ function seedEntities(schemaType: string, ...slugs: string[]) {
   entityStore.entitiesByType[schemaType] = slugs.map((slug) => ({
     slug,
     title: `Entity ${slug}`,
+    schemaType,
     tags: [],
   }));
 }
