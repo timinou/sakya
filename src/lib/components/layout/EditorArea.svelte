@@ -37,12 +37,17 @@
     if (!chapter) return;
 
     // Open tab (idempotent - if already open, just switches to it)
-    editorState.openDocument({
-      id: tabId,
-      title: chapter.title,
-      documentType: 'chapter',
-      documentSlug: slug,
-      isDirty: false,
+    // Untrack: openDocument reads `this.tabs` internally via .find(), which would create
+    // a spurious reactive dependency on the tabs array. Without untrack, adding ANY tab
+    // (e.g. entity) re-triggers this effect and overrides activeTabId back to the chapter.
+    untrack(() => {
+      editorState.openDocument({
+        id: tabId,
+        title: chapter.title,
+        documentType: 'chapter',
+        documentSlug: slug,
+        isDirty: false,
+      });
     });
 
     // Load content if not cached
@@ -62,12 +67,15 @@
     const note = notesStore.activeNote;
     if (!note) return;
 
-    editorState.openDocument({
-      id: tabId,
-      title: note.title,
-      documentType: 'note',
-      documentSlug: slug,
-      isDirty: false,
+    // Untrack: same as chapter effect — prevents spurious dependency on tabs array
+    untrack(() => {
+      editorState.openDocument({
+        id: tabId,
+        title: note.title,
+        documentType: 'note',
+        documentSlug: slug,
+        isDirty: false,
+      });
     });
 
     if (!contentCache[tabId]) {

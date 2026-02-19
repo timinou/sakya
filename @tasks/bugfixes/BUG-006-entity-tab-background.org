@@ -1,0 +1,64 @@
+#+TITLE: BUG-006 Entity Tab Opens in Background Instead of Becoming Active
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-006 Entity Tab Opens in Background Instead of Becoming Active
+:PROPERTIES:
+:CUSTOM_ID: BUG-006
+:GOAL: Fix entity tab not becoming active when opened while a chapter or note tab is already selected.
+:COMPLETION: Clicking any entity in the binder while a chapter/note is active switches focus to the entity tab; all 6 cross-type switching E2E tests pass.
+:END:
+
+** DOING Fix reactive dependency in EditorArea chapter/note effects
+:PROPERTIES:
+:CUSTOM_ID: ITEM-205
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/components/layout/EditorArea.svelte, src/lib/components/layout/AppShell.svelte, src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/NotesSection.svelte
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+When clicking a character (or any entity) in the sidebar while another tab type
+(chapter/note) is already active, the entity tab opens but doesn't become the
+active tab. The user sees the tab appear in the tab bar, but the editor area
+still shows the previous chapter/note content.
+
+*Root cause*: The ~$effect~ blocks in ~EditorArea.svelte~ that manage chapter and
+note tab opening call ~editorState.openDocument()~, which internally reads
+~this.tabs~ via ~.find()~. This creates an unintended reactive dependency on
+~editorState.tabs~. When any tab is added (e.g., an entity tab), the
+chapter/notes effects re-run and call ~openDocument()~ for the still-selected
+chapter/note, overriding ~activeTabId~ back to the chapter/note.
+
+*** Acceptance Criteria
+- [X] Wrap ~openDocument()~ calls in chapter/note ~$effect~ blocks with ~untrack()~
+- [X] Clear cross-type store selections when switching between chapter/note/entity
+- [X] ~handleSelectEntity~ clears both ~activeChapterSlug~ and ~activeNoteSlug~
+- [X] ~handleChapterClick~ clears ~activeNoteSlug~
+- [X] ~handleNoteClick~ clears ~activeChapterSlug~
+- [X] ~handleSearchNavigate~ clears cross-type selections appropriately
+
+** DOING Write cross-type tab switching E2E tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-206
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: e2e/entity-editing.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add 6 E2E tests verifying cross-type tab switching works correctly when
+navigating between chapters, notes, and entities.
+
+*** Acceptance Criteria
+- [ ] Test: clicking entity when chapter is active switches to entity tab
+- [ ] Test: clicking entity when note is active switches to entity tab
+- [ ] Test: clicking different entities switches active tab
+- [ ] Test: can return to chapter tab after opening entity
+- [ ] Test: clicking entity with no prior tab makes it active
+- [ ] Test: activeChapterSlug is cleared after clicking entity
+- [ ] All 6 tests pass GREEN

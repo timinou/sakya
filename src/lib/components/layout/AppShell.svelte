@@ -116,6 +116,10 @@
   }
 
   function handleSelectEntity(schemaType: string, slug: string) {
+    // Clear chapter/note selections so their $effects in EditorArea don't re-activate
+    manuscriptStore.selectChapter('');
+    notesStore.selectNote('');
+
     // Look up entity title from the store's entity list
     const entities = entityStore.entitiesByType[schemaType] ?? [];
     const entity = entities.find((e: { slug: string }) => e.slug === slug);
@@ -133,6 +137,7 @@
   function handleSearchNavigate(fileType: string, slug: string, entityType?: string) {
     switch (fileType) {
       case 'chapter':
+        notesStore.selectNote('');
         manuscriptStore.selectChapter(slug);
         break;
       case 'entity':
@@ -141,6 +146,7 @@
         }
         break;
       case 'note':
+        manuscriptStore.selectChapter('');
         notesStore.selectNote(slug);
         break;
     }

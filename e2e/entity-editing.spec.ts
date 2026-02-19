@@ -142,6 +142,125 @@ test.describe("Entity Editing via Search Palette", () => {
   });
 });
 
+// =============================================================================
+// Cross-type tab switching (BUG-006)
+// =============================================================================
+
+test.describe("Entity tab activation — cross-type switching", () => {
+  test.beforeEach(async ({ page }) => {
+    await openMockProject(page);
+  });
+
+  test("clicking entity when chapter is active switches to entity tab", async ({ page }) => {
+    const binder = page.locator('.binder-content');
+
+    // Open a chapter first
+    await binder.getByText("The Awakening").click();
+    const chapterTab = page.locator('.tab').filter({ hasText: "The Awakening" });
+    await expect(chapterTab).toBeVisible({ timeout: 3000 });
+    await expect(chapterTab).toHaveClass(/active/);
+
+    // Now click an entity in the binder (scoped to avoid POV dropdown match)
+    await binder.getByText("Elena Blackwood").click();
+
+    // Entity tab should be active, chapter tab should NOT be active
+    const entityTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(entityTab).toBeVisible({ timeout: 3000 });
+    await expect(entityTab).toHaveClass(/active/);
+    await expect(chapterTab).not.toHaveClass(/active/);
+  });
+
+  test("clicking entity when note is active switches to entity tab", async ({ page }) => {
+    // Open a note first
+    await page.getByText("Magic System Rules").click();
+    const noteTab = page.locator('.tab').filter({ hasText: "Magic System Rules" });
+    await expect(noteTab).toBeVisible({ timeout: 3000 });
+    await expect(noteTab).toHaveClass(/active/);
+
+    // Now click an entity
+    await page.getByText("Elena Blackwood").click();
+
+    // Entity tab should be active, note tab should NOT be active
+    const entityTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(entityTab).toBeVisible({ timeout: 3000 });
+    await expect(entityTab).toHaveClass(/active/);
+    await expect(noteTab).not.toHaveClass(/active/);
+  });
+
+  test("clicking different entities switches active tab", async ({ page }) => {
+    // Open entity A
+    await page.getByText("Elena Blackwood").click();
+    const elenaTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(elenaTab).toBeVisible({ timeout: 3000 });
+    await expect(elenaTab).toHaveClass(/active/);
+
+    // Open entity B
+    await page.getByText("Marcus Thorne").click();
+    const marcusTab = page.locator('.tab').filter({ hasText: "Marcus Thorne" });
+    await expect(marcusTab).toBeVisible({ timeout: 3000 });
+    await expect(marcusTab).toHaveClass(/active/);
+
+    // Elena tab still visible but not active
+    await expect(elenaTab).toBeVisible();
+    await expect(elenaTab).not.toHaveClass(/active/);
+  });
+
+  test("can return to chapter tab after opening entity", async ({ page }) => {
+    const binder = page.locator('.binder-content');
+
+    // Open a chapter
+    await binder.getByText("The Awakening").click();
+    const chapterTab = page.locator('.tab').filter({ hasText: "The Awakening" });
+    await expect(chapterTab).toBeVisible({ timeout: 3000 });
+
+    // Open an entity (should become active) — scoped to binder to avoid POV dropdown
+    await binder.getByText("Elena Blackwood").click();
+    const entityTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(entityTab).toHaveClass(/active/, { timeout: 3000 });
+
+    // Click back on the chapter tab
+    await chapterTab.click();
+    await expect(chapterTab).toHaveClass(/active/);
+    await expect(entityTab).not.toHaveClass(/active/);
+  });
+
+  test("clicking entity with no prior tab makes it active", async ({ page }) => {
+    // No tabs open initially — welcome card visible
+    const welcome = page.locator('.welcome-card');
+    await expect(welcome).toBeVisible({ timeout: 3000 });
+
+    // Click entity
+    await page.getByText("Elena Blackwood").click();
+    const entityTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(entityTab).toBeVisible({ timeout: 3000 });
+    await expect(entityTab).toHaveClass(/active/);
+
+    // Welcome card should be gone
+    await expect(welcome).not.toBeVisible();
+  });
+
+  test("activeChapterSlug is cleared after clicking entity", async ({ page }) => {
+    const binder = page.locator('.binder-content');
+
+    // Open a chapter first
+    await binder.getByText("The Awakening").click();
+    const chapterTab = page.locator('.tab').filter({ hasText: "The Awakening" });
+    await expect(chapterTab).toBeVisible({ timeout: 3000 });
+
+    // Click entity — scoped to binder to avoid POV dropdown
+    await binder.getByText("Elena Blackwood").click();
+    const entityTab = page.locator('.tab').filter({ hasText: "Elena Blackwood" });
+    await expect(entityTab).toHaveClass(/active/, { timeout: 3000 });
+
+    // Verify store slug is cleared via page.evaluate
+    const slug = await page.evaluate(async () => {
+      const stores = await import("/src/lib/stores/index.ts");
+      return (stores as any).manuscriptStore.activeChapterSlug;
+    });
+    expect(slug).toBe('');
+  });
+});
+
 test.describe("Entity Tab ID Consistency", () => {
   test.beforeEach(async ({ page }) => {
     await openMockProject(page);
