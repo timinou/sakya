@@ -15,6 +15,7 @@
   import Binder from './Binder.svelte';
   import Inspector from './Inspector.svelte';
   import ChapterInspector from '$lib/components/inspector/ChapterInspector.svelte';
+  import NoteInspector from '$lib/components/inspector/NoteInspector.svelte';
   import Corkboard from '$lib/components/notes/Corkboard.svelte';
 
   interface Props {
@@ -173,6 +174,11 @@
       manuscriptStore.updateChapterMetadata(path, chapter.slug, updates);
       metadataSaveTimer = null;
     }, 1000);
+  }
+
+  function handleInspectorOpenNoteInTab(slug: string) {
+    notesStore.selectNote(slug);
+    uiState.setViewMode('editor');
   }
 
   // --- UI State Persistence ---
@@ -482,6 +488,18 @@
               wordCount={editorState.wordCount.words}
               onStatusChange={handleStatusChange}
               onMetadataChange={handleMetadataChange}
+            />
+          {:else if editorState.activeTab?.documentType === 'note' && notesStore.activeNote}
+            <NoteInspector
+              note={notesStore.activeNote}
+              bodyPreview={notesStore.noteContent[notesStore.activeNote.slug]?.body ?? ''}
+              onOpenInTab={handleInspectorOpenNoteInTab}
+            />
+          {:else if uiState.viewMode === 'corkboard' && notesStore.activeNote}
+            <NoteInspector
+              note={notesStore.activeNote}
+              bodyPreview={notesStore.noteContent[notesStore.activeNote.slug]?.body ?? ''}
+              onOpenInTab={handleInspectorOpenNoteInTab}
             />
           {:else if editorState.activeTab}
             <div class="inspector-placeholder">
