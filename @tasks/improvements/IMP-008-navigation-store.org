@@ -1,0 +1,79 @@
+#+TITLE: IMP-008 NavigationStore + EditorState Self-Protection
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-008 NavigationStore + EditorState Self-Protection
+:PROPERTIES:
+:CUSTOM_ID: IMP-008
+:GOAL: Eliminate two structural bug classes: (1) reactive dependency leaks from EditorState methods called within $effect, (2) scattered cross-type selection clearing across 6 files.
+:COMPLETION: EditorState methods self-protect with untrack(); NavigationStore centralizes all navigation; 29 unit tests pass; 420 E2E tests pass; svelte-check clean.
+:END:
+
+** DONE EditorState self-protection with untrack()
+CLOSED: [2026-02-19 Wed]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-911
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: src/lib/stores/editor.svelte.ts, src/lib/components/layout/EditorArea.svelte
+:TEST_PLAN: test-svelte, e2e
+:END:
+
+*** Description
+Wrap =openDocument=, =switchTab=, =closeTab=, =setDirty= internals in =untrack()=. This follows the BUG-007 pattern -- put protection at the source so callers never need to remember it. Remove now-redundant =untrack()= wrappers from EditorArea.svelte.
+
+*** Acceptance Criteria
+- [X] All four EditorState mutation methods wrapped in untrack()
+- [X] Redundant untrack() wrappers removed from EditorArea.svelte
+- [X] Writes still trigger downstream effects normally
+
+** DONE Create NavigationStore + NavigationTarget type + unit tests
+CLOSED: [2026-02-19 Wed]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-912
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:FILES: src/lib/types/navigation.ts, src/lib/stores/navigation.svelte.ts, src/lib/stores/navigation.test.ts, src/lib/types/index.ts, src/lib/stores/index.ts
+:TEST_PLAN: test-svelte
+:END:
+
+*** Description
+Create =NavigationTarget= discriminated union type (chapter|note|entity|schema|stats) and =NavigationStore= class with =navigateTo()=, =switchToTab()=, =closeActive()=, =closeTab()= methods. All mutable state stays in existing stores. TDD with 29 Vitest unit tests.
+
+*** Acceptance Criteria
+- [X] NavigationTarget type exported from types/index.ts
+- [X] NavigationStore with 4 public methods
+- [X] 29 unit tests passing (navigateTo per type, switchToTab, closeActive, closeTab, cross-type invariant)
+- [X] svelte-check: 0 errors
+
+** DONE Migrate all callers to NavigationStore
+CLOSED: [2026-02-19 Wed]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-913
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 1h
+:PRIORITY: #A
+:DEPENDS: ITEM-911, ITEM-912
+:FILES: src/lib/components/layout/AppShell.svelte, src/lib/components/layout/EditorTabs.svelte, src/lib/components/layout/EditorArea.svelte, src/lib/components/binder/ManuscriptSection.svelte, src/lib/components/binder/NotesSection.svelte, src/lib/components/notes/Corkboard.svelte
+:TEST_PLAN: test-svelte, e2e
+:END:
+
+*** Description
+Migrate all 10 navigation call sites across 6 files to use NavigationStore. Replace EditorArea's 3 separate effects (chapter, note, entity) with 1 unified content-loading effect that watches =editorState.activeTab=. Net reduction: -79 lines of code.
+
+*** Acceptance Criteria
+- [X] ManuscriptSection.handleChapterClick -> navigationStore.navigateTo()
+- [X] NotesSection.handleNoteClick -> navigationStore.navigateTo()
+- [X] EditorTabs.switchTab -> navigationStore.switchToTab()
+- [X] EditorTabs.closeTab -> navigationStore.closeTab()
+- [X] AppShell.handleSelectEntity -> navigationStore.navigateTo()
+- [X] AppShell.handleSearchNavigate -> navigationStore.navigateTo()
+- [X] AppShell Cmd+W -> navigationStore.closeActive()
+- [X] AppShell.handleInspectorOpenNoteInTab -> navigationStore.navigateTo()
+- [X] Corkboard.handleOpenInTab -> navigationStore.navigateTo()
+- [X] Corkboard.handleEditStart -> navigationStore.switchToTab()
+- [X] EditorArea: 3 effects -> 1 unified content-loading effect
+- [X] 420 E2E tests pass
+- [X] svelte-check: 0 errors
