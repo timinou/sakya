@@ -1,4 +1,4 @@
-#+TITLE: IMP-006 Safe N-Process Concurrent Playwright Execution
+#+TITLE: IMP-006 Safe N-Process Concurrent Playwright Execution & Vite Watch Fix
 #+AUTHOR: Sakya Development Team
 #+STARTUP: overview
 
@@ -35,3 +35,25 @@ Also adds =test:e2e:stop-server= convenience script to =package.json=.
 - [X] =package.json= has =test:e2e:stop-server= script
 - [X] Single-process =bun run test:e2e= passes all existing tests
 - [X] Multiple concurrent =bunx playwright test= processes don't crash
+
+** DONE Add playwright-report/ and test-results/ to Vite watch ignore
+:PROPERTIES:
+:CUSTOM_ID: ITEM-204
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 15m
+:PRIORITY: #B
+:FILES: vite.config.js
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Vite was watching =playwright-report/= and =test-results/= directories. When
+Playwright's HTML reporter wrote files mid-run, Vite detected the changes and
+triggered full page reloads, causing =ERR_CONNECTION_REFUSED= and state-loss
+failures in 6+ tests across =project-switch.spec.ts= and =distraction-free.spec.ts=.
+
+Root cause confirmed via server log: =page reload playwright-report/index.html=.
+
+*** Acceptance Criteria
+- [X] =vite.config.js= watch.ignored includes =**/playwright-report/**= and =**/test-results/**=
+- [X] Previously flaky project-switch and distraction-free tests pass reliably
