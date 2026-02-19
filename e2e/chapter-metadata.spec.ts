@@ -134,17 +134,20 @@ test.describe("Chapter Metadata Inspector", () => {
     await expect(page.locator("#chapter-status")).toHaveValue("draft");
   });
 
-  test("inspector shows placeholder when note tab is active", async ({
+  test("inspector shows NoteInspector when note tab is active", async ({
     page,
   }) => {
-    // Open a note - notes don't have a ChapterInspector
+    // Open a note - should show NoteInspector instead of placeholder
     await page.getByTitle("Magic System Rules").click();
     await page.getByRole("tab", { name: "Magic System Rules" }).waitFor();
     await page.waitForTimeout(300);
 
-    // Inspector should show a different-document-type placeholder
+    // Inspector should show the NoteInspector with "Open in Editor" button
     await expect(
-      page.getByText("No inspector available for this document type"),
+      page.locator(".note-inspector"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Open in Editor" }),
     ).toBeVisible();
   });
 });

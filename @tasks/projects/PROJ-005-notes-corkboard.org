@@ -122,7 +122,7 @@ Wire corkboard interactions to persistent storage via notes store and Tauri.
 :VERIFY: e2e, clippy, svelte-check
 :END:
 
-*** ITEM Add CorkboardSize to data model
+*** DONE Add CorkboardSize to data model
 :PROPERTIES:
 :CUSTOM_ID: ITEM-207
 :AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
@@ -144,7 +144,7 @@ Add optional =size= field to =NoteEntry=. Add =updateCardSize()= method to notes
 - [ ] Store: =updateCardSize(slug, size)= method
 - [ ] Rust unit tests for round-trip with and without size field
 
-*** ITEM Add resize handle to NoteCard
+*** DONE Add resize handle to NoteCard
 :PROPERTIES:
 :CUSTOM_ID: ITEM-208
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -168,7 +168,7 @@ Wire to Corkboard with debounced save.
 - [ ] Cards without =size= use default dimensions
 - [ ] E2E tests pass
 
-*** ITEM Add inline textarea editing to NoteCard
+*** DONE Add inline textarea editing to NoteCard
 :PROPERTIES:
 :CUSTOM_ID: ITEM-209
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -194,7 +194,7 @@ Escape/click-outside exits and saves. Ctrl+Enter opens in full editor tab.
 - [ ] EditorArea effect guarded for corkboard mode
 - [ ] E2E tests pass
 
-*** ITEM Create NoteInspector component
+*** DONE Create NoteInspector component
 :PROPERTIES:
 :CUSTOM_ID: ITEM-210
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -215,7 +215,7 @@ Wire into AppShell inspector pane.
 - [ ] Visible when note tab active or corkboard note selected
 - [ ] Replaces "No inspector available" placeholder for notes
 
-*** ITEM Visual polish and comprehensive testing
+*** DONE Visual polish and comprehensive testing
 :PROPERTIES:
 :CUSTOM_ID: ITEM-211
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
