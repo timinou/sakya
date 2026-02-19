@@ -16,8 +16,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:all": "vitest run && playwright test",
     "test:e2e:tauri": "fish e2e-tauri/run.fish",
-    "test:visual": "playwright test e2e/visual.spec.ts",
-    "test:visual:update": "playwright test e2e/visual.spec.ts --update-snapshots",
+    "test:visual": "playwright test e2e/visual*.spec.ts",
+    "test:visual:update": "playwright test e2e/visual*.spec.ts --update-snapshots",
     "test:e2e:stop-server": "fuser -k 1420/tcp 2>/dev/null; rm -f /tmp/sakya-playwright-dev-server.pid /tmp/sakya-playwright-dev-server.lock; echo 'Dev server stopped'"
   },
   "license": "MIT",

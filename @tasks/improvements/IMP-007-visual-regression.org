@@ -1,0 +1,110 @@
+#+TITLE: IMP-007 Visual Regression Testing
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-007 Visual Regression Testing
+:PROPERTIES:
+:CUSTOM_ID: IMP-007
+:GOAL: Add ~32 targeted visual regression tests across 5 new spec files covering AppShell layout, Corkboard, Inspector panels, Stats, and Overlays.
+:COMPLETION: All visual regression tests pass with stable baselines. toHaveScreenshot() coverage expanded from 2 to ~32 tests.
+:END:
+
+** DONE Infrastructure — setTheme helper & dark theme test
+:PROPERTIES:
+:CUSTOM_ID: ITEM-212
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 30m
+:PRIORITY: #B
+:FILES: e2e/utils/screenshots.ts, package.json, e2e/visual.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Add =setTheme()= helper to =e2e/utils/screenshots.ts= for toggling dark/light theme in tests.
+Update =package.json= =test:visual= glob to match =e2e/visual*.spec.ts=.
+Add 1 dark theme launcher test to =e2e/visual.spec.ts=.
+
+*** Acceptance Criteria
+- [X] =setTheme(page, 'dark')= helper available in screenshots.ts
+- [X] =test:visual= and =test:visual:update= scripts glob all visual spec files
+- [X] Dark theme launcher screenshot test added and passing
+
+** DONE AppShell Layout Visual Tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-213
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-212
+:FILES: e2e/visual-appshell.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Create =e2e/visual-appshell.spec.ts= with 8 visual regression tests covering:
+welcome card, 3-pane layout (light + dark), toolbar, status bar, distraction-free mode,
+multiple tabs, and binder with all sections.
+
+*** Acceptance Criteria
+- [X] 8 element/full-page screenshot tests in visual-appshell.spec.ts
+- [X] All baselines generated and tests passing
+
+** DONE Corkboard & NoteCard Visual Tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-214
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-212
+:FILES: e2e/visual-corkboard.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Create =e2e/visual-corkboard.spec.ts= with 8 visual regression tests covering:
+corkboard with notes (light + dark), empty state, note card with/without label,
+edit mode, color picker, and split view.
+
+*** Acceptance Criteria
+- [X] 8 element/full-page screenshot tests in visual-corkboard.spec.ts
+- [X] All baselines generated and tests passing
+
+** DONE Inspector Panel Visual Tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-215
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-212
+:FILES: e2e/visual-inspector.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Create =e2e/visual-inspector.spec.ts= with 7 visual regression tests covering:
+chapter inspector (revised + draft status), note inspector, entity form (character with
+spider chart, place without), spider chart SVG, and empty inspector state.
+
+*** Acceptance Criteria
+- [X] 7 element/full-page screenshot tests in visual-inspector.spec.ts
+- [X] All baselines generated and tests passing
+
+** DONE Stats & Overlays Visual Tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-216
+:AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
+:EFFORT: 1h
+:PRIORITY: #B
+:DEPENDS: ITEM-212
+:FILES: e2e/visual-stats.spec.ts, e2e/visual-overlays.spec.ts
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+Create =e2e/visual-stats.spec.ts= and =e2e/visual-overlays.spec.ts= with 6 visual
+regression tests covering: writing stats full view, calendar heatmap, search palette
+(with results + empty), sprint timer panel, and sprint overlay bar.
+
+*** Acceptance Criteria
+- [X] 6 element/full-page screenshot tests across two spec files
+- [X] All baselines generated and tests passing

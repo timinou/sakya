@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupDefaultTauriMocks } from "./utils/tauri-mocks";
-import { takeStepScreenshot } from "./utils/screenshots";
+import { takeStepScreenshot, setTheme } from "./utils/screenshots";
 
 test.beforeEach(async ({ page }) => {
   await setupDefaultTauriMocks(page);
@@ -26,5 +26,14 @@ test.describe("Visual regression", () => {
 
     await takeStepScreenshot(page, "launcher", "create-form-open");
     await expect(page).toHaveScreenshot("launcher-create-form.png");
+  });
+
+  test("launcher page dark theme", async ({ page }) => {
+    await expect(
+      page.getByRole("heading", { name: /sakya/i }),
+    ).toBeVisible();
+
+    await setTheme(page, "dark");
+    await expect(page).toHaveScreenshot("launcher-dark.png");
   });
 });
