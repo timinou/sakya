@@ -1,0 +1,98 @@
+#+TITLE: BUG-007 New Entity Type Freeze + $state Proxy Anti-Pattern
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* BUG-007 New Entity Type Freeze + $state Proxy Anti-Pattern
+:PROPERTIES:
+:CUSTOM_ID: BUG-007
+:GOAL: Fix app freeze when clicking "New Entity Type" caused by passing $state deep reactive proxies to external libraries (yaml.stringify, JSON.stringify) without $state.snapshot().
+:COMPLETION: Clicking "New Entity Type" renders SchemaEditor without freeze; all E2E tests pass; no $state proxy anti-patterns remain in codebase.
+:END:
+
+** TODO Add missing optional field defaults in openNewSchemaTab
+:PROPERTIES:
+:CUSTOM_ID: ITEM-906
+:EFFORT: 15m
+:PRIORITY: #A
+:FILES: src/lib/components/layout/EditorArea.svelte
+:END:
+
+*** Description
+~openNewSchemaTab()~ creates schema WITHOUT optional fields (~icon~, ~color~,
+~description~ are absent). When SchemaEditor wraps it in
+~$state(structuredClone(schema))~ and template uses ~bind:value~ on these
+undefined properties, a write-back cascade creates new proxy properties.
+
+*** Acceptance Criteria
+- [ ] ~openNewSchemaTab~ includes ~icon: ''~, ~color: ''~, ~description: ''~ defaults
+- [ ] SchemaEditor renders without freeze when creating new entity type
+
+** TODO Use $state.snapshot() for yaml.stringify in SchemaEditor
+:PROPERTIES:
+:CUSTOM_ID: ITEM-907
+:EFFORT: 15m
+:PRIORITY: #A
+:FILES: src/lib/components/entities/SchemaEditor.svelte
+:END:
+
+*** Description
+~$derived(yaml.stringify(localSchema))~ traverses the full deep proxy, creating
+broad reactive subscriptions. Use ~$state.snapshot()~ to convert to plain object
+before passing to yaml. Also remove the ~state_referenced_locally~ suppression comment.
+
+*** Acceptance Criteria
+- [ ] yamlPreview uses ~$state.snapshot(localSchema)~ for yaml.stringify
+- [ ] ~state_referenced_locally~ suppression comment removed
+
+** TODO Use $state.snapshot() for JSON.stringify in EntityForm and CompileDialog
+:PROPERTIES:
+:CUSTOM_ID: ITEM-908
+:EFFORT: 15m
+:PRIORITY: #A
+:FILES: src/lib/components/entities/EntityForm.svelte, src/lib/components/compile/CompileDialog.svelte
+:END:
+
+*** Description
+EntityForm and CompileDialog pass $state proxies directly to JSON.stringify in
+$derived expressions, which traverses the full proxy tree. Use $state.snapshot()
+to convert to plain objects first.
+
+*** Acceptance Criteria
+- [ ] EntityForm: ~entitySnapshot~ and auto-save snapshot use ~$state.snapshot()~
+- [ ] CompileDialog: ~configSnapshot~ uses ~$state.snapshot()~
+
+** TODO Remove redundant double-load calls in BinderTree
+:PROPERTIES:
+:CUSTOM_ID: ITEM-909
+:EFFORT: 15m
+:PRIORITY: #B
+:FILES: src/lib/components/binder/BinderTree.svelte
+:END:
+
+*** Description
+Four functions in BinderTree call both a mutation method AND a reload method,
+when the mutation already triggers a reload internally:
+- ~confirmCreateEntity~: ~createEntity~ + redundant ~loadEntities~
+- ~confirmDelete~: ~deleteEntity~ + redundant ~loadEntities~
+- ~confirmDeleteType~: ~deleteSchema~ + redundant ~loadSchemas~
+- ~confirmRename~: ~renameEntity~ + redundant ~loadEntities~
+
+*** Acceptance Criteria
+- [ ] Remove 4 redundant reload calls
+- [ ] Entity CRUD operations still work correctly
+
+** TODO Write comprehensive E2E tests for SchemaEditor
+:PROPERTIES:
+:CUSTOM_ID: ITEM-910
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: e2e/schema-management.spec.ts
+:END:
+
+*** Description
+Add ~10 E2E tests covering SchemaEditor functionality: rendering, field
+population, YAML preview, save/cancel IPC, and no redundant loads.
+
+*** Acceptance Criteria
+- [ ] Tests written and passing GREEN after fixes applied
+- [ ] Coverage: render, slug generation, optional fields, add field/axis, YAML preview, save IPC, cancel, standalone button, edit existing, no redundant loads
