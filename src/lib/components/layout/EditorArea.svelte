@@ -207,6 +207,9 @@
         schema: {
           name: '',
           entityType: '',
+          icon: '',
+          color: '',
+          description: '',
           fields: [],
           spiderAxes: [],
         },

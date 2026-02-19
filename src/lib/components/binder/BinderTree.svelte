@@ -156,7 +156,6 @@
     }
     try {
       await entityStore.createEntity(projectState.projectPath, schemaType, title);
-      await entityStore.loadEntities(projectState.projectPath, schemaType);
     } catch (e) {
       console.error('Failed to create entity:', e);
     }
@@ -256,7 +255,6 @@
       const tabId = `entity:${schemaType}:${slug}`;
       editorState.closeTab(tabId);
       await entityStore.deleteEntity(projectState.projectPath, schemaType, slug);
-      await entityStore.loadEntities(projectState.projectPath, schemaType);
     } catch (e) {
       console.error('Failed to delete entity:', e);
     }
@@ -283,7 +281,6 @@
         editorState.closeTab(`entity:${schemaType}:${entity.slug}`);
       }
       await entityStore.deleteSchema(projectState.projectPath, schemaType);
-      await entityStore.loadSchemas(projectState.projectPath);
     } catch (e) {
       console.error('Failed to delete entity type:', e);
     }
@@ -317,7 +314,6 @@
     }
     try {
       await entityStore.renameEntity(projectState.projectPath, schemaType, slug, newTitle);
-      await entityStore.loadEntities(projectState.projectPath, schemaType);
     } catch (e) {
       console.error('Failed to rename entity:', e);
     }

@@ -20,7 +20,6 @@
   let { schema, isNew = false, onSave, onCancel }: Props = $props();
 
   // Deep clone the input schema into local mutable state
-  // svelte-ignore state_referenced_locally
   let localSchema = $state<EntitySchema>(structuredClone(schema));
 
   // Track which field/axis cards are expanded
@@ -55,8 +54,8 @@
     }
   }
 
-  // YAML preview
-  let yamlPreview = $derived(yaml.stringify(localSchema));
+  // YAML preview — use $state.snapshot() to avoid traversing the deep reactive proxy
+  let yamlPreview = $derived(yaml.stringify($state.snapshot(localSchema)));
 
   // --- Field management ---
   function addField() {

@@ -60,7 +60,7 @@
   });
 
   // Snapshot of all config fields — used by the config watcher effect to track changes
-  let configSnapshot = $derived(JSON.stringify(config));
+  let configSnapshot = $derived(JSON.stringify($state.snapshot(config)));
 
   // Watch config changes for preview updates
   $effect(() => {

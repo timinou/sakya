@@ -13,7 +13,7 @@
 
   let { schema, entity, onSave, readonly = false }: Props = $props();
 
-  let entitySnapshot = $derived(JSON.stringify(entity));
+  let entitySnapshot = $derived(JSON.stringify($state.snapshot(entity)));
 
   let localEntity = $state<EntityInstance>(undefined as unknown as EntityInstance);
   let isDirty = $state(false);
@@ -47,7 +47,7 @@
     if (!isDirty || readonly || !onSave || !localEntity) return;
 
     // Read localEntity here (outside untrack) so the effect tracks it.
-    const snapshot = JSON.stringify(localEntity);
+    const snapshot = JSON.stringify($state.snapshot(localEntity));
 
     // Untrack: saveTimer scheduling and lastSyncedSnapshot/isDirty writes must not re-trigger the auto-save effect
     untrack(() => {
