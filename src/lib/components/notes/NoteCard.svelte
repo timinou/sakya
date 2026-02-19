@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NoteEntry, CorkboardPosition } from '$lib/types';
+  import type { NoteEntry, CorkboardPosition, CorkboardSize } from '$lib/types';
 
   interface Props {
     note: NoteEntry;
@@ -7,7 +7,9 @@
     onDragEnd?: (slug: string, position: CorkboardPosition) => void;
     onColorChange?: (slug: string, color: string) => void;
     onLabelChange?: (slug: string, label: string) => void;
+    onSizeChange?: (slug: string, size: CorkboardSize) => void;
     onclick?: () => void;
+    ondblclick?: () => void;
   }
 
   let {
@@ -16,12 +18,17 @@
     onDragEnd,
     onColorChange,
     onLabelChange,
+    onSizeChange,
     onclick,
+    ondblclick,
   }: Props = $props();
 
   const DEFAULT_COLORS = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
+  const MIN_WIDTH = 180;
+  const MIN_HEIGHT = 120;
 
   let isDragging = $state(false);
+  let isResizing = $state(false);
   let showColorPicker = $state(false);
   let showLabelEdit = $state(false);
   let labelInput = $state('');
@@ -35,11 +42,30 @@
   let currentX = $state(50);
   let currentY = $state(50);
 
+  // Resize state
+  let resizeStartPointerX = $state(0);
+  let resizeStartPointerY = $state(0);
+  let resizeStartWidth = $state(0);
+  let resizeStartHeight = $state(0);
+  let currentWidth = $state<number | undefined>(undefined);
+  let currentHeight = $state<number | undefined>(undefined);
+
+  // Whether the card has an explicit size (from prop or user resize)
+  let hasExplicitSize = $derived(currentWidth !== undefined || note.size !== undefined);
+
   // Keep local position in sync with prop changes when not dragging
   $effect(() => {
     if (!isDragging) {
       currentX = note.position?.x ?? 50;
       currentY = note.position?.y ?? 50;
+    }
+  });
+
+  // Keep local size in sync with prop changes when not resizing
+  $effect(() => {
+    if (!isResizing) {
+      currentWidth = note.size?.width;
+      currentHeight = note.size?.height;
     }
   });
 
@@ -51,11 +77,14 @@
   });
 
   function handlePointerDown(e: PointerEvent): void {
-    // Ignore if clicking on interactive children (color picker, label editor)
+    // Ignore if clicking on interactive children or resize handle
     const target = e.target as HTMLElement;
-    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge')) {
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
       return;
     }
+
+    // Don't start drag while resizing
+    if (isResizing) return;
 
     isDragging = true;
     dragStartPointerX = e.clientX;
@@ -102,10 +131,64 @@
   function handleClick(e: MouseEvent): void {
     // Only fire click if not dragging (prevent click after drag)
     const target = e.target as HTMLElement;
-    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge')) {
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
       return;
     }
     onclick?.();
+  }
+
+  function handleDblClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
+      return;
+    }
+    ondblclick?.();
+  }
+
+  // --- Resize handlers ---
+
+  function handleResizePointerDown(e: PointerEvent): void {
+    e.stopPropagation();
+    e.preventDefault();
+
+    isResizing = true;
+    resizeStartPointerX = e.clientX;
+    resizeStartPointerY = e.clientY;
+
+    // Get current card dimensions
+    const card = (e.currentTarget as HTMLElement).closest('.note-card') as HTMLElement;
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      resizeStartWidth = rect.width;
+      resizeStartHeight = rect.height;
+    }
+
+    // Use window-level listeners for resize tracking (pointer capture on small handle is finicky)
+    window.addEventListener('pointermove', handleResizePointerMove);
+    window.addEventListener('pointerup', handleResizePointerUp);
+  }
+
+  function handleResizePointerMove(e: PointerEvent): void {
+    if (!isResizing) return;
+
+    const deltaX = e.clientX - resizeStartPointerX;
+    const deltaY = e.clientY - resizeStartPointerY;
+
+    currentWidth = Math.max(MIN_WIDTH, resizeStartWidth + deltaX);
+    currentHeight = Math.max(MIN_HEIGHT, resizeStartHeight + deltaY);
+  }
+
+  function handleResizePointerUp(e: PointerEvent): void {
+    if (!isResizing) return;
+
+    window.removeEventListener('pointermove', handleResizePointerMove);
+    window.removeEventListener('pointerup', handleResizePointerUp);
+
+    isResizing = false;
+
+    if (currentWidth !== undefined && currentHeight !== undefined) {
+      onSizeChange?.(note.slug, { width: currentWidth, height: currentHeight });
+    }
   }
 
   function handleColorSelect(color: string): void {
@@ -153,13 +236,18 @@
 <div
   class="note-card"
   class:dragging={isDragging}
+  class:resizing={isResizing}
+  class:has-explicit-size={hasExplicitSize}
   style:left="{currentX}%"
   style:top="{currentY}%"
   style:--card-color={note.color ?? 'var(--border-secondary)'}
+  style:width={currentWidth !== undefined ? `${currentWidth}px` : undefined}
+  style:height={currentHeight !== undefined ? `${currentHeight}px` : undefined}
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}
   onclick={handleClick}
+  ondblclick={handleDblClick}
   onkeydown={handleKeydown}
   role="button"
   tabindex="0"
@@ -187,7 +275,7 @@
     {#if excerpt}
       <p class="card-excerpt">{excerpt}</p>
     {:else}
-      <p class="card-excerpt card-edit-hint">Click to edit...</p>
+      <p class="card-excerpt card-edit-hint">Double-click to edit...</p>
     {/if}
 
     <!-- Footer actions -->
@@ -243,6 +331,14 @@
       </div>
     {/if}
   </div>
+
+  <!-- Resize handle -->
+  <div
+    class="resize-handle"
+    onpointerdown={handleResizePointerDown}
+    role="separator"
+    aria-orientation="horizontal"
+  ></div>
 </div>
 
 <style>
@@ -263,6 +359,10 @@
     touch-action: none;
   }
 
+  .note-card.has-explicit-size {
+    max-width: none;
+  }
+
   .note-card:hover {
     box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.2));
   }
@@ -271,6 +371,11 @@
     cursor: grabbing;
     box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.3));
     z-index: 10;
+  }
+
+  .note-card.resizing {
+    z-index: 10;
+    transition: none;
   }
 
   .color-strip {
@@ -455,5 +560,39 @@
 
   .label-input::placeholder {
     color: var(--text-tertiary);
+  }
+
+  /* Resize handle */
+  .resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: se-resize;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    z-index: 5;
+    border-radius: 0 0 var(--radius-md) 0;
+  }
+
+  .resize-handle::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-tertiary);
+    border-bottom: 2px solid var(--text-tertiary);
+    opacity: 0.6;
+  }
+
+  .note-card:hover .resize-handle {
+    opacity: 1;
+  }
+
+  .note-card.resizing .resize-handle {
+    opacity: 1;
   }
 </style>

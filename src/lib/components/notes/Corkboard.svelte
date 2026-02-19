@@ -1,6 +1,6 @@
 <script lang="ts">
   import { StickyNote, Plus } from 'lucide-svelte';
-  import type { NoteEntry } from '$lib/types';
+  import type { NoteEntry, CorkboardSize } from '$lib/types';
   import { notesStore, projectState } from '$lib/stores';
   import NoteCard from './NoteCard.svelte';
 
@@ -8,12 +8,14 @@
     notes: NoteEntry[];
     noteExcerpts?: Record<string, string>;
     onSelectNote?: (slug: string) => void;
+    onEditNote?: (slug: string) => void;
   }
 
   let {
     notes,
     noteExcerpts = {},
     onSelectNote,
+    onEditNote,
   }: Props = $props();
 
   // Debounce timer for position saves
@@ -63,9 +65,18 @@
     immediateSave();
   }
 
+  function handleSizeChange(slug: string, size: CorkboardSize): void {
+    notesStore.updateCardSize(slug, size);
+    debouncedSave();
+  }
+
   function handleNoteClick(slug: string): void {
     notesStore.selectNote(slug);
     onSelectNote?.(slug);
+  }
+
+  function handleNoteDblClick(slug: string): void {
+    onEditNote?.(slug);
   }
 
   async function handleCreateFirst(): Promise<void> {
@@ -98,7 +109,9 @@
         onDragEnd={handleDragEnd}
         onColorChange={handleColorChange}
         onLabelChange={handleLabelChange}
+        onSizeChange={handleSizeChange}
         onclick={() => handleNoteClick(note.slug)}
+        ondblclick={() => handleNoteDblClick(note.slug)}
       />
     {/each}
   {/if}
