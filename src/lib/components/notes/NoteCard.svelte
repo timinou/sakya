@@ -4,23 +4,33 @@
   interface Props {
     note: NoteEntry;
     excerpt?: string;
+    isEditing?: boolean;
+    editBody?: string;
     onDragEnd?: (slug: string, position: CorkboardPosition) => void;
     onColorChange?: (slug: string, color: string) => void;
     onLabelChange?: (slug: string, label: string) => void;
     onSizeChange?: (slug: string, size: CorkboardSize) => void;
+    onEditStart?: (slug: string) => void;
+    onEditEnd?: (slug: string, body: string, isDirty: boolean) => void;
+    onEditInput?: (slug: string, body: string) => void;
+    onOpenInTab?: (slug: string) => void;
     onclick?: () => void;
-    ondblclick?: () => void;
   }
 
   let {
     note,
     excerpt = '',
+    isEditing = false,
+    editBody = '',
     onDragEnd,
     onColorChange,
     onLabelChange,
     onSizeChange,
+    onEditStart,
+    onEditEnd,
+    onEditInput,
+    onOpenInTab,
     onclick,
-    ondblclick,
   }: Props = $props();
 
   const DEFAULT_COLORS = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
@@ -33,6 +43,12 @@
   let showLabelEdit = $state(false);
   let labelInput = $state('');
   let labelInputEl = $state<HTMLInputElement | null>(null);
+  let textareaEl = $state<HTMLTextAreaElement | null>(null);
+
+  // Local edit body for tracking dirty state
+  let localEditBody = $state('');
+  let isDirty = $state(false);
+  let editInitialized = $state(false);
 
   // Drag state: track the offset from the pointer to the card's percentage position
   let dragStartPointerX = $state(0);
@@ -69,6 +85,24 @@
     }
   });
 
+  // Sync editBody prop to local state only when editing first starts
+  $effect(() => {
+    if (isEditing && !editInitialized) {
+      localEditBody = editBody;
+      isDirty = false;
+      editInitialized = true;
+    } else if (!isEditing) {
+      editInitialized = false;
+    }
+  });
+
+  // Auto-focus textarea when editing starts
+  $effect(() => {
+    if (isEditing && textareaEl) {
+      textareaEl.focus();
+    }
+  });
+
   $effect(() => {
     if (showLabelEdit && labelInputEl) {
       labelInputEl.focus();
@@ -77,14 +111,14 @@
   });
 
   function handlePointerDown(e: PointerEvent): void {
-    // Ignore if clicking on interactive children or resize handle
+    // Ignore if clicking on interactive children, resize handle, or textarea
     const target = e.target as HTMLElement;
-    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle') || target.closest('.edit-textarea') || target.closest('.edit-footer')) {
       return;
     }
 
-    // Don't start drag while resizing
-    if (isResizing) return;
+    // Don't start drag while resizing or editing
+    if (isResizing || isEditing) return;
 
     isDragging = true;
     dragStartPointerX = e.clientX;
@@ -129,20 +163,23 @@
   }
 
   function handleClick(e: MouseEvent): void {
-    // Only fire click if not dragging (prevent click after drag)
     const target = e.target as HTMLElement;
-    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle') || target.closest('.edit-textarea') || target.closest('.edit-footer')) {
       return;
     }
-    onclick?.();
+    if (!isEditing) {
+      onclick?.();
+    }
   }
 
   function handleDblClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
-    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle')) {
+    if (target.closest('.color-picker') || target.closest('.label-editor') || target.closest('.label-badge') || target.closest('.resize-handle') || target.closest('.edit-textarea') || target.closest('.edit-footer')) {
       return;
     }
-    ondblclick?.();
+    if (!isEditing) {
+      onEditStart?.(note.slug);
+    }
   }
 
   // --- Resize handlers ---
@@ -163,7 +200,6 @@
       resizeStartHeight = rect.height;
     }
 
-    // Use window-level listeners for resize tracking (pointer capture on small handle is finicky)
     window.addEventListener('pointermove', handleResizePointerMove);
     window.addEventListener('pointerup', handleResizePointerUp);
   }
@@ -189,6 +225,35 @@
     if (currentWidth !== undefined && currentHeight !== undefined) {
       onSizeChange?.(note.slug, { width: currentWidth, height: currentHeight });
     }
+  }
+
+  // --- Edit mode handlers ---
+
+  function handleTextareaInput(): void {
+    isDirty = true;
+    onEditInput?.(note.slug, localEditBody);
+  }
+
+  function handleTextareaKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      exitEditMode();
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      openInTab();
+    }
+  }
+
+  function exitEditMode(): void {
+    onEditEnd?.(note.slug, localEditBody, isDirty);
+  }
+
+  function openInTab(): void {
+    // Save first if dirty
+    if (isDirty) {
+      onEditEnd?.(note.slug, localEditBody, isDirty);
+    }
+    onOpenInTab?.(note.slug);
   }
 
   function handleColorSelect(color: string): void {
@@ -226,6 +291,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent): void {
+    if (isEditing) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onclick?.();
@@ -237,12 +303,13 @@
   class="note-card"
   class:dragging={isDragging}
   class:resizing={isResizing}
-  class:has-explicit-size={hasExplicitSize}
+  class:editing={isEditing}
+  class:has-explicit-size={hasExplicitSize || isEditing}
   style:left="{currentX}%"
   style:top="{currentY}%"
   style:--card-color={note.color ?? 'var(--border-secondary)'}
-  style:width={currentWidth !== undefined ? `${currentWidth}px` : undefined}
-  style:height={currentHeight !== undefined ? `${currentHeight}px` : undefined}
+  style:width={isEditing && !currentWidth ? '320px' : currentWidth !== undefined ? `${currentWidth}px` : undefined}
+  style:height={isEditing && !currentHeight ? '240px' : currentHeight !== undefined ? `${currentHeight}px` : undefined}
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}
@@ -271,32 +338,53 @@
       {/if}
     </div>
 
-    <!-- Excerpt / Edit hint -->
-    {#if excerpt}
+    <!-- Editing textarea or excerpt -->
+    {#if isEditing}
+      <textarea
+        bind:this={textareaEl}
+        bind:value={localEditBody}
+        class="edit-textarea"
+        oninput={handleTextareaInput}
+        onkeydown={handleTextareaKeydown}
+        placeholder="Write your note..."
+      ></textarea>
+      <div class="edit-footer">
+        <button
+          class="open-in-editor-btn"
+          type="button"
+          onclick={(e: MouseEvent) => { e.stopPropagation(); openInTab(); }}
+        >
+          Open in Editor
+        </button>
+        <span class="edit-hint">Esc to close · Ctrl+Enter for full editor</span>
+      </div>
+    {:else if excerpt}
       <p class="card-excerpt">{excerpt}</p>
     {:else}
       <p class="card-excerpt card-edit-hint">Double-click to edit...</p>
     {/if}
 
-    <!-- Footer actions -->
-    <div class="card-footer">
-      <button
-        class="action-btn"
-        type="button"
-        onclick={toggleColorPicker}
-        title="Change color"
-      >
-        <span class="color-indicator" style:background-color={note.color ?? 'var(--text-tertiary)'}></span>
-      </button>
-      <button
-        class="action-btn"
-        type="button"
-        onclick={handleLabelClick}
-        title={note.label ? 'Edit label' : 'Add label'}
-      >
-        <span class="label-icon">T</span>
-      </button>
-    </div>
+    <!-- Footer actions (only when not editing) -->
+    {#if !isEditing}
+      <div class="card-footer">
+        <button
+          class="action-btn"
+          type="button"
+          onclick={toggleColorPicker}
+          title="Change color"
+        >
+          <span class="color-indicator" style:background-color={note.color ?? 'var(--text-tertiary)'}></span>
+        </button>
+        <button
+          class="action-btn"
+          type="button"
+          onclick={handleLabelClick}
+          title={note.label ? 'Edit label' : 'Add label'}
+        >
+          <span class="label-icon">T</span>
+        </button>
+      </div>
+    {/if}
 
     <!-- Color picker dropdown -->
     {#if showColorPicker}
@@ -378,6 +466,12 @@
     transition: none;
   }
 
+  .note-card.editing {
+    z-index: 20;
+    cursor: default;
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.3));
+  }
+
   .color-strip {
     width: 4px;
     flex-shrink: 0;
@@ -392,6 +486,7 @@
     padding: var(--spacing-sm);
     min-width: 0;
     position: relative;
+    overflow: hidden;
   }
 
   .card-header {
@@ -400,6 +495,7 @@
     justify-content: space-between;
     gap: var(--spacing-xs);
     margin-bottom: var(--spacing-xs);
+    flex-shrink: 0;
   }
 
   .card-title {
@@ -452,6 +548,70 @@
 
   .note-card:hover .card-edit-hint {
     opacity: 0.6;
+  }
+
+  /* Edit mode textarea */
+  .edit-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 80px;
+    padding: var(--spacing-xs);
+    border: 1px solid var(--border-primary, #555);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary, #1e1e1e);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    overflow-y: auto;
+    cursor: text;
+    user-select: text;
+  }
+
+  .edit-textarea:focus {
+    border-color: var(--accent-primary, #7c4dbd);
+  }
+
+  .edit-textarea::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .edit-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+    flex-shrink: 0;
+  }
+
+  .open-in-editor-btn {
+    padding: 2px var(--spacing-xs);
+    border: 1px solid var(--border-primary, #555);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .open-in-editor-btn:hover {
+    background: var(--accent-primary, #7c4dbd);
+    color: var(--text-inverse, #fff);
+    border-color: var(--accent-primary, #7c4dbd);
+  }
+
+  .edit-hint {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .card-footer {

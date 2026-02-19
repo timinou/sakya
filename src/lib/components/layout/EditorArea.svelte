@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { manuscriptStore, notesStore, editorState, projectState, entityStore } from '$lib/stores';
+  import { manuscriptStore, notesStore, editorState, projectState, entityStore, uiState } from '$lib/stores';
   import type { EntitySchema, EntityInstance } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import SchemaEditor from '$lib/components/entities/SchemaEditor.svelte';
@@ -62,6 +62,10 @@
     const slug = notesStore.activeNoteSlug;
     const path = projectState.projectPath;
     if (!slug || !path) return;
+
+    // In corkboard mode, selecting a note doesn't auto-open a tab
+    // (inline editing handles note content in the corkboard itself)
+    if (uiState.viewMode === 'corkboard') return;
 
     const tabId = `note:${slug}`;
     const note = notesStore.activeNote;

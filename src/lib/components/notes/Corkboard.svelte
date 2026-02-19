@@ -1,30 +1,34 @@
 <script lang="ts">
   import { StickyNote, Plus } from 'lucide-svelte';
   import type { NoteEntry, CorkboardSize } from '$lib/types';
-  import { notesStore, projectState } from '$lib/stores';
+  import { notesStore, editorState, projectState, uiState } from '$lib/stores';
   import NoteCard from './NoteCard.svelte';
 
   interface Props {
     notes: NoteEntry[];
     noteExcerpts?: Record<string, string>;
     onSelectNote?: (slug: string) => void;
-    onEditNote?: (slug: string) => void;
   }
 
   let {
     notes,
     noteExcerpts = {},
     onSelectNote,
-    onEditNote,
   }: Props = $props();
 
-  // Debounce timer for position saves
-  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Editing state
+  let editingSlug = $state<string | null>(null);
+  let editingBodies = $state<Record<string, string>>({});
 
-  // Clean up save timeout on unmount
+  // Debounce timers
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Clean up timers on unmount
   $effect(() => {
     return () => {
       if (saveTimeout) clearTimeout(saveTimeout);
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     };
   });
 
@@ -75,8 +79,78 @@
     onSelectNote?.(slug);
   }
 
-  function handleNoteDblClick(slug: string): void {
-    onEditNote?.(slug);
+  // --- Inline editing ---
+
+  async function handleEditStart(slug: string): Promise<void> {
+    // If note is already open in a tab, switch to that tab instead
+    const tabId = `note:${slug}`;
+    const existingTab = editorState.tabs.find((t) => t.id === tabId);
+    if (existingTab) {
+      editorState.switchTab(tabId);
+      uiState.setViewMode('editor');
+      return;
+    }
+
+    // Load content if not already cached
+    const path = projectState.projectPath;
+    if (!path) return;
+
+    try {
+      const content = await notesStore.loadNoteContent(path, slug);
+      editingBodies[slug] = content.body;
+      editingSlug = slug;
+    } catch (e) {
+      console.error('Failed to load note for inline editing:', e);
+    }
+  }
+
+  function handleEditEnd(slug: string, body: string, isDirty: boolean): void {
+    // Clear any pending auto-save
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = null;
+    }
+    if (isDirty) {
+      saveNoteContent(slug, body);
+    }
+    editingSlug = null;
+  }
+
+  function handleEditInput(slug: string, body: string): void {
+    // Debounced auto-save (1.5s)
+    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+      saveNoteContent(slug, body);
+    }, 1500);
+  }
+
+  function saveNoteContent(slug: string, body: string): void {
+    const path = projectState.projectPath;
+    if (!path) return;
+    const note = notes.find((n) => n.slug === slug);
+    if (!note) return;
+
+    notesStore.saveNoteContent(path, slug, note.title, body).catch((e) => {
+      console.error('Failed to save note content:', e);
+    });
+  }
+
+  function handleOpenInTab(slug: string): void {
+    // Exit edit mode first
+    editingSlug = null;
+    // Select the note and switch to editor mode
+    notesStore.selectNote(slug);
+    uiState.setViewMode('editor');
+  }
+
+  function handleCorkboardClick(e: MouseEvent): void {
+    // If clicking on the corkboard background (not on a card), exit edit mode
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('corkboard') && editingSlug) {
+      const slug = editingSlug;
+      const body = editingBodies[slug] ?? '';
+      handleEditEnd(slug, body, true);
+    }
   }
 
   async function handleCreateFirst(): Promise<void> {
@@ -90,7 +164,9 @@
   }
 </script>
 
-<div class="corkboard">
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="corkboard" onclick={handleCorkboardClick}>
   {#if notes.length === 0}
     <div class="empty-state">
       <StickyNote size={48} strokeWidth={1} />
@@ -106,12 +182,17 @@
       <NoteCard
         {note}
         excerpt={noteExcerpts[note.slug] ?? ''}
+        isEditing={editingSlug === note.slug}
+        editBody={editingBodies[note.slug] ?? ''}
         onDragEnd={handleDragEnd}
         onColorChange={handleColorChange}
         onLabelChange={handleLabelChange}
         onSizeChange={handleSizeChange}
+        onEditStart={handleEditStart}
+        onEditEnd={handleEditEnd}
+        onEditInput={handleEditInput}
+        onOpenInTab={handleOpenInTab}
         onclick={() => handleNoteClick(note.slug)}
-        ondblclick={() => handleNoteDblClick(note.slug)}
       />
     {/each}
   {/if}
