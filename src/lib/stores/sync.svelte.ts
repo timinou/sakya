@@ -31,6 +31,7 @@ class SyncStore {
   devices = $state<DeviceInfo[]>([]);
   syncedProjects = $state<Map<string, SyncProjectState>>(new Map());
   pendingUpdates = $state(0);
+  serverUrl = $state('');
 
   isLoggedIn = $derived(this.account !== null);
   isConnected = $derived(this.connectionStatus === 'connected');
@@ -164,6 +165,7 @@ class SyncStore {
     this.devices = [];
     this.syncedProjects = new Map();
     this.pendingUpdates = 0;
+    this.serverUrl = '';
   }
 }
 

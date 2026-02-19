@@ -1168,11 +1168,11 @@ Tauri commands: generate_pairing_code, complete_pairing, list_paired_devices, re
 :END:
 
 *** Gate Conditions
-- [ ] Status indicator shows all states correctly
-- [ ] Magic link login flow works
-- [ ] Device list and pairing dialog work
-- [ ] Project sync toggle works
-- [ ] E2E tests cover all sync UI flows
+- [X] Status indicator shows all states correctly
+- [X] Magic link login flow works
+- [X] Device list and pairing dialog work
+- [X] Project sync toggle works
+- [X] E2E tests cover all sync UI flows (70 tests)
 
 *** DONE sync.svelte.ts store
 :PROPERTIES:
@@ -1292,9 +1292,9 @@ Per-project sync toggle in project settings. When enabled: show status, last syn
 - [ ] Explanation when disabled
 - [ ] ~3 E2E tests
 
-*** ITEM sync.svelte.ts store
+*** DONE sync.svelte.ts store (duplicate — see ITEM-175 above)
 :PROPERTIES:
-:CUSTOM_ID: ITEM-175
+:CUSTOM_ID: ITEM-175-dup
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
 :EFFORT: 2h
 :PRIORITY: #A
@@ -1306,12 +1306,12 @@ Per-project sync toggle in project settings. When enabled: show status, last syn
 Svelte 5 runes store managing: connectionStatus, syncedProjects, account, devices, pendingUpdates. Methods call Tauri IPC commands.
 
 **** Acceptance Criteria
-- [ ] All state fields with $state rune
-- [ ] Methods for connect, disconnect, login, logout
-- [ ] Tauri event listener for status changes
-- [ ] ~5 unit tests passing
+- [X] All state fields with $state rune
+- [X] Methods for connect, disconnect, login, logout
+- [X] Tauri event listener for status changes
+- [X] ~5 unit tests passing
 
-*** ITEM E2E tests for sync UI flows
+*** DONE E2E tests for sync UI flows
 :PROPERTIES:
 :CUSTOM_ID: ITEM-176
 :AGENT: [[file:../agents/testing-engineer.org::#e2e][testing-engineer:e2e]]
@@ -1326,12 +1326,12 @@ Svelte 5 runes store managing: connectionStatus, syncedProjects, account, device
 E2E tests: login flow, device list display, pairing dialog, project sync toggle, status indicator states. Use Tauri IPC mocks.
 
 **** Acceptance Criteria
-- [ ] Login flow test
-- [ ] Device manager test
-- [ ] Pairing dialog test
-- [ ] Project sync toggle test
-- [ ] Status indicator states test
-- [ ] ~15 E2E tests passing
+- [X] Login flow test
+- [X] Device manager test
+- [X] Pairing dialog test
+- [X] Project sync toggle test
+- [X] Status indicator states test
+- [X] 70 E2E tests passing (16 indicator + 54 settings/components)
 
 ** CHK-011-10 Deployment
 :PROPERTIES:

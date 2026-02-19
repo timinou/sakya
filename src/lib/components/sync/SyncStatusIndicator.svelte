@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { syncStore } from '$lib/stores';
+  import { syncStore, projectState } from '$lib/stores';
+  import SyncSettingsDialog from './SyncSettingsDialog.svelte';
 
   let popoverOpen = $state(false);
+  let settingsOpen = $state(false);
 
   const statusConfig = $derived.by(() => {
     switch (syncStore.connectionStatus) {
@@ -63,10 +65,20 @@
             <span class="popover-value">{syncStore.account?.email}</span>
           </div>
         {/if}
+        <button class="settings-btn" onclick={() => { settingsOpen = true; popoverOpen = false; }} type="button">
+          Sync Settings
+        </button>
       </div>
     </div>
   {/if}
 </div>
+
+<SyncSettingsDialog
+  isOpen={settingsOpen}
+  onClose={() => { settingsOpen = false; }}
+  projectId={projectState.projectPath ?? undefined}
+  projectName={projectState.manifest?.name}
+/>
 
 <style>
   .sync-indicator-wrapper {
@@ -178,5 +190,23 @@
 
   .popover-error {
     color: var(--color-error, #ef4444);
+  }
+
+  .settings-btn {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .settings-btn:hover {
+    background: var(--bg-tertiary);
   }
 </style>
