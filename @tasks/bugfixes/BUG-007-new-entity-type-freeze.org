@@ -9,7 +9,7 @@
 :COMPLETION: Clicking "New Entity Type" renders SchemaEditor without freeze; all E2E tests pass; no $state proxy anti-patterns remain in codebase.
 :END:
 
-** TODO Add missing optional field defaults in openNewSchemaTab
+** DONE Add missing optional field defaults in openNewSchemaTab
 :PROPERTIES:
 :CUSTOM_ID: ITEM-906
 :EFFORT: 15m
@@ -24,10 +24,10 @@
 undefined properties, a write-back cascade creates new proxy properties.
 
 *** Acceptance Criteria
-- [ ] ~openNewSchemaTab~ includes ~icon: ''~, ~color: ''~, ~description: ''~ defaults
-- [ ] SchemaEditor renders without freeze when creating new entity type
+- [X] ~openNewSchemaTab~ includes ~icon: ''~, ~color: ''~, ~description: ''~ defaults
+- [X] SchemaEditor renders without freeze when creating new entity type
 
-** TODO Use $state.snapshot() for yaml.stringify in SchemaEditor
+** DONE Use $state.snapshot() for yaml.stringify in SchemaEditor
 :PROPERTIES:
 :CUSTOM_ID: ITEM-907
 :EFFORT: 15m
@@ -39,12 +39,17 @@ undefined properties, a write-back cascade creates new proxy properties.
 ~$derived(yaml.stringify(localSchema))~ traverses the full deep proxy, creating
 broad reactive subscriptions. Use ~$state.snapshot()~ to convert to plain object
 before passing to yaml. Also remove the ~state_referenced_locally~ suppression comment.
+Additionally, ~structuredClone(schema)~ fails on $state proxy props — use
+~$state.snapshot()~ before cloning. And ~handleSave~ was passing a proxy to
+~onSave~ callback — use ~$state.snapshot()~ instead of ~structuredClone~.
 
 *** Acceptance Criteria
-- [ ] yamlPreview uses ~$state.snapshot(localSchema)~ for yaml.stringify
-- [ ] ~state_referenced_locally~ suppression comment removed
+- [X] yamlPreview uses ~$state.snapshot(localSchema)~ for yaml.stringify
+- [X] ~state_referenced_locally~ suppression comment removed
+- [X] ~structuredClone~ uses ~$state.snapshot(schema)~ for initial clone
+- [X] ~handleSave~ uses ~$state.snapshot(localSchema)~ instead of ~structuredClone~
 
-** TODO Use $state.snapshot() for JSON.stringify in EntityForm and CompileDialog
+** DONE Use $state.snapshot() for JSON.stringify in EntityForm and CompileDialog
 :PROPERTIES:
 :CUSTOM_ID: ITEM-908
 :EFFORT: 15m
@@ -58,10 +63,10 @@ $derived expressions, which traverses the full proxy tree. Use $state.snapshot()
 to convert to plain objects first.
 
 *** Acceptance Criteria
-- [ ] EntityForm: ~entitySnapshot~ and auto-save snapshot use ~$state.snapshot()~
-- [ ] CompileDialog: ~configSnapshot~ uses ~$state.snapshot()~
+- [X] EntityForm: ~entitySnapshot~ and auto-save snapshot use ~$state.snapshot()~
+- [X] CompileDialog: ~configSnapshot~ uses ~$state.snapshot()~
 
-** TODO Remove redundant double-load calls in BinderTree
+** DONE Remove redundant double-load calls in BinderTree
 :PROPERTIES:
 :CUSTOM_ID: ITEM-909
 :EFFORT: 15m
@@ -78,10 +83,10 @@ when the mutation already triggers a reload internally:
 - ~confirmRename~: ~renameEntity~ + redundant ~loadEntities~
 
 *** Acceptance Criteria
-- [ ] Remove 4 redundant reload calls
-- [ ] Entity CRUD operations still work correctly
+- [X] Remove 4 redundant reload calls
+- [X] Entity CRUD operations still work correctly
 
-** TODO Write comprehensive E2E tests for SchemaEditor
+** DONE Write comprehensive E2E tests for SchemaEditor
 :PROPERTIES:
 :CUSTOM_ID: ITEM-910
 :EFFORT: 30m
@@ -94,5 +99,5 @@ Add ~10 E2E tests covering SchemaEditor functionality: rendering, field
 population, YAML preview, save/cancel IPC, and no redundant loads.
 
 *** Acceptance Criteria
-- [ ] Tests written and passing GREEN after fixes applied
-- [ ] Coverage: render, slug generation, optional fields, add field/axis, YAML preview, save IPC, cancel, standalone button, edit existing, no redundant loads
+- [X] Tests written and passing GREEN after fixes applied
+- [X] Coverage: render, slug generation, optional fields, add field/axis, YAML preview, save IPC, cancel, standalone button, edit existing, no redundant loads
