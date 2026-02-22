@@ -7,6 +7,7 @@ import type {
   PairingCode,
   SyncStatus,
 } from '$lib/types';
+import { StaleGuard } from './stale-guard';
 
 /** Map a Rust SyncStatus enum to the frontend connection status string. */
 function mapSyncStatus(status: SyncStatus): SyncConnectionStatus {
@@ -37,8 +38,11 @@ class SyncStore {
   isConnected = $derived(this.connectionStatus === 'connected');
   isSyncing = $derived(this.connectionStatus === 'connecting' || this.connectionStatus === 'reconnecting');
 
+  private guard = new StaleGuard();
+
   /** Connect to the sync server. */
   async connect(serverUrl: string, jwtToken: string, deviceId: string): Promise<void> {
+    const token = this.guard.snapshot();
     this.connectionStatus = 'connecting';
     this.lastError = null;
     try {
@@ -47,8 +51,10 @@ class SyncStore {
         jwtToken,
         deviceId,
       });
+      if (this.guard.isStale(token)) return;
       this.connectionStatus = 'connected';
     } catch (e) {
+      if (this.guard.isStale(token)) return;
       this.connectionStatus = 'error';
       this.lastError = String(e);
       throw e;
@@ -57,31 +63,39 @@ class SyncStore {
 
   /** Disconnect from the sync server. */
   async disconnect(): Promise<void> {
+    const token = this.guard.snapshot();
     try {
       await invoke('sync_disconnect');
     } finally {
-      this.connectionStatus = 'disconnected';
-      this.lastError = null;
+      if (!this.guard.isStale(token)) {
+        this.connectionStatus = 'disconnected';
+        this.lastError = null;
+      }
     }
   }
 
   /** Fetch current sync status from the backend. */
   async refreshStatus(): Promise<void> {
+    const token = this.guard.snapshot();
     try {
       const status = await invoke<SyncStatus>('sync_status');
+      if (this.guard.isStale(token)) return;
       this.connectionStatus = mapSyncStatus(status);
       this.lastError = extractError(status);
     } catch (e) {
+      if (this.guard.isStale(token)) return;
       this.lastError = String(e);
     }
   }
 
   /** Enable sync for a project. */
   async enableProjectSync(projectId: string, docKeyBytes: number[]): Promise<void> {
+    const token = this.guard.snapshot();
     await invoke('sync_enable_project', {
       projectId,
       docKeyBytes,
     });
+    if (this.guard.isStale(token)) return;
     this.syncedProjects.set(projectId, {
       projectId,
       enabled: true,
@@ -94,7 +108,9 @@ class SyncStore {
 
   /** Disable sync for a project. */
   async disableProjectSync(projectId: string): Promise<void> {
+    const token = this.guard.snapshot();
     await invoke('sync_disable_project', { projectId });
+    if (this.guard.isStale(token)) return;
     this.syncedProjects.delete(projectId);
     this.syncedProjects = new Map(this.syncedProjects);
   }
@@ -111,21 +127,29 @@ class SyncStore {
 
   /** Complete pairing with a remote device. */
   async completePairing(remotePairingCode: string): Promise<DeviceInfo> {
+    const token = this.guard.snapshot();
     const device = await invoke<DeviceInfo>('complete_pairing', { remotePairingCode });
-    this.devices = [...this.devices, device];
+    if (!this.guard.isStale(token)) {
+      this.devices = [...this.devices, device];
+    }
     return device;
   }
 
   /** List all paired devices (including this one). */
   async listDevices(): Promise<DeviceInfo[]> {
+    const token = this.guard.snapshot();
     const devices = await invoke<DeviceInfo[]>('list_paired_devices');
-    this.devices = devices;
+    if (!this.guard.isStale(token)) {
+      this.devices = devices;
+    }
     return devices;
   }
 
   /** Remove a paired device (triggers key rotation). */
   async removeDevice(deviceId: string): Promise<void> {
+    const token = this.guard.snapshot();
     await invoke('remove_device', { deviceId });
+    if (this.guard.isStale(token)) return;
     this.devices = this.devices.filter((d) => d.device_id !== deviceId);
   }
 
@@ -166,6 +190,7 @@ class SyncStore {
     this.syncedProjects = new Map();
     this.pendingUpdates = 0;
     this.serverUrl = '';
+    this.guard.reset();
   }
 }
 
