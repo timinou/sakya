@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { StickyNote, FileText, Plus, Pencil, Trash2, EllipsisVertical, FolderOutput, FolderInput } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { notesStore, notebookStore, manuscriptStore, editorState, projectState, navigationStore } from '$lib/stores';
+  import { BookOpen, FileText, Plus, Pencil, Trash2, EllipsisVertical, FolderOutput, FolderInput } from 'lucide-svelte';
+  import { notebookStore, notesStore, editorState, projectState, navigationStore } from '$lib/stores';
   import BinderSection from './BinderSection.svelte';
   import BinderItem from './BinderItem.svelte';
   import ContextMenu from '$lib/components/common/ContextMenu.svelte';
@@ -47,16 +46,25 @@
     }
   });
 
+  // Load notebook on mount if not yet loaded
+  $effect(() => {
+    if (!notebookStore.isLoaded && !notebookStore.isLoading) {
+      notebookStore.loadConfig().catch((e) => {
+        console.error('Failed to load notebook config:', e);
+      });
+    }
+  });
+
   async function confirmCreate(): Promise<void> {
     const title = newNoteTitle.trim();
-    if (!title || !projectState.projectPath) {
+    if (!title) {
       cancelCreate();
       return;
     }
     try {
-      await notesStore.createNote(projectState.projectPath, title);
+      await notebookStore.createNote(title);
     } catch (e) {
-      console.error('Failed to create note:', e);
+      console.error('Failed to create notebook note:', e);
     }
     cancelCreate();
   }
@@ -77,7 +85,7 @@
   }
 
   function handleNoteClick(slug: string): void {
-    navigationStore.navigateTo({ type: 'note', slug });
+    navigationStore.navigateTo({ type: 'notebook-note', slug });
     onSelectNote?.(slug);
   }
 
@@ -104,15 +112,15 @@
   }
 
   async function confirmDelete(): Promise<void> {
-    if (!deleteTarget || !projectState.projectPath) return;
+    if (!deleteTarget) return;
     const { slug } = deleteTarget;
     try {
       // Close open tab for this note
-      const tabId = `note:${slug}`;
+      const tabId = `notebook-note:${slug}`;
       editorState.closeTab(tabId);
-      await notesStore.deleteNote(projectState.projectPath, slug);
+      await notebookStore.deleteNote(slug);
     } catch (e) {
-      console.error('Failed to delete note:', e);
+      console.error('Failed to delete notebook note:', e);
     }
     deleteTarget = null;
   }
@@ -130,14 +138,14 @@
 
   async function confirmRename(): Promise<void> {
     const newTitle = renameValue.trim();
-    if (!newTitle || !renamingSlug || !projectState.projectPath || newTitle === getNoteTitle(renamingSlug)) {
+    if (!newTitle || !renamingSlug || newTitle === getNoteTitle(renamingSlug)) {
       cancelRename();
       return;
     }
     try {
-      await notesStore.renameNote(projectState.projectPath, renamingSlug, newTitle);
+      await notebookStore.renameNote(renamingSlug, newTitle);
     } catch (e) {
-      console.error('Failed to rename note:', e);
+      console.error('Failed to rename notebook note:', e);
     }
     cancelRename();
   }
@@ -158,92 +166,74 @@
   }
 
   function getNoteTitle(slug: string): string {
-    return notesStore.notes.find(n => n.slug === slug)?.title ?? '';
+    return notebookStore.notes.find((n) => n.slug === slug)?.title ?? '';
+  }
+
+  // Copy/move to project handlers
+  async function handleCopyToProject(slug: string): Promise<void> {
+    closeContextMenu();
+    const path = projectState.projectPath;
+    if (!path) return;
+    try {
+      await notebookStore.copyToProject(slug, path);
+      await notesStore.loadConfig(path);
+    } catch (e) {
+      console.error('Failed to copy notebook note to project:', e);
+    }
+  }
+
+  async function handleMoveToProject(slug: string): Promise<void> {
+    closeContextMenu();
+    const path = projectState.projectPath;
+    if (!path) return;
+    try {
+      // Close open tab for this note since it will be removed from notebook
+      const tabId = `notebook-note:${slug}`;
+      editorState.closeTab(tabId);
+      await notebookStore.moveToProject(slug, path);
+      await notesStore.loadConfig(path);
+    } catch (e) {
+      console.error('Failed to move notebook note to project:', e);
+    }
   }
 
   // Context menu items for a note
-  // Copy/move to notebook handlers
-  async function handleCopyToNotebook(slug: string): Promise<void> {
-    closeContextMenu();
-    const path = projectState.projectPath;
-    if (!path) return;
-    try {
-      await notesStore.copyToNotebook(path, slug);
-      notebookStore.isLoaded = false;
-      await notebookStore.loadConfig();
-    } catch (e) {
-      console.error('Failed to copy note to notebook:', e);
-    }
-  }
-
-  async function handleMoveToNotebook(slug: string): Promise<void> {
-    closeContextMenu();
-    const path = projectState.projectPath;
-    if (!path) return;
-    try {
-      const tabId = `note:${slug}`;
-      editorState.closeTab(tabId);
-      await notesStore.moveToNotebook(path, slug);
-      notebookStore.isLoaded = false;
-      await notebookStore.loadConfig();
-    } catch (e) {
-      console.error('Failed to move note to notebook:', e);
-    }
-  }
-
   function getContextMenuItems(slug: string, title: string) {
     return [
       { label: 'Rename', icon: Pencil, onclick: () => startRename(slug, title) },
       { label: '', separator: true },
-      { label: 'Copy to Notebook', icon: FolderOutput, onclick: () => handleCopyToNotebook(slug) },
-      { label: 'Move to Notebook', icon: FolderInput, onclick: () => handleMoveToNotebook(slug) },
+      {
+        label: 'Copy to Project',
+        icon: FolderOutput,
+        onclick: () => handleCopyToProject(slug),
+        disabled: !projectState.projectPath,
+      },
+      {
+        label: 'Move to Project',
+        icon: FolderInput,
+        onclick: () => handleMoveToProject(slug),
+        disabled: !projectState.projectPath,
+      },
       { label: '', separator: true },
       { label: 'Delete', icon: Trash2, onclick: () => handleDeleteRequest(slug, title) },
     ];
   }
-
-  // Listen for sakya:create-note custom events from WelcomeCard
-  $effect(() => {
-    function handleCreateNoteEvent() {
-      handleAdd();
-    }
-    window.addEventListener('sakya:create-note', handleCreateNoteEvent);
-    return () => {
-      window.removeEventListener('sakya:create-note', handleCreateNoteEvent);
-    };
-  });
-
-  // Auto-load config once on mount (track path to avoid infinite loop with empty notes)
-  let loadedPath: string | null = null;
-
-  $effect(() => {
-    const path = projectState.projectPath;
-    if (path && path !== loadedPath && !notesStore.isLoading) {
-      // Untrack: loadedPath and notes mutations from loadConfig must not re-trigger this effect
-      untrack(() => {
-        loadedPath = path;
-        notesStore.loadConfig(path).catch((e) => {
-          console.error('Failed to load notes config:', e);
-        });
-      });
-    }
-  });
 </script>
 
 <BinderSection
-  title="Notes"
-  icon={StickyNote}
-  count={notesStore.noteCount}
+  title="Notebook"
+  icon={BookOpen}
+  count={notebookStore.noteCount}
   bind:isOpen={isOpen}
   onAdd={handleAdd}
 >
-  {#if notesStore.notes.length === 0 && !isCreating}
+  {#if notebookStore.notes.length === 0 && !isCreating}
     <button class="placeholder-cta" type="button" onclick={handleAdd}>
       <Plus size={12} /> Add first note
     </button>
   {/if}
 
-  {#each notesStore.notes as note (note.slug)}
+  {#each notebookStore.notes as note (note.slug)}
     {#if renamingSlug === note.slug}
       <div class="inline-input-wrapper">
         <input
@@ -261,8 +251,8 @@
         <BinderItem
           label={note.title}
           icon={FileText}
-          isSelected={notesStore.activeNoteSlug === note.slug}
-          isActive={notesStore.activeNoteSlug === note.slug}
+          isSelected={notebookStore.activeNoteSlug === note.slug}
+          isActive={notebookStore.activeNoteSlug === note.slug}
           onclick={() => handleNoteClick(note.slug)}
           oncontextmenu={(e) => handleContextMenu(e, note.slug, note.title)}
           indent={1}
@@ -311,7 +301,7 @@
 
 <ConfirmDialog
   isOpen={deleteTarget !== null}
-  title="Delete Note"
+  title="Delete Notebook Note"
   message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.title}"? This action cannot be undone.` : ''}
   confirmLabel="Delete"
   destructive={true}

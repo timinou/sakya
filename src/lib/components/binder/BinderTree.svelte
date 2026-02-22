@@ -14,6 +14,7 @@
   import BinderItem from './BinderItem.svelte';
   import ManuscriptSection from './ManuscriptSection.svelte';
   import NotesSection from './NotesSection.svelte';
+  import NotebookSection from './NotebookSection.svelte';
   import ContextMenu from '$lib/components/common/ContextMenu.svelte';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
   import SchemaTemplatePicker from './SchemaTemplatePicker.svelte';
@@ -526,6 +527,9 @@
 
   <!-- Notes section -->
   <NotesSection {onSelectNote} />
+
+  <!-- Notebook section (always visible, app-level) -->
+  <NotebookSection />
 
   {#if entityStore.isLoading}
     <div class="loading-indicator">
