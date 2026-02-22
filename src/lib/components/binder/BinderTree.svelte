@@ -16,6 +16,8 @@
   import NotesSection from './NotesSection.svelte';
   import ContextMenu from '$lib/components/common/ContextMenu.svelte';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+  import SchemaTemplatePicker from './SchemaTemplatePicker.svelte';
+  import type { EntitySchema } from '$lib/types/entity';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = ComponentType<any>;
@@ -54,6 +56,9 @@
 
   // Delete entity type state
   let deleteTypeTarget = $state<{ schemaType: string; sectionTitle: string } | null>(null);
+
+  // Schema template picker state
+  let templatePickerState = $state<{ x: number; y: number } | null>(null);
 
   // Rename state
   let renamingKey = $state<string | null>(null);  // "schemaType:slug" format
@@ -236,9 +241,26 @@
     window.dispatchEvent(new CustomEvent('sakya:edit-schema', { detail: { entityType } }));
   }
 
-  function handleNewType(): void {
+  function handleNewType(e?: MouseEvent): void {
+    // Capture position before closing context menu (closeSectionContextMenu nulls it)
+    const pos = sectionContextMenu ? { x: sectionContextMenu.x, y: sectionContextMenu.y } : null;
     closeSectionContextMenu();
-    window.dispatchEvent(new CustomEvent('sakya:new-schema'));
+    if (e) {
+      templatePickerState = { x: e.clientX, y: e.clientY };
+    } else if (pos) {
+      templatePickerState = pos;
+    } else {
+      templatePickerState = { x: 160, y: window.innerHeight / 2 };
+    }
+  }
+
+  function handleTemplateSelect(template: EntitySchema | null): void {
+    templatePickerState = null;
+    window.dispatchEvent(new CustomEvent('sakya:new-schema', { detail: { template } }));
+  }
+
+  function closeTemplatePicker(): void {
+    templatePickerState = null;
   }
 
   // --- Delete entity ---
@@ -496,7 +518,7 @@
     <button
       class="new-entity-type-btn"
       type="button"
-      onclick={() => handleNewType()}
+      onclick={(e) => handleNewType(e)}
     >
       <Plus size={12} /> New Entity Type
     </button>
@@ -554,6 +576,16 @@
   onConfirm={confirmDeleteType}
   onCancel={cancelDeleteType}
 />
+
+<!-- Schema template picker -->
+{#if templatePickerState}
+  <SchemaTemplatePicker
+    x={templatePickerState.x}
+    y={templatePickerState.y}
+    onSelect={handleTemplateSelect}
+    onClose={closeTemplatePicker}
+  />
+{/if}
 
 <style>
   .binder-tree {

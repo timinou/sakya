@@ -109,8 +109,9 @@
       openSchemaTab(detail.entityType);
     }
 
-    function handleNewSchema() {
-      openNewSchemaTab();
+    function handleNewSchema(e: Event) {
+      const detail = (e as CustomEvent<{ template?: EntitySchema }>).detail;
+      openNewSchemaTab(detail?.template ?? undefined);
     }
 
     window.addEventListener('sakya:edit-schema', handleEditSchema);
@@ -151,27 +152,20 @@
     });
   }
 
-  function openNewSchemaTab() {
+  function openNewSchemaTab(template?: EntitySchema) {
     const tabId = 'schema:__new__';
 
-    if (!schemaCache[tabId]) {
-      schemaCache[tabId] = {
-        schema: {
-          name: '',
-          entityType: '',
-          icon: '',
-          color: '',
-          description: '',
-          fields: [],
-          spiderAxes: [],
-        },
-        isNew: true,
-      };
-    }
+    // Always overwrite the cache — user may pick a different template
+    schemaCache[tabId] = {
+      schema: template
+        ? { ...template, entityType: '', name: template.name }
+        : { name: '', entityType: '', icon: '', color: '', description: '', fields: [], spiderAxes: [] },
+      isNew: true,
+    };
 
     editorState.openDocument({
       id: tabId,
-      title: 'New Entity Type',
+      title: template ? `New: ${template.name}` : 'New Entity Type',
       documentType: 'schema',
       documentSlug: '__new__',
       isDirty: false,

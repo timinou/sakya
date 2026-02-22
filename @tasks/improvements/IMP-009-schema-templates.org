@@ -1,0 +1,92 @@
+#+TITLE: IMP-009 Schema Templates for New Entity Types
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-009 Schema Templates for New Entity Types
+:PROPERTIES:
+:CUSTOM_ID: IMP-009
+:GOAL: Provide pre-built schema templates when creating new entity types, so users don't start from scratch every time.
+:COMPLETION: SchemaTemplatePicker appears on "New Entity Type" click, offers Blank + 6 templates, pre-fills SchemaEditor.
+:END:
+
+** DONE Schema template data file
+CLOSED: [2026-02-22 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-915
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:FILES: src/lib/data/schema-templates.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create =src/lib/data/schema-templates.ts= exporting =SCHEMA_TEMPLATES: EntitySchema[]= with 6 templates: Faction, Event, Magic System, Relationship, Species, Lore.
+
+*** Acceptance Criteria
+- [X] File exports SCHEMA_TEMPLATES array
+- [X] Each template is a valid EntitySchema with name, entityType, icon, color, description, fields, spiderAxes
+- [X] 6 templates defined
+
+** DONE SchemaTemplatePicker component
+CLOSED: [2026-02-22 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-916
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 45m
+:PRIORITY: #B
+:DEPENDS: ITEM-915
+:FILES: src/lib/components/binder/SchemaTemplatePicker.svelte
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Create a popover component that shows Blank + template options. Reuses ContextMenu positioning patterns. Filters out templates whose entityType already exists in the project.
+
+*** Acceptance Criteria
+- [X] Popover appears at click position
+- [X] Blank option at top
+- [X] Template options with colored dot, name, description
+- [X] Click-outside and Escape close
+- [X] Existing entity types filtered out
+
+** DONE BinderTree + EditorArea integration
+CLOSED: [2026-02-22 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-917
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:DEPENDS: ITEM-916
+:FILES: src/lib/components/binder/BinderTree.svelte, src/lib/components/layout/EditorArea.svelte
+:TEST_PLAN: compile, e2e
+:END:
+
+*** Description
+Wire BinderTree to show SchemaTemplatePicker on "New Entity Type" click. Wire EditorArea to accept template in =sakya:new-schema= event detail and pre-fill the SchemaEditor.
+
+*** Acceptance Criteria
+- [X] "New Entity Type" button opens picker instead of dispatching event directly
+- [X] Context menu "New Entity Type..." opens picker
+- [X] EditorArea receives template and pre-fills SchemaEditor
+- [X] Blank option produces same behavior as before
+
+** DONE Manual testing + commit
+CLOSED: [2026-02-22 Sat]
+:PROPERTIES:
+:CUSTOM_ID: ITEM-918
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 15m
+:PRIORITY: #B
+:DEPENDS: ITEM-917
+:FILES: @tasks/improvements/IMP-009-schema-templates.org
+:TEST_PLAN: compile, manual
+:END:
+
+*** Description
+Verify the feature works end-to-end: picker appears, templates load, blank works, existing types filtered. Run cargo test + cargo clippy to confirm no regressions.
+
+*** Acceptance Criteria
+- [X] cargo test passes
+- [X] cargo clippy clean
+- [X] Feature works in dev mode
