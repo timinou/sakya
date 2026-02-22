@@ -1,0 +1,95 @@
+#+TITLE: IMP-010 Reliability Hardening — Rust Tests + Store Guards + BUG-006 Closure
+#+AUTHOR: Sakya Development Team
+#+STARTUP: overview
+
+* IMP-010 Reliability Hardening — Rust Tests + Store Guards + BUG-006 Closure
+:PROPERTIES:
+:CUSTOM_ID: IMP-010
+:GOAL: Close latent test gaps and race conditions identified in the reliability audit.
+:COMPLETION: BUG-006 closed, error.rs fully tested, SyncStore StaleGuard-protected, no dead_code warnings.
+:END:
+
+** DONE Add notebook mocks to E2E infrastructure and close BUG-006
+:PROPERTIES:
+:CUSTOM_ID: ITEM-919
+:AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: e2e/utils/tauri-mocks.ts, @tasks/bugfixes/BUG-006-entity-tab-background.org
+:TEST_PLAN: e2e
+:END:
+
+*** Description
+The 6 BUG-006 cross-type tab switching E2E tests were failing because the
+notebook feature (added in feat/notebook) introduced ~get_notebook_config~ calls
+on binder mount, but the E2E mock setup lacked notebook command mocks. Added all
+11 notebook command mocks to ~setupDefaultTauriMocks~.
+
+*** Acceptance Criteria
+- [X] All 11 notebook Tauri commands mocked in ~setupDefaultTauriMocks~
+- [X] All 6 BUG-006 E2E tests pass GREEN
+- [X] All 14 entity-editing.spec.ts tests pass
+- [X] ITEM-205 and ITEM-206 marked DONE
+
+** DONE Add error.rs serialization and conversion tests
+:PROPERTIES:
+:CUSTOM_ID: ITEM-920
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 30m
+:PRIORITY: #B
+:FILES: src-tauri/src/error.rs
+:TEST_PLAN: test-rust
+:END:
+
+*** Description
+Added 20 tests to ~error.rs~ covering serialization, Display formatting, From
+conversions, and round-trip serialization for all 8 ~AppError~ variants.
+
+*** Acceptance Criteria
+- [X] Serialization test for each of 8 variants
+- [X] From conversion tests for Io, Json, Yaml
+- [X] Display formatting tests for all variants
+- [X] Round-trip serialization test
+- [X] All 20 tests pass
+
+** DONE Add StaleGuard to SyncStore
+:PROPERTIES:
+:CUSTOM_ID: ITEM-921
+:AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
+:EFFORT: 30m
+:PRIORITY: #A
+:FILES: src/lib/stores/sync.svelte.ts
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Added ~StaleGuard~ protection to ~SyncStore~ to prevent race conditions on rapid
+connect/disconnect/refresh cycles. Guards 8 async methods that mutate store state
+after awaiting IPC calls.
+
+*** Acceptance Criteria
+- [X] Import StaleGuard from stale-guard.ts
+- [X] snapshot()/isStale() guards on connect, disconnect, refreshStatus
+- [X] snapshot()/isStale() guards on enableProjectSync, disableProjectSync
+- [X] snapshot()/isStale() guards on completePairing, listDevices, removeDevice
+- [X] guard.reset() in reset() method
+- [X] svelte-check passes with 0 errors
+
+** DONE Investigate notes.rs dead_code warnings
+:PROPERTIES:
+:CUSTOM_ID: ITEM-922
+:AGENT: [[file:../agents/rust-architect.org::#core][rust-architect:core]]
+:EFFORT: 15m
+:PRIORITY: #C
+:FILES: src-tauri/src/services/notes.rs
+:TEST_PLAN: compile
+:END:
+
+*** Description
+Ran ~cargo check~ and confirmed 0 dead_code warnings in the crate. The warnings
+reported by LSP were stale diagnostics — all ~pub fn~ functions in ~notes.rs~ are
+used by both ~commands/notes.rs~ and ~commands/notebook.rs~.
+
+*** Acceptance Criteria
+- [X] cargo check produces 0 dead_code warnings
+- [X] Confirmed stale LSP artifact — no code changes needed
