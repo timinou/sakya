@@ -2,9 +2,11 @@
   import { onMount } from 'svelte';
   import { projectState } from '$lib/stores';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { FolderOpen, Plus, FileText, Clock, X } from 'lucide-svelte';
+  import { FolderOpen, Plus, FileText, Clock, X, BookOpen } from 'lucide-svelte';
+  import NotebookView from '$lib/components/notebook/NotebookView.svelte';
 
   let showCreateForm = $state(false);
+  let showNotebook = $state(false);
   let newProjectName = $state('');
   let newProjectPath = $state('');
 
@@ -71,6 +73,8 @@
   {#await import('$lib/components/layout/AppShell.svelte') then { default: AppShell }}
     <AppShell />
   {/await}
+{:else if showNotebook}
+  <NotebookView onBack={() => { showNotebook = false; }} />
 {:else}
   <main class="launcher">
     <div class="launcher-card">
@@ -165,6 +169,10 @@
           <button class="btn-secondary" onclick={handleOpenProject}>
             <FolderOpen size={18} />
             Open Project
+          </button>
+          <button class="btn-secondary" onclick={() => { showNotebook = true; }}>
+            <BookOpen size={18} />
+            Notebook
           </button>
         </div>
       {/if}
