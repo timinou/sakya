@@ -1,6 +1,7 @@
 pub mod compile;
 pub mod entity;
 pub mod manuscript;
+pub mod notebook;
 pub mod notes;
 pub mod pairing;
 pub mod project;

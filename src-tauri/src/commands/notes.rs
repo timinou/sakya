@@ -1,60 +1,25 @@
 use std::path::PathBuf;
 
 use crate::error::AppError;
-use crate::models::notes::{NoteContent, NoteEntry, NoteFrontmatter, NotesConfig};
-use crate::services::frontmatter;
-use crate::services::slug_service::slugify;
-use crate::services::yaml_service::{read_yaml, write_yaml};
-
-/// Helper: path to notes directory.
-fn notes_dir(project_path: &str) -> PathBuf {
-    PathBuf::from(project_path).join("notes")
-}
-
-/// Helper: path to notes config YAML.
-fn config_path(project_path: &str) -> PathBuf {
-    notes_dir(project_path).join("notes.yaml")
-}
-
-/// Helper: path to a note Markdown file.
-fn note_path(project_path: &str, slug: &str) -> PathBuf {
-    notes_dir(project_path).join(format!("{}.md", slug))
-}
+use crate::models::notes::{NoteContent, NotesConfig};
+use crate::services::notes as notes_svc;
 
 /// Read the notes config, returning an empty config if the file doesn't exist.
 #[tauri::command]
 pub fn get_notes_config(project_path: String) -> Result<NotesConfig, AppError> {
-    let path = config_path(&project_path);
-    if !path.exists() {
-        return Ok(NotesConfig { notes: vec![] });
-    }
-    read_yaml(&path)
+    notes_svc::get_notes_config(&PathBuf::from(&project_path))
 }
 
 /// Write the notes config to disk, creating the directory if needed.
 #[tauri::command]
 pub fn save_notes_config(project_path: String, config: NotesConfig) -> Result<(), AppError> {
-    let path = config_path(&project_path);
-    write_yaml(&path, &config)
+    notes_svc::save_notes_config(&PathBuf::from(&project_path), &config)
 }
 
 /// Read a note file, parsing its frontmatter and body.
 #[tauri::command]
 pub fn get_note(project_path: String, slug: String) -> Result<NoteContent, AppError> {
-    let path = note_path(&project_path, &slug);
-    if !path.exists() {
-        return Err(AppError::NotFound(format!("Note not found: {}", slug)));
-    }
-
-    let content = std::fs::read_to_string(&path)?;
-    let doc: frontmatter::ParsedDocument<NoteFrontmatter> = frontmatter::parse(&content)?;
-    let fm = doc.frontmatter;
-
-    Ok(NoteContent {
-        slug: fm.slug,
-        title: fm.title,
-        body: doc.body,
-    })
+    notes_svc::get_note(&PathBuf::from(&project_path), &slug)
 }
 
 /// Write a note file with the given frontmatter and body.
@@ -65,81 +30,19 @@ pub fn save_note(
     title: String,
     body: String,
 ) -> Result<(), AppError> {
-    let dir = notes_dir(&project_path);
-    std::fs::create_dir_all(&dir)?;
-
-    let fm = NoteFrontmatter {
-        title,
-        slug: slug.clone(),
-    };
-
-    let path = note_path(&project_path, &slug);
-    let content = frontmatter::serialize(&fm, &body)?;
-    std::fs::write(&path, content)?;
-    Ok(())
+    notes_svc::save_note(&PathBuf::from(&project_path), &slug, &title, &body)
 }
 
 /// Create a new note: generate slug, write file, add to config, return NoteContent.
 #[tauri::command]
 pub fn create_note(project_path: String, title: String) -> Result<NoteContent, AppError> {
-    let slug = slugify(&title);
-    if slug.is_empty() {
-        return Err(AppError::Validation(
-            "Title must produce a non-empty slug".to_string(),
-        ));
-    }
-
-    let path = note_path(&project_path, &slug);
-    if path.exists() {
-        return Err(AppError::AlreadyExists(format!(
-            "Note already exists: {}",
-            slug
-        )));
-    }
-
-    // Save the note file
-    save_note(
-        project_path.clone(),
-        slug.clone(),
-        title.clone(),
-        String::new(),
-    )?;
-
-    // Update config
-    let mut config = get_notes_config(project_path.clone())?;
-    config.notes.push(NoteEntry {
-        slug: slug.clone(),
-        title: title.clone(),
-        color: None,
-        label: None,
-        position: None,
-        size: None,
-    });
-    save_notes_config(project_path, config)?;
-
-    Ok(NoteContent {
-        slug,
-        title,
-        body: String::new(),
-    })
+    notes_svc::create_note(&PathBuf::from(&project_path), &title)
 }
 
 /// Delete a note file and remove it from the notes config.
 #[tauri::command]
 pub fn delete_note(project_path: String, slug: String) -> Result<(), AppError> {
-    let path = note_path(&project_path, &slug);
-    if !path.exists() {
-        return Err(AppError::NotFound(format!("Note not found: {}", slug)));
-    }
-
-    std::fs::remove_file(&path)?;
-
-    // Remove from config
-    let mut config = get_notes_config(project_path.clone())?;
-    config.notes.retain(|n| n.slug != slug);
-    save_notes_config(project_path, config)?;
-
-    Ok(())
+    notes_svc::delete_note(&PathBuf::from(&project_path), &slug)
 }
 
 /// Rename a note: update its title (and slug/filename if the slug changes).
@@ -149,71 +52,14 @@ pub fn rename_note(
     slug: String,
     new_title: String,
 ) -> Result<NoteContent, AppError> {
-    let existing = get_note(project_path.clone(), slug.clone())?;
-    let new_slug = slugify(&new_title);
-
-    if new_slug.is_empty() {
-        return Err(AppError::Validation(
-            "Title must produce a non-empty slug".to_string(),
-        ));
-    }
-
-    let body = existing.body;
-
-    if new_slug == slug {
-        // Same slug — just update the title in place
-        save_note(
-            project_path.clone(),
-            slug.clone(),
-            new_title.clone(),
-            body.clone(),
-        )?;
-
-        // Update the notes config title
-        let mut config = get_notes_config(project_path.clone())?;
-        if let Some(entry) = config.notes.iter_mut().find(|n| n.slug == slug) {
-            entry.title = new_title.clone();
-        }
-        save_notes_config(project_path, config)?;
-
-        return Ok(NoteContent {
-            slug,
-            title: new_title,
-            body,
-        });
-    }
-
-    // Different slug — write new file, delete old, update config
-    save_note(
-        project_path.clone(),
-        new_slug.clone(),
-        new_title.clone(),
-        body.clone(),
-    )?;
-
-    // Delete the old file
-    let old_path = note_path(&project_path, &slug);
-    std::fs::remove_file(&old_path)?;
-
-    // Update the notes config: replace old slug/title with new
-    let mut config = get_notes_config(project_path.clone())?;
-    if let Some(entry) = config.notes.iter_mut().find(|n| n.slug == slug) {
-        entry.slug = new_slug.clone();
-        entry.title = new_title.clone();
-    }
-    save_notes_config(project_path, config)?;
-
-    Ok(NoteContent {
-        slug: new_slug,
-        title: new_title,
-        body,
-    })
+    notes_svc::rename_note(&PathBuf::from(&project_path), &slug, &new_title)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::notes::CorkboardPosition;
+    use crate::models::notes::{CorkboardPosition, NoteEntry};
+    use crate::services::yaml_service::write_yaml;
     use crate::test_helpers::setup_test_dir;
 
     // ── get_notes_config ──────────────────────────────────────────

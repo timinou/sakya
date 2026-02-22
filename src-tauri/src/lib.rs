@@ -72,6 +72,17 @@ pub fn run() {
             commands::pairing::complete_pairing,
             commands::pairing::list_paired_devices,
             commands::pairing::remove_device,
+            commands::notebook::get_notebook_config,
+            commands::notebook::save_notebook_config,
+            commands::notebook::get_notebook_note,
+            commands::notebook::save_notebook_note,
+            commands::notebook::create_notebook_note,
+            commands::notebook::delete_notebook_note,
+            commands::notebook::rename_notebook_note,
+            commands::notebook::copy_notebook_to_project,
+            commands::notebook::copy_project_to_notebook,
+            commands::notebook::move_notebook_to_project,
+            commands::notebook::move_project_to_notebook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
