@@ -198,6 +198,23 @@ class NotesStore {
     this.activeNoteSlug = slug;
   }
 
+  /** Copy a project note to the notebook */
+  async copyToNotebook(projectPath: string, slug: string): Promise<NoteContent> {
+    const result = await invoke<NoteContent>('copy_project_to_notebook', { slug, projectPath });
+    return result;
+  }
+
+  /** Move a project note to the notebook (removes from project) */
+  async moveToNotebook(projectPath: string, slug: string): Promise<NoteContent> {
+    const result = await invoke<NoteContent>('move_project_to_notebook', { slug, projectPath });
+    delete this.noteContent[slug];
+    if (this.activeNoteSlug === slug) {
+      this.activeNoteSlug = null;
+    }
+    await this.loadConfig(projectPath);
+    return result;
+  }
+
   reset(): void {
     this.config = { notes: [] };
     this.noteContent = {};

@@ -4,6 +4,7 @@ export { uiState } from './ui.svelte';
 export { entityStore } from './entities.svelte';
 export { manuscriptStore } from './manuscript.svelte';
 export { notesStore } from './notes.svelte';
+export { notebookStore } from './notebook.svelte';
 export { sprintStore } from './sprint.svelte';
 export { sessionsStore } from './sessions.svelte';
 export { syncStore } from './sync.svelte';
