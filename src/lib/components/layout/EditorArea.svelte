@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { manuscriptStore, notesStore, editorState, projectState, entityStore } from '$lib/stores';
+  import { manuscriptStore, notesStore, notebookStore, editorState, projectState, entityStore } from '$lib/stores';
   import type { EntitySchema, EntityInstance } from '$lib/types';
   import SakyaEditor from '$lib/editor/SakyaEditor.svelte';
   import SchemaEditor from '$lib/components/entities/SchemaEditor.svelte';
@@ -44,8 +44,18 @@
   // Tab opening is handled by NavigationStore — this effect only loads content.
   $effect(() => {
     const tab = editorState.activeTab;
+    if (!tab) return;
+
+    // Notebook notes don't require a project path
+    if (tab.documentType === 'notebook-note') {
+      if (!contentCache[tab.id]) {
+        untrack(() => loadNotebookNoteContent(tab.documentSlug, tab.id));
+      }
+      return;
+    }
+
     const path = projectState.projectPath;
-    if (!tab || !path) return;
+    if (!path) return;
 
     switch (tab.documentType) {
       case 'chapter':
@@ -221,21 +231,42 @@
     }
   }
 
+  async function loadNotebookNoteContent(slug: string, tabId: string) {
+    isLoadingContent = true;
+    try {
+      const content = await notebookStore.loadNoteContent(slug);
+      contentCache[tabId] = { slug: content.slug, body: content.body };
+    } catch (e) {
+      console.error('[EditorArea] Failed to load notebook note content:', e);
+    } finally {
+      isLoadingContent = false;
+    }
+  }
+
   async function handleSave(markdown: string) {
     const tab = editorState.activeTab;
-    const path = projectState.projectPath;
-    if (!tab || !path) return;
+    if (!tab) return;
 
-    if (tab.documentType === 'chapter') {
+    if (tab.documentType === 'notebook-note') {
       const slug = tab.documentSlug;
-      const chapter = manuscriptStore.chapters.find((c) => c.slug === slug);
-      if (!chapter) return;
-      await manuscriptStore.saveChapterContent(path, slug, chapter, markdown);
-    } else if (tab.documentType === 'note') {
-      const slug = tab.documentSlug;
-      const note = notesStore.notes.find((n) => n.slug === slug);
+      const note = notebookStore.notes.find((n) => n.slug === slug);
       if (!note) return;
-      await notesStore.saveNoteContent(path, slug, note.title, markdown);
+      await notebookStore.saveNoteContent(slug, note.title, markdown);
+    } else {
+      const path = projectState.projectPath;
+      if (!path) return;
+
+      if (tab.documentType === 'chapter') {
+        const slug = tab.documentSlug;
+        const chapter = manuscriptStore.chapters.find((c) => c.slug === slug);
+        if (!chapter) return;
+        await manuscriptStore.saveChapterContent(path, slug, chapter, markdown);
+      } else if (tab.documentType === 'note') {
+        const slug = tab.documentSlug;
+        const note = notesStore.notes.find((n) => n.slug === slug);
+        if (!note) return;
+        await notesStore.saveNoteContent(path, slug, note.title, markdown);
+      }
     }
 
     editorState.setDirty(tab.id, false);

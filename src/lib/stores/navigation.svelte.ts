@@ -3,6 +3,7 @@ import { editorState } from './editor.svelte';
 import { manuscriptStore } from './manuscript.svelte';
 import { notesStore } from './notes.svelte';
 import { entityStore } from './entities.svelte';
+import { notebookStore } from './notebook.svelte';
 
 /**
  * Stateless coordination layer for all navigation.
@@ -65,6 +66,19 @@ class NavigationStore {
         }
         break;
       }
+      case 'notebook-note': {
+        const note = notebookStore.notes.find((n) => n.slug === target.slug);
+        if (!note) return;
+        notebookStore.selectNote(target.slug);
+        editorState.openDocument({
+          id: `notebook-note:${target.slug}`,
+          title: `[NB] ${note.title}`,
+          documentType: 'notebook-note',
+          documentSlug: target.slug,
+          isDirty: false,
+        });
+        break;
+      }
       case 'stats': {
         editorState.openDocument({
           id: 'stats',
@@ -98,6 +112,9 @@ class NavigationStore {
       case 'note':
         notesStore.selectNote(tab.documentSlug);
         break;
+      case 'notebook-note':
+        notebookStore.selectNote(tab.documentSlug);
+        break;
     }
   }
 
@@ -126,6 +143,9 @@ class NavigationStore {
         case 'note':
           notesStore.selectNote(newActive.documentSlug);
           break;
+        case 'notebook-note':
+          notebookStore.selectNote(newActive.documentSlug);
+          break;
       }
     }
   }
@@ -134,6 +154,7 @@ class NavigationStore {
   private clearSelections(): void {
     manuscriptStore.selectChapter('');
     notesStore.selectNote('');
+    notebookStore.selectNote('');
     entityStore.currentEntity = null;
   }
 
@@ -145,6 +166,9 @@ class NavigationStore {
         break;
       case 'note':
         notesStore.selectNote('');
+        break;
+      case 'notebook-note':
+        notebookStore.selectNote('');
         break;
       case 'entity':
         entityStore.currentEntity = null;

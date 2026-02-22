@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { Snippet } from 'svelte';
   import type { Chapter, ChapterStatus } from '$lib/types';
-  import { uiState, editorState, manuscriptStore, notesStore, projectState, sprintStore, entityStore, navigationStore } from '$lib/stores';
+  import { uiState, editorState, manuscriptStore, notesStore, notebookStore, projectState, sprintStore, entityStore, navigationStore } from '$lib/stores';
   import { SearchPalette, ToastContainer } from '$lib/components/common';
   import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
   import CompileDialog from '$lib/components/compile/CompileDialog.svelte';
@@ -468,6 +468,12 @@
               note={notesStore.activeNote}
               bodyPreview={notesStore.noteContent[notesStore.activeNote.slug]?.body ?? ''}
               onOpenInTab={handleInspectorOpenNoteInTab}
+            />
+          {:else if editorState.activeTab?.documentType === 'notebook-note' && notebookStore.activeNote}
+            <NoteInspector
+              note={notebookStore.activeNote}
+              bodyPreview={notebookStore.noteContent[notebookStore.activeNote.slug]?.body ?? ''}
+              onOpenInTab={(slug) => navigationStore.navigateTo({ type: 'notebook-note', slug })}
             />
           {:else if uiState.viewMode === 'corkboard' && notesStore.activeNote}
             <NoteInspector
