@@ -9,7 +9,7 @@
 :COMPLETION: Clicking any entity in the binder while a chapter/note is active switches focus to the entity tab; all 6 cross-type switching E2E tests pass.
 :END:
 
-** DOING Fix reactive dependency in EditorArea chapter/note effects
+** DONE Fix reactive dependency in EditorArea chapter/note effects
 :PROPERTIES:
 :CUSTOM_ID: ITEM-205
 :AGENT: [[file:../agents/svelte-developer.org::#core][svelte-developer:core]]
@@ -40,7 +40,7 @@ chapter/note, overriding ~activeTabId~ back to the chapter/note.
 - [X] ~handleNoteClick~ clears ~activeChapterSlug~
 - [X] ~handleSearchNavigate~ clears cross-type selections appropriately
 
-** DOING Write cross-type tab switching E2E tests
+** DONE Write cross-type tab switching E2E tests
 :PROPERTIES:
 :CUSTOM_ID: ITEM-206
 :AGENT: [[file:../agents/testing-engineer.org::#core][testing-engineer:core]]
@@ -55,10 +55,10 @@ Add 6 E2E tests verifying cross-type tab switching works correctly when
 navigating between chapters, notes, and entities.
 
 *** Acceptance Criteria
-- [ ] Test: clicking entity when chapter is active switches to entity tab
-- [ ] Test: clicking entity when note is active switches to entity tab
-- [ ] Test: clicking different entities switches active tab
-- [ ] Test: can return to chapter tab after opening entity
-- [ ] Test: clicking entity with no prior tab makes it active
-- [ ] Test: activeChapterSlug is cleared after clicking entity
-- [ ] All 6 tests pass GREEN
+- [X] Test: clicking entity when chapter is active switches to entity tab
+- [X] Test: clicking entity when note is active switches to entity tab
+- [X] Test: clicking different entities switches active tab
+- [X] Test: can return to chapter tab after opening entity
+- [X] Test: clicking entity with no prior tab makes it active
+- [X] Test: activeChapterSlug is cleared after clicking entity
+- [X] All 6 tests pass GREEN

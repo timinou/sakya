@@ -604,6 +604,23 @@ export async function setupDefaultTauriMocks(
     })) as MockHandler,
     save_notes_config: null,
 
+    // --- Notebook commands (app-level notebook, not project notes) ---
+    get_notebook_config: { notes: [] },
+    save_notebook_config: null,
+    get_notebook_note: null,
+    save_notebook_note: null,
+    create_notebook_note: ((args: Record<string, unknown> | undefined) => ({
+      slug: (args?.title as string)?.toLowerCase().replace(/\s+/g, "-") ?? "new-notebook-note",
+      title: args?.title ?? "New Notebook Note",
+      body: "",
+    })) as MockHandler,
+    delete_notebook_note: null,
+    rename_notebook_note: null,
+    copy_notebook_to_project: null,
+    copy_project_to_notebook: null,
+    move_notebook_to_project: null,
+    move_project_to_notebook: null,
+
     // --- Session commands ---
     start_session: "2026-02-15T16:00:00Z",
     end_session: null,
